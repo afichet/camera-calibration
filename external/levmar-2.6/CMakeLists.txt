@@ -17,6 +17,13 @@ SET(LM_DBL_PREC 1 CACHE BOOL "Build double precision routines?")
 SET(LM_SNGL_PREC 1 CACHE BOOL "Build single precision routines?")
 OPTION(BUILD_DEMO "Build demo program?" TRUE)
 
+IF(MSVC)
+    SET(NEED_F2C 0)
+    SET(HAVE_LAPACK 0)
+else()
+    set(LIBS m)
+endif()
+
 # actual names for the lapack/blas/f2c libraries
 SET(LAPACKBLAS_LIB_NAMES "lapack;blas" CACHE STRING "The name of the lapack & blas libraries")
 #SET(LAPACKBLAS_LIB_NAMES "mkl_solver_sequential;mkl_intel_c;mkl_sequential;mkl_core" CACHE STRING "The name of the lapack library") # MKL
@@ -78,11 +85,7 @@ ADD_LIBRARY(levmar STATIC
 
 #LINK_DIRECTORIES(${CMAKE_BINARY_DIR}) # location of the levmar library
 #LINK_DIRECTORIES(${LAPACKBLAS_DIR})
-IF(MSVC)
-    SET(NEED_F2C 0)
-else()
-    set(LIBS m)
-endif()
+
 
 # libraries the demo depends on
 IF(HAVE_PLASMA)
