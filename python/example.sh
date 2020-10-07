@@ -8,9 +8,9 @@ mkdir output
     --output output/patches.csv
 
 ./extract_matrix.py \
-    --reference data/macbeth_patches.csv \
-    --illuminant data/D65.csv \
-    --cmf data/XYZ.csv \
+    --reference ../data/macbeth_patches.csv \
+    --illuminant ../data/D65.csv \
+    --cmf ../data/XYZ.csv \
     --camera output/patches.csv \
     --output output/d65_xyz_matrix.csv
 
