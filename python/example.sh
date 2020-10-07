@@ -3,8 +3,8 @@
 mkdir output
 
 ./extract_patches.py \
-    --image measurements/Colors_0000000320_dem.tiff \
-    --areas measurements/boxes.csv \
+    --image ../measurements/Colors_0000000320_dem.tiff \
+    --areas ../measurements/boxes.csv \
     --output output/patches.csv
 
 ./extract_matrix.py \
