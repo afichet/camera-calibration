@@ -20,3 +20,37 @@ You still need the python utility `extract_patches.py` in `python` for extractin
     --areas measurements/boxes.csv \
     --output output/patches.csv
 ```
+
+Then, you need to generate a reference set of Macbeth patches given an illuminant and color matching functions:
+
+```bash
+./bin/gen-ref-colorchart \
+    data/D65.csv \
+    data/XYZ.csv \
+    output/reference.csv
+```
+
+```bash
+
+./bin/gen-colorchart-image \
+    output/reference.csv \
+    output/reference.png
+
+./bin/gen-colorchart-image \
+    patches.csv \
+    output/orig_measured.png
+
+./bin/extract-matrix \
+    output/reference.csv \
+    patches.csv \
+    output/matrix.csv
+
+./bin/correct-patches \
+    patches.csv \
+    output/matrix.csv \
+    output/corrected_patches.csv
+
+./bin/gen-colorchart-image \
+    output/corrected_patches.csv \
+    output/corrected_measured.png
+```
