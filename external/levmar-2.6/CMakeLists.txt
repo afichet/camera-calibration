@@ -17,7 +17,7 @@ SET(LM_DBL_PREC 1 CACHE BOOL "Build double precision routines?")
 SET(LM_SNGL_PREC 1 CACHE BOOL "Build single precision routines?")
 OPTION(BUILD_DEMO "Build demo program?" TRUE)
 
-IF(MSVC)
+IF(MSVC OR APPLE)
     SET(NEED_F2C 0)
     SET(HAVE_LAPACK 0)
 else()
@@ -107,6 +107,7 @@ target_link_libraries(levmar PUBLIC ${LIBS})
 
 INSTALL(TARGETS levmar
         #LIBRARY DESTINATION ${CMAKE_INSTALL_LIBDIR}
+	ARCHIVE DESTINATION ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY}
         PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
     )
 
