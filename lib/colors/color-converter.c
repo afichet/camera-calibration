@@ -33,9 +33,9 @@ void XYZ_to_Lab(const float* XYZ, float* Lab)
 void XYZ_to_RGB(const float* XYZ, float* RGB) 
 {
     static const float m[9] = {
-        3.2404542,-1.5371385,-0.4985314,
-        -0.9692660, 1.8760108, 0.0415560,
-        0.0556434,-0.2040259, 1.0572252
+        3.2404542f,-1.5371385f,-0.4985314f,
+        -0.9692660f, 1.8760108f, 0.0415560f,
+        0.0556434f,-0.2040259f, 1.0572252f
     };
 
     RGB[0] = m[0] * XYZ[0] + m[1] * XYZ[1] + m[2] * XYZ[2];
@@ -46,26 +46,26 @@ void XYZ_to_RGB(const float* XYZ, float* RGB)
 
 float from_sRGB(float c) 
 {
-  if (c <= 0.04045F) { return c / 12.92F; }
-  return powf((c + 0.055F) / 1.055, 2.4F);
+  if (c <= 0.04045f) { return c / 12.92f; }
+  return powf((c + 0.055f) / 1.055f, 2.4F);
 }
 
 
 float to_sRGB(float c)
 {
-  if (c <= 0.F) { return 0.F; }
-  if (c >= 1.F) { return 1.F; }
-  if (c <= 0.0031308F) { return 12.92F * c; }
-  return 1.055 * powf(c, 0.41666) - 0.055;
+  if (c <= 0.f) { return 0.f; }
+  if (c >= 1.f) { return 1.f; }
+  if (c <= 0.0031308f) { return 12.92f * c; }
+  return 1.055f * powf(c, 0.41666f) - 0.055f;
 }
 
 
 float deg2rad(float deg) {
-    return deg*M_PI/180.f;
+    return deg*(float)M_PI/180.f;
 }
 
 float rad2deg(float rad) {
-    return rad*180.f/M_PI;
+    return rad*180.f/(float)M_PI;
 }
 
 float deltaE_2000(const float* Lab1, const float* Lab2) {
@@ -83,14 +83,14 @@ float deltaE_2000(const float* Lab1, const float* Lab2) {
     const float C2prime = sqrtf(a2prime*a2prime + Lab2[2]*Lab2[2]);
     const float barCprime = (C1prime + C2prime) / 2.f;
 
-    float h1prime = rad2deg(atan2(Lab1[2], a1prime));
+    float h1prime = rad2deg(atan2f(Lab1[2], a1prime));
     if (h1prime < 0.f) { h1prime += 360.f; }
 
-    float h2prime = rad2deg(atan2(Lab2[2], a2prime));
+    float h2prime = rad2deg(atan2f(Lab2[2], a2prime));
     if (h2prime < 0.f) { h2prime += 360.f; }
 
     float barHprime;
-    if (fabs(h1prime - h2prime) > 180.f) {
+    if (fabsf(h1prime - h2prime) > 180.f) {
         barHprime = (h1prime + h2prime + 360.f) / 2.f;
     } else {
         barHprime = (h1prime + h2prime) / 2.f;
@@ -103,7 +103,7 @@ float deltaE_2000(const float* Lab1, const float* Lab2) {
         - .20f * cosf(deg2rad(4.f*barHprime - 63.f));
 
     float deltahprime;
-    if (fabs(h2prime - h1prime) <= 180.f) {
+    if (fabsf(h2prime - h1prime) <= 180.f) {
         deltahprime = h2prime - h1prime;
     } else if (h2prime <= h1prime) {
         deltahprime = h2prime - h1prime + 360.f;
@@ -118,8 +118,8 @@ float deltaE_2000(const float* Lab1, const float* Lab2) {
     halfbarLprimeSqr *= halfbarLprimeSqr;
 
     const float SL = 1.f + (.015f*halfbarLprimeSqr) / sqrtf(20.f + halfbarLprimeSqr);
-    const float SC = 1.f + 0.045*barCprime;
-    const float SH = 1.f + 0.015*barCprime*T;
+    const float SC = 1.f + 0.045f*barCprime;
+    const float SH = 1.f + 0.015f*barCprime*T;
 
     const float expH = (barHprime - 275.f) / 25.f;
     const float dTheta = 30.f*expf(-expH*expH);

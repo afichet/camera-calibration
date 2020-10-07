@@ -78,7 +78,11 @@ ADD_LIBRARY(levmar STATIC
 
 #LINK_DIRECTORIES(${CMAKE_BINARY_DIR}) # location of the levmar library
 #LINK_DIRECTORIES(${LAPACKBLAS_DIR})
-set(LIBS m)
+IF(MSVC)
+    SET(NEED_F2C 0)
+else()
+    set(LIBS m)
+endif()
 
 # libraries the demo depends on
 IF(HAVE_PLASMA)

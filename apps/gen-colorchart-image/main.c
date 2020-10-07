@@ -15,6 +15,11 @@ int create_image(
     const size_t pixel_buffer_size = 4*width*height*sizeof(unsigned char);
     unsigned char* pixel_buffer = (unsigned char*)malloc(pixel_buffer_size);
 
+    if (pixel_buffer == NULL) {
+        fprintf(stderr, "Memomry allocation error");
+        return -1;
+    }
+
     memset(pixel_buffer, 0, pixel_buffer_size); 
 
     for (size_t y = 0; y < height; y++) {
@@ -48,7 +53,7 @@ int create_image(
                 XYZ_to_RGB(&patches_xyz[3*idx], rgb);
 
                 for (int c = 0; c < 3; c++) {
-                    pixel_buffer[4 * (width * y + x) + c] = 255*to_sRGB(rgb[c]);
+                    pixel_buffer[4 * (width * y + x) + c] = (unsigned char)(255.f*to_sRGB(rgb[c]));
                 }
             }
 

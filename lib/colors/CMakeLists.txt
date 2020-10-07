@@ -14,11 +14,10 @@ add_library(colors STATIC
 set_target_properties(colors PROPERTIES PUBLIC_HEADER "${PUBLIC_HEADERS}")
 target_include_directories(colors PUBLIC include)
 
-target_link_libraries(colors PUBLIC m)
-
 if (MSVC)
     target_compile_options(colors PUBLIC /W3)
 else()
+    target_link_libraries(colors PUBLIC m)
     target_compile_options(colors PUBLIC -Wall -Wextra -Wpedantic)
 endif()
 
