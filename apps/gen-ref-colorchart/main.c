@@ -21,7 +21,7 @@ void get_references_patches_xyz(
     const size_t n_macbeth_wavelengths = sizeof(macbeth_wavelengths) / sizeof(int);
     const size_t n_macbeth_patches = sizeof(macbeth_patches) / (n_macbeth_wavelengths * sizeof(float));
 
-    for (int i = 0; i < n_macbeth_patches; i++) {
+    for (size_t i = 0; i < n_macbeth_patches; i++) {
         spectrum_reflective_to_XYZ(
             macbeth_wavelengths,
             macbeth_patches[i],
