@@ -32,6 +32,8 @@
 
 #ifdef _MSC_VER
 #define LM_FINITE _finite // MSVC
+#elif __APPLE__
+#define LM_FINITE isfinite
 #elif defined(__ICC) || defined(__INTEL_COMPILER) || defined(__GNUC__)
 #define LM_FINITE finite // ICC, GCC
 #else
