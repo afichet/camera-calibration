@@ -164,7 +164,8 @@ int main(int argc, char *argv[])
     {
       for (uint32 x = areas[4 * a]; x < (uint32)areas[4 * a + 2]; x++)
       {
-        for (int c = 1; c < 3; c++) {
+        for (int c = 1; c < 3; c++)
+        {
           pixel_buffer[3 * (y * w + x) + c] *= .5f;
         }
       }

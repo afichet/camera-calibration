@@ -46,10 +46,13 @@ int create_image(float *patches_xyz, size_t width, size_t height, const char *ou
       {
         float rgb[3];
 
-        if (isXYZ != 0) {
+        if (isXYZ != 0)
+        {
           XYZ_to_RGB(&patches_xyz[3 * idx], rgb);
-        } else {
-          memcpy(rgb, &patches_xyz[3*idx], 3*sizeof(float));
+        }
+        else
+        {
+          memcpy(rgb, &patches_xyz[3 * idx], 3 * sizeof(float));
         }
 
         for (int c = 0; c < 3; c++)
@@ -92,7 +95,10 @@ int main(int argc, char *argv[])
   }
 
   int isXYZ = 1;
-  if (argc > 3) { isXYZ = strcmp(argv[3], "true"); }
+  if (argc > 3)
+  {
+    isXYZ = strcmp(argv[3], "true");
+  }
 
   create_image(macbeth_patches_xyz, 600, 400, argv[2], isXYZ);
 
