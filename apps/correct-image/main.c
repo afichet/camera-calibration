@@ -13,7 +13,7 @@ int main(int argc, char *argv[])
     printf(
         "Usage:\n"
         "------\n"
-        "correct-image <iamge_in> <matrix> <image_out>\n");
+        "correct-image <image_in> <matrix> <image_out>\n");
 
     return 0;
   }
@@ -65,7 +65,6 @@ int main(int argc, char *argv[])
     fprintf(stderr, "Cannot open image file\n");
     TIFFClose(tif_in);
     free(matrix);
-    TIFFClose(tif_out);
     return -1;
   }
 
@@ -122,11 +121,11 @@ int main(int argc, char *argv[])
             break;
 
           case 16:
-            ((uint16 *)buf_out)[spp * x + c] = to_sRGB(color_rgb_corrected[c]) * 65535.f;
+            ((uint16 *)buf_out)[spp * x + c] = color_rgb_corrected[c] * 65535.f;
             break;
 
           case 32:
-            ((uint32 *)buf_out)[spp * x + c] = to_sRGB(color_rgb_corrected[c]) * 4294967295.f;
+            ((uint32 *)buf_out)[spp * x + c] = color_rgb_corrected[c] * 4294967295.f;
             break;
         }
       }
