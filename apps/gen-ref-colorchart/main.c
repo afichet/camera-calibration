@@ -86,6 +86,12 @@ int main(int argc, const char *argv[])
   spectrum_oversample(wavelengths_cmfs_raw, values_cmfs_y_raw, size_cmfs_raw, &values_cmfs_y, &size_cmfs);
   spectrum_oversample(wavelengths_cmfs_raw, values_cmfs_z_raw, size_cmfs_raw, &values_cmfs_z, &size_cmfs);
 
+  free(wavelengths_cmfs_raw);
+  free(values_cmfs_x_raw);
+  free(values_cmfs_y_raw);
+  free(values_cmfs_z_raw);
+
+  // We now can compute the tristimul values of patches
   float macbeth_patches_xyz[24 * 3] = {0};
 
   get_references_patches_xyz(
@@ -100,11 +106,6 @@ int main(int argc, const char *argv[])
       macbeth_patches_xyz);
 
   save_xyz(argv[3], macbeth_patches_xyz, 24);
-
-  free(wavelengths_cmfs_raw);
-  free(values_cmfs_x_raw);
-  free(values_cmfs_y_raw);
-  free(values_cmfs_z_raw);
 
   free(values_illu);
   free(values_cmfs_x);

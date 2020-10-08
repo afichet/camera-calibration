@@ -26,6 +26,7 @@ int main(int argc, char *argv[])
 
   for (size_t i = 0; i < size; i++)
   {
+    // We multiply the correction matrix with each patch color
     patches_out[3 * i]
         = matrix[0] * patches_in[3 * i] + matrix[1] * patches_in[3 * i + 1] + matrix[2] * patches_in[3 * i + 2];
     patches_out[3 * i + 1]

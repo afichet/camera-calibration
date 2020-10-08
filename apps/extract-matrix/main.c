@@ -25,11 +25,13 @@ void measure(float *pParameters, float *pMeasurements, int n_parameters, int n_m
   float lab_ref[3];
   float lab_mea[3];
 
+  // For each patch, we try to minimize the Delta_E_2000 between reference and measurement
   for (size_t patch_idx = 0; patch_idx < info->n_patches; patch_idx++)
   {
     const float *tristim_ref = &(info->reference_patches[3 * patch_idx]);
     const float *tristim_mea = &(info->measured_patches[3 * patch_idx]);
 
+    // Apply the correction matrix which is optimized by levmar
     tristim_mea_corrected[0]
         = pParameters[0] * tristim_mea[0] + pParameters[1] * tristim_mea[1] + pParameters[2] * tristim_mea[2];
     tristim_mea_corrected[1]
@@ -37,9 +39,11 @@ void measure(float *pParameters, float *pMeasurements, int n_parameters, int n_m
     tristim_mea_corrected[2]
         = pParameters[6] * tristim_mea[0] + pParameters[7] * tristim_mea[1] + pParameters[8] * tristim_mea[2];
 
+    // Transform colorspaces to Lab*
     XYZ_to_Lab(tristim_ref, lab_ref);
     XYZ_to_Lab(tristim_mea_corrected, lab_mea);
 
+    // The error is the Delta_E_2000 between reference and corrected Lab* values
     pMeasurements[patch_idx] = deltaE_2000(lab_ref, lab_mea);
   }
 }

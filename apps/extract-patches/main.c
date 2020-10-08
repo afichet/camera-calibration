@@ -110,6 +110,7 @@ int main(int argc, char *argv[])
   {
     float patch_value[3] = {0};
 
+    // Average value computation for each patch
     for (uint32 y = areas[4 * a + 1]; y < (uint32)areas[4 * a + 3]; y++)
     {
       TIFFReadScanline(tif, buf, y, 0);
@@ -120,6 +121,8 @@ int main(int argc, char *argv[])
           case 8:
             for (int c = 0; c < 3; c++)
             {
+              // 8 bit per channel are assumed sRGB encoded.
+              // We linearise to RGB
               patch_value[c] += from_sRGB(((uint8 *)buf)[spp * x + c] / 255.f);
             }
             break;

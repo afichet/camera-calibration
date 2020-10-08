@@ -36,6 +36,7 @@ int create_image(float *patches_xyz, size_t width, size_t height, const char *ou
 
       int idx = (int)u_idx + 6 * (int)v_idx;
 
+      // We select the patch to use depending on the location on the image
       if ((((int)(v_idx) == 0 && f_v > s_v && f_v < 1. - s_v / 2.)
            || ((int)(v_idx) > 0 && (int)(v_idx) < 3 && f_v > s_v / 2. && f_v < 1. - s_v / 2.)
            || ((int)(v_idx) == 3 && f_v > s_v / 2. && f_v < 1. - s_v))
