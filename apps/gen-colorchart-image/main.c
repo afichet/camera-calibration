@@ -8,7 +8,7 @@
 #include <color-converter.h>
 
 
-int create_image(float *patches_xyz, size_t width, size_t height, const char *output_file)
+int create_image(float *patches_xyz, size_t width, size_t height, const char *output_file, int isXYZ)
 {
   const size_t   pixel_buffer_size = 4 * width * height * sizeof(unsigned char);
   unsigned char *pixel_buffer      = (unsigned char *)malloc(pixel_buffer_size);
@@ -45,7 +45,12 @@ int create_image(float *patches_xyz, size_t width, size_t height, const char *ou
               || ((int)(u_idx) == 5 && f_u > s_u / 2. && f_u < 1. - s_u)))
       {
         float rgb[3];
-        XYZ_to_RGB(&patches_xyz[3 * idx], rgb);
+
+        if (isXYZ != 0) {
+          XYZ_to_RGB(&patches_xyz[3 * idx], rgb);
+        } else {
+          memcpy(rgb, &patches_xyz[3*idx], 3*sizeof(float));
+        }
 
         for (int c = 0; c < 3; c++)
         {
@@ -70,7 +75,7 @@ int main(int argc, char *argv[])
     printf(
         "Usage:\n"
         "------\n"
-        "gen-colorchart-image <data_xyz> <output_png>\n");
+        "gen-colorchart-image <data_xyz> <output_png> [<isrgb = true>]\n");
 
     return 0;
   }
@@ -86,7 +91,10 @@ int main(int argc, char *argv[])
     return -1;
   }
 
-  create_image(macbeth_patches_xyz, 600, 400, argv[2]);
+  int isXYZ = 1;
+  if (argc > 3) { isXYZ = strcmp(argv[3], "true"); }
+
+  create_image(macbeth_patches_xyz, 600, 400, argv[2], isXYZ);
 
   free(macbeth_patches_xyz);
 
