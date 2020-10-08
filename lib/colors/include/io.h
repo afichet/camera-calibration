@@ -1,6 +1,8 @@
 #ifndef IO_H_
 #define IO_H_
 
+#include <stddef.h>
+
 void read_matrix(const char *filename, float *matrix);
 void read_spd(const char *filename, int **wavelengths, float **values, size_t *size);
 

@@ -87,7 +87,7 @@ int main(int argc, const char *argv[])
   spectrum_oversample(wavelengths_cmfs_raw, values_cmfs_z_raw, size_cmfs_raw, &values_cmfs_z, &size_cmfs);
 
   float macbeth_patches_xyz[24 * 3] = {0};
-  
+
   get_references_patches_xyz(
       values_cmfs_x,
       values_cmfs_y,
