@@ -1,12 +1,25 @@
-#include <stdio.h>
-#include <stdlib.h>
 
+#include <cstdio>
+#include <cstdlib>
+#include <cstring>
+
+#include <lodepng.h>
+
+extern "C"
+{
 #include <color-converter.h>
 
 #ifdef HAS_TIFF
 #  include <tiffio.h>
+#endif
+}
 
-int read_tiff(const char *filename, float **pixels, size_t *width, size_t *height)
+
+#define TINYEXR_IMPLEMENTATION
+#include <tinyexr.h>
+
+#ifdef HAS_TIFF
+extern "C" int read_tiff(const char *filename, float **pixels, size_t *width, size_t *height)
 {
   // Open image in
   TIFF *tif_in = TIFFOpen(filename, "r");
@@ -76,7 +89,7 @@ int read_tiff(const char *filename, float **pixels, size_t *width, size_t *heigh
 }
 
 
-int write_tiff(const char *filename, const float *pixels, uint32 width, uint32 height, uint16 bps)
+extern "C" int write_tiff(const char *filename, const float *pixels, uint32 width, uint32 height, uint16 bps)
 {
   // Open image out
   TIFF *tif_out = TIFFOpen(filename, "w");
@@ -131,73 +144,70 @@ int write_tiff(const char *filename, const float *pixels, uint32 width, uint32 h
 
 #endif
 
-#include <lodepng.h>
 
-int read_png(const char *filename, float **pixels, size_t *width, size_t *height)
-{
-  // Open image in
-  unsigned char *image;
-  unsigned       w, h;
+// extern "C" int read_png(const char *filename, float **pixels, size_t *width, size_t *height)
+// {
+//   // Open image in
+//   unsigned char *image;
+//   unsigned       w, h;
 
-  const int error = lodepng_decode32_file(&image, &w, &h, filename);
+//   const int error = lodepng_decode32_file(&image, &w, &h, filename);
 
-  if (error)
-  {
-    fprintf(stderr, "Cannot open image file %s\nError #%u: %s\n", filename, error, lodepng_error_text(error));
-    return -1;
-  }
+//   if (error)
+//   {
+//     fprintf(stderr, "Cannot open image file %s\nError #%u: %s\n", filename, error, lodepng_error_text(error));
+//     return -1;
+//   }
 
-  float *buffer = (float *)calloc(3 * w * h, sizeof(float));
-  for (size_t i = 0; i < w * h; i++)
-  {
-    for (int c = 0; c < 3; c++)
-    {
-      buffer[3 * i + c] = from_sRGB((float)image[4 * i + c] / 255.f);
-    }
-  }
+//   float *buffer = (float *)calloc(3 * w * h, sizeof(float));
+//   for (size_t i = 0; i < w * h; i++)
+//   {
+//     for (int c = 0; c < 3; c++)
+//     {
+//       buffer[3 * i + c] = from_sRGB((float)image[4 * i + c] / 255.f);
+//     }
+//   }
 
-  free(image);
+//   free(image);
 
-  *width  = w;
-  *height = h;
-  *pixels = buffer;
+//   *width  = w;
+//   *height = h;
+//   *pixels = buffer;
 
-  return 0;
-}
+//   return 0;
+// }
 
 
-int write_png(const char *filename, const float *pixels, size_t width, size_t height)
-{
-  unsigned char *image = (unsigned char *)calloc(4 * width * height, sizeof(unsigned char));
+// extern "C" int write_png(const char *filename, const float *pixels, size_t width, size_t height)
+// {
+//   unsigned char *image = (unsigned char *)calloc(4 * width * height, sizeof(unsigned char));
 
-  for (size_t i = 0; i < width * height; i++)
-  {
-    for (int c = 0; c < 3; c++)
-    {
-      image[4 * i + c] = to_sRGB(pixels[3 * i + c]) * 255.f;
-    }
-  }
+//   for (size_t i = 0; i < width * height; i++)
+//   {
+//     for (int c = 0; c < 3; c++)
+//     {
+//       image[4 * i + c] = to_sRGB(pixels[3 * i + c]) * 255.f;
+//     }
+//   }
 
-  const int error = lodepng_encode32_file(filename, image, width, height);
+//   const int error = lodepng_encode32_file(filename, image, width, height);
 
-  free(image);
+//   free(image);
 
-  if (error)
-  {
-    fprintf(stderr, "Cannot write image file %s\nError #%u: %s\n", filename, error, lodepng_error_text(error));
-    return -1;
-  }
+//   if (error)
+//   {
+//     fprintf(stderr, "Cannot write image file %s\nError #%u: %s\n", filename, error, lodepng_error_text(error));
+//     return -1;
+//   }
 
-  return 0;
-}
+//   return 0;
+// }
 
-#define TINYEXR_IMPLEMENTATION
-#include <tinyexr.h>
 
-int read_exr(const char *filename, float **pixels, size_t *width, size_t *height)
+extern "C" int read_exr(const char *filename, float **pixels, size_t *width, size_t *height)
 {
   const char *err = NULL;
-  int w, h;
+  int         w, h;
 
   const int status = LoadEXRWithLayer(pixels, &w, &h, filename, NULL, &err);
 
@@ -212,13 +222,14 @@ int read_exr(const char *filename, float **pixels, size_t *width, size_t *height
     return -1;
   }
 
-  *width = w;
+  *width  = w;
   *height = h;
 
   return 0;
 }
 
-int write_exr(const char *filename, const float *pixels, size_t width, size_t height)
+
+extern "C" int write_exr(const char *filename, const float *pixels, size_t width, size_t height)
 {
   const char *err = NULL;
 
@@ -236,4 +247,54 @@ int write_exr(const char *filename, const float *pixels, size_t width, size_t he
   }
 
   return 0;
+}
+
+
+extern "C" int read_image(const char *filename, float **pixels, size_t *width, size_t *height)
+{
+  size_t len = strlen(filename);
+
+  // if (strcmp(filename + len - 3, "png") == 0 || strcmp(filename + len - 3, "PNG") == 0)  {
+  //   return read_png(filename, pixels, width, height);
+  // }
+
+  if (strcmp(filename + len - 3, "exr") == 0 || strcmp(filename + len - 3, "EXR") == 0)
+  {
+    return read_exr(filename, pixels, width, height);
+  }
+
+#ifdef HAS_TIFF
+  if (strcmp(filename + len - 4, "tiff") == 0 || strcmp(filename + len - 4, "tiff") == 0
+      || strcmp(filename + len - 3, "tif") == 0 || strcmp(filename + len - 3, "tif") == 0)
+  {
+    return read_tiff(filename, pixels, width, height);
+  }
+#endif
+
+  return -1;
+}
+
+
+extern "C" int write_image(const char *filename, const float *pixels, size_t width, size_t height)
+{
+  size_t len = strlen(filename);
+
+  // if (strcmp(filename + len - 3, "png") == 0 || strcmp(filename + len - 3, "PNG") == 0)  {
+  //   return write_png(filename, pixels, width, height);
+  // }
+
+  if (strcmp(filename + len - 3, "exr") == 0 || strcmp(filename + len - 3, "EXR") == 0)
+  {
+    return write_exr(filename, pixels, width, height);
+  }
+
+#ifdef HAS_TIFF
+  if (strcmp(filename + len - 4, "tiff") == 0 || strcmp(filename + len - 4, "tiff") == 0
+      || strcmp(filename + len - 3, "tif") == 0 || strcmp(filename + len - 3, "tif") == 0)
+  {
+    return write_tiff(filename, pixels, width, height, 16);
+  }
+#endif
+
+  return -1;
 }
