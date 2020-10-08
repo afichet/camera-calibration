@@ -13,14 +13,15 @@ make
 
 # Pipeline example
 
-You still need the python utility `extract_patches.py` in `python` for
-extracting measured Macbeth patches from TIFF image.
+First, you need to extract from a TIFF file the values of the Macbeth 
+color checker. You need as well a CSV file (comma separated) describing
+each area to average.
 
 ```bash
-./python/extract_patches.py \
-    --image data/measurements/Colors_0000000320_dem.tiff \
-    --areas data/measurements/boxes.csv \
-    --output data/measurements/patches.csv
+./build/bin/extract-patches
+    data/measurements/Colors_0000000320_dem.tiff \
+    data/measurements/boxes.csv \
+    data/measurements/patches.csv
 ```
 
 Then, you need to generate a reference set of Macbeth patches given an
