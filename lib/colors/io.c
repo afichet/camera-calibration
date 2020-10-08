@@ -5,9 +5,16 @@
 #  define _CRT_SECURE_NO_WARNINGS
 #endif
 
+
 void read_matrix(const char *filename, float *matrix)
 {
   FILE *fin = fopen(filename, "r");
+
+  if (fin == NULL)
+  {
+    fprintf(stderr, "Cannot open file %s", filename);
+    return;
+  }
 
   int r = fscanf(
       fin,
@@ -35,6 +42,12 @@ void read_spd(const char *filename, int **wavelengths, float **values, size_t *s
 {
   FILE *fin = fopen(filename, "r");
 
+  if (fin == NULL)
+  {
+    fprintf(stderr, "Cannot open file %s", filename);
+    return;
+  }
+
   int *  buff_wavelengths = NULL;
   float *buff_values      = NULL;
   *size                   = 0;
@@ -45,6 +58,9 @@ void read_spd(const char *filename, int **wavelengths, float **values, size_t *s
     int *  buff_wavelengths_temp = (int *)realloc(buff_wavelengths, (*size) * sizeof(int));
     float *buff_values_temp      = (float *)realloc(buff_values, (*size) * sizeof(float));
 
+    if (buff_wavelengths_temp != NULL) buff_wavelengths = buff_wavelengths_temp;
+    if (buff_values_temp != NULL) buff_values = buff_values_temp;
+
     if (buff_wavelengths_temp == NULL || buff_values_temp == NULL)
     {
       fprintf(stderr, "Memory allocation error");
@@ -53,8 +69,7 @@ void read_spd(const char *filename, int **wavelengths, float **values, size_t *s
       return;
     }
 
-    buff_wavelengths = buff_wavelengths_temp;
-    buff_values      = buff_values_temp;
+    buff_values = buff_values_temp;
 
     int r = fscanf(fin, "%d,%f\n", &buff_wavelengths[*size - 1], &buff_values[*size - 1]);
 
@@ -81,6 +96,12 @@ void read_cmfs(
 {
   FILE *fin = fopen(filename, "r");
 
+  if (fin == NULL)
+  {
+    fprintf(stderr, "Cannot open file %s", filename);
+    return;
+  }
+
   int *  buff_wavelengths = NULL;
   float *buff_values_x    = NULL;
   float *buff_values_y    = NULL;
@@ -95,6 +116,11 @@ void read_cmfs(
     float *buff_values_y_temp    = (float *)realloc(buff_values_y, (*size) * sizeof(float));
     float *buff_values_z_temp    = (float *)realloc(buff_values_z, (*size) * sizeof(float));
 
+    if (buff_wavelengths_temp != NULL) buff_wavelengths = buff_wavelengths_temp;
+    if (buff_values_x_temp != NULL) buff_values_x = buff_values_x_temp;
+    if (buff_values_y_temp != NULL) buff_values_y = buff_values_y_temp;
+    if (buff_values_z_temp != NULL) buff_values_z = buff_values_z_temp;
+
     if (buff_wavelengths_temp == NULL || buff_values_x_temp == NULL || buff_values_y_temp == NULL
         || buff_values_z_temp == NULL)
     {
@@ -105,11 +131,6 @@ void read_cmfs(
       free(buff_values_z);
       return;
     }
-
-    buff_wavelengths = buff_wavelengths_temp;
-    buff_values_x    = buff_values_x_temp;
-    buff_values_y    = buff_values_y_temp;
-    buff_values_z    = buff_values_z_temp;
 
     int r = fscanf(
         fin,
@@ -137,6 +158,12 @@ void read_cmfs(
 void load_xyz(const char *filename, float **xyz, size_t *size)
 {
   FILE *fin = fopen(filename, "r");
+
+  if (fin == NULL)
+  {
+    fprintf(stderr, "Cannot open file %s", filename);
+    return;
+  }
 
   float *buff_values_xyz = NULL;
   *size                  = 0;
@@ -177,6 +204,12 @@ void load_xyz(const char *filename, float **xyz, size_t *size)
 void save_xyz(const char *filename, const float *xyz, size_t size)
 {
   FILE *fout = fopen(filename, "w");
+
+  if (fout == NULL)
+  {
+    fprintf(stderr, "Cannot open file %s", filename);
+    return;
+  }
 
   for (size_t i = 0; i < size; i++)
   {
