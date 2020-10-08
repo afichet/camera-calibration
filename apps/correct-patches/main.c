@@ -22,17 +22,20 @@ int main(int argc, char *argv[])
   load_xyz(argv[1], &patches_in, &size);
   load_xyz(argv[2], &matrix, &mat_size);
 
+  if (patches_in == NULL || matrix == NULL)
+  {
+    fprintf(stderr, "Cannot open patches or matrix file\n");
+    free(patches_in);
+    free(matrix);
+    return -1;
+  }
+
   float *patches_out = (float *)calloc(3 * size, sizeof(float));
 
   for (size_t i = 0; i < size; i++)
   {
     // We multiply the correction matrix with each patch color
-    patches_out[3 * i]
-        = matrix[0] * patches_in[3 * i] + matrix[1] * patches_in[3 * i + 1] + matrix[2] * patches_in[3 * i + 2];
-    patches_out[3 * i + 1]
-        = matrix[3] * patches_in[3 * i] + matrix[4] * patches_in[3 * i + 1] + matrix[5] * patches_in[3 * i + 2];
-    patches_out[3 * i + 2]
-        = matrix[6] * patches_in[3 * i] + matrix[7] * patches_in[3 * i + 1] + matrix[8] * patches_in[3 * i + 2];
+    matmul(matrix, &patches_in[3 * i], &patches_out[3 * i]);
   }
 
   save_xyz(argv[3], patches_out, size);

@@ -79,6 +79,13 @@ int main(int argc, char *argv[])
   size_t size                = 0;
 
   load_xyz(argv[1], &macbeth_patches_xyz, &size);
+
+  if (macbeth_patches_xyz == NULL)
+  {
+    fprintf(stderr, "Cannot open the patches file\n");
+    return -1;
+  }
+
   create_image(macbeth_patches_xyz, 600, 400, argv[2]);
 
   free(macbeth_patches_xyz);

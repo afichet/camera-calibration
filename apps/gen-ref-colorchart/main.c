@@ -58,6 +58,14 @@ int main(int argc, const char *argv[])
 
   read_spd(argv[1], &wavelengths_illu_raw, &values_illu_raw, &size_illu_raw);
 
+  if (wavelengths_illu_raw == NULL || values_illu_raw == NULL)
+  {
+    fprintf(stderr, "Cannot open %s\n", argv[1]);
+    free(wavelengths_illu_raw);
+    free(values_illu_raw);
+    goto error;
+  }
+
   float *values_illu           = NULL;
   size_t size_illu             = 0;
   int    first_wavelength_illu = wavelengths_illu_raw[0];
@@ -75,6 +83,17 @@ int main(int argc, const char *argv[])
   size_t size_cmfs_raw        = 0;
 
   read_cmfs(argv[2], &wavelengths_cmfs_raw, &values_cmfs_x_raw, &values_cmfs_y_raw, &values_cmfs_z_raw, &size_cmfs_raw);
+
+  if (wavelengths_cmfs_raw == NULL || values_cmfs_x_raw == NULL || values_cmfs_y_raw == NULL
+      || values_cmfs_z_raw == NULL)
+  {
+    fprintf(stderr, "Cannot open %s\n", argv[2]);
+    free(wavelengths_cmfs_raw);
+    free(values_cmfs_x_raw);
+    free(values_cmfs_y_raw);
+    free(values_cmfs_z_raw);
+    goto error;
+  }
 
   float *values_cmfs_x         = NULL;
   float *values_cmfs_y         = NULL;
@@ -107,6 +126,7 @@ int main(int argc, const char *argv[])
 
   save_xyz(argv[3], macbeth_patches_xyz, 24);
 
+error:
   free(values_illu);
   free(values_cmfs_x);
   free(values_cmfs_y);

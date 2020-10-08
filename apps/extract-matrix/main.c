@@ -68,6 +68,14 @@ int main(int argc, const char *argv[])
   load_xyz(argv[1], &macbeth_patches_reference_xyz, &size);
   load_xyz(argv[2], &macbeth_patches_captured, &size);
 
+  if (macbeth_patches_reference_xyz == NULL || macbeth_patches_captured == NULL)
+  {
+    fprintf(stderr, "Cannot open one of the patch file\n");
+    free(macbeth_patches_reference_xyz);
+    free(macbeth_patches_captured);
+    return -1;
+  }
+
   float matrix[9] = {1.f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f, 0.f, 1.f};
 
   fit_params u_params = {size, macbeth_patches_reference_xyz, macbeth_patches_captured};

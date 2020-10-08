@@ -5,6 +5,14 @@
 #  define M_PI 3.14159265358979323846 /* pi */
 #endif
 
+void matmul(const float *matrix, const float *color_in, float *color_out)
+{
+  color_out[0] = matrix[0] * color_in[0] + matrix[1] * color_in[1] + matrix[2] * color_in[2];
+  color_out[1] = matrix[3] * color_in[0] + matrix[4] * color_in[1] + matrix[5] * color_in[2];
+  color_out[2] = matrix[6] * color_in[0] + matrix[7] * color_in[1] + matrix[8] * color_in[2];
+}
+
+
 // http://www.brucelindbloom.com/index.html?Eqn_DeltaE_CIE2000.html
 
 // TODO
@@ -47,9 +55,7 @@ void XYZ_to_RGB(const float *XYZ, float *RGB)
          -0.2040259f,
          1.0572252f};
 
-  RGB[0] = m[0] * XYZ[0] + m[1] * XYZ[1] + m[2] * XYZ[2];
-  RGB[1] = m[3] * XYZ[0] + m[4] * XYZ[1] + m[5] * XYZ[2];
-  RGB[2] = m[6] * XYZ[0] + m[7] * XYZ[1] + m[8] * XYZ[2];
+  matmul(m, XYZ, RGB);
 }
 
 

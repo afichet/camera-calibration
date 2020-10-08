@@ -1,6 +1,7 @@
 #ifndef COLOR_CONVERTER_H_
 #define COLOR_CONVERTER_H_
 
+void  matmul(const float *matrix, const float *color_in, float *color_out);
 void  XYZ_to_Lab(const float *XYZ, float *Lab);
 void  XYZ_to_RGB(const float *XYZ, float *RGB);
 float from_sRGB(float c);
