@@ -13,6 +13,8 @@ make
 
 # Pipeline example
 
+We provide a pipeline example in `run.sh` script.
+
 First, you need to extract from a TIFF file the values of the Macbeth 
 color checker. You need as well a CSV file (comma separated) describing
 each area to average.
@@ -49,7 +51,8 @@ And how the averaged measured one looks like:
 ```bash
 ./build/bin/gen-colorchart-image \
     output/patches.csv \
-    output/orig_measured.png
+    output/orig_measured.png \
+	true
 ```
 
 Now, we want to find the matrix which transform the measured color to
