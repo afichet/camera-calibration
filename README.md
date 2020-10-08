@@ -18,18 +18,18 @@ color checker. You need as well a CSV file (comma separated) describing
 each area to average.
 
 ```bash
+mkdir output
+
 ./build/bin/extract-patches
     data/measurements/Colors_0000000320_dem.tiff \
     data/measurements/boxes.csv \
-    data/measurements/patches.csv
+    output/patches.csv
 ```
 
 Then, you need to generate a reference set of Macbeth patches given an
 illuminant and color matching functions:
 
 ```bash
-mkdir output
-
 ./build/bin/gen-ref-colorchart \
     data/D65.csv \
     data/XYZ.csv \
@@ -48,7 +48,7 @@ And how the averaged measured one looks like:
 
 ```bash
 ./build/bin/gen-colorchart-image \
-    patches.csv \
+    output/patches.csv \
     output/orig_measured.png
 ```
 
@@ -58,7 +58,7 @@ the reference colors:
 ```bash
 ./build/bin/extract-matrix \
     output/reference.csv \
-    patches.csv \
+    output/patches.csv \
     output/matrix.csv
 ```
 
@@ -66,7 +66,7 @@ Finally, we correct the measured patches:
 
 ```bash
 ./build/bin/correct-patches \
-    patches.csv \
+    output/patches.csv \
     output/matrix.csv \
     output/corrected_patches.csv
 ```
