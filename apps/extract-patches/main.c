@@ -5,6 +5,7 @@
 
 #include <color-converter.h>
 #include <io.h>
+#include <image.h>
 
 int load_boxfile(const char *filename, int **areas, size_t *size)
 {
