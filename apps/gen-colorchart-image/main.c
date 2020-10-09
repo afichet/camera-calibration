@@ -66,6 +66,7 @@ int create_image(float *patches_xyz, size_t width, size_t height, const char *ou
   }
 
   lodepng_encode_file(output_file, pixel_buffer, width, height, LCT_RGBA, 8);
+  free(pixel_buffer);
 
   return 0;
 }
