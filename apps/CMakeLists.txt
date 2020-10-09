@@ -6,3 +6,5 @@ add_subdirectory(overlay-areas)
 add_subdirectory(extract-matrix)
 add_subdirectory(correct-patches)
 add_subdirectory(correct-image)
+
+add_subdirectory(gui)
