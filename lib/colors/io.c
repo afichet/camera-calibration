@@ -7,46 +7,14 @@
 #endif
 
 
-void read_matrix(const char *filename, float *matrix)
+int read_spd(const char *filename, int **wavelengths, float **values, size_t *size)
 {
   FILE *fin = fopen(filename, "r");
 
   if (fin == NULL)
   {
     fprintf(stderr, "Cannot open file %s", filename);
-    return;
-  }
-
-  int r = fscanf(
-      fin,
-      "%f, %f, %f,\n%f, %f, %f,\n%f, %f, %f",
-      &matrix[0],
-      &matrix[1],
-      &matrix[2],
-      &matrix[3],
-      &matrix[4],
-      &matrix[5],
-      &matrix[6],
-      &matrix[7],
-      &matrix[8]);
-
-  fclose(fin);
-
-  if (r == 0)
-  {
-    fprintf(stderr, "Error while reading file %s", filename);
-  }
-}
-
-
-void read_spd(const char *filename, int **wavelengths, float **values, size_t *size)
-{
-  FILE *fin = fopen(filename, "r");
-
-  if (fin == NULL)
-  {
-    fprintf(stderr, "Cannot open file %s", filename);
-    return;
+    return -1;
   }
 
   int *  buff_wavelengths = NULL;
@@ -67,7 +35,7 @@ void read_spd(const char *filename, int **wavelengths, float **values, size_t *s
       fprintf(stderr, "Memory allocation error");
       free(buff_wavelengths);
       free(buff_values);
-      return;
+      return -1;
     }
 
     buff_values = buff_values_temp;
@@ -77,6 +45,10 @@ void read_spd(const char *filename, int **wavelengths, float **values, size_t *s
     if (r == 0)
     {
       fprintf(stderr, "Error while reading file %s", filename);
+      free(buff_wavelengths);
+      free(buff_values);
+      fclose(fin);
+      return -1;
     }
   }
 
@@ -84,10 +56,12 @@ void read_spd(const char *filename, int **wavelengths, float **values, size_t *s
 
   *wavelengths = buff_wavelengths;
   *values      = buff_values;
+
+  return 0;
 }
 
 
-void read_cmfs(
+int read_cmfs(
     const char *filename,
     int **      wavelengths,
     float **    values_x,
@@ -100,7 +74,7 @@ void read_cmfs(
   if (fin == NULL)
   {
     fprintf(stderr, "Cannot open file %s", filename);
-    return;
+    return -1;
   }
 
   int *  buff_wavelengths = NULL;
@@ -130,7 +104,7 @@ void read_cmfs(
       free(buff_values_x);
       free(buff_values_y);
       free(buff_values_z);
-      return;
+      return -1;
     }
 
     int r = fscanf(
@@ -144,6 +118,12 @@ void read_cmfs(
     if (r == 0)
     {
       fprintf(stderr, "Error while reading file %s", filename);
+      free(buff_wavelengths);
+      free(buff_values_x);
+      free(buff_values_y);
+      free(buff_values_z);
+      fclose(fin);
+      return -1;
     }
   }
 
@@ -153,17 +133,19 @@ void read_cmfs(
   *values_x    = buff_values_x;
   *values_y    = buff_values_y;
   *values_z    = buff_values_z;
+
+  return 0;
 }
 
 
-void load_xyz(const char *filename, float **xyz, size_t *size)
+int load_xyz(const char *filename, float **xyz, size_t *size)
 {
   FILE *fin = fopen(filename, "r");
 
   if (fin == NULL)
   {
     fprintf(stderr, "Cannot open file %s", filename);
-    return;
+    return -1;
   }
 
   float *buff_values_xyz = NULL;
@@ -178,7 +160,7 @@ void load_xyz(const char *filename, float **xyz, size_t *size)
     {
       fprintf(stderr, "Memory allocation error");
       free(buff_values_xyz);
-      return;
+      return -1;
     }
 
     buff_values_xyz = buff_values_xyz_temp;
@@ -193,23 +175,28 @@ void load_xyz(const char *filename, float **xyz, size_t *size)
     if (r == 0)
     {
       fprintf(stderr, "Error while reading file %s", filename);
+      free(buff_values_xyz);
+      fclose(fin);
+      return -1;
     }
   }
 
   fclose(fin);
 
   *xyz = buff_values_xyz;
+
+  return 0;
 }
 
 
-void save_xyz(const char *filename, const float *xyz, size_t size)
+int save_xyz(const char *filename, const float *xyz, size_t size)
 {
   FILE *fout = fopen(filename, "w");
 
   if (fout == NULL)
   {
     fprintf(stderr, "Cannot open file %s", filename);
-    return;
+    return -1;
   }
 
   for (size_t i = 0; i < size; i++)
@@ -218,4 +205,6 @@ void save_xyz(const char *filename, const float *xyz, size_t size)
   }
 
   fclose(fout);
+
+  return 0;
 }

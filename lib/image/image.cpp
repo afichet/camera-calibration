@@ -14,9 +14,20 @@ extern "C"
 #endif
 }
 
-
 #define TINYEXR_IMPLEMENTATION
 #include <tinyexr.h>
+
+#ifndef min
+#  define min(a, b) (((a) < (b)) ? (a) : (b))
+#endif
+
+#ifndef max
+#  define max(a, b) (((a) < (b)) ? (b) : (a))
+#endif
+
+#ifndef clamp
+#  define clamp(v, _min, _max) (min(max(v, _min), _max))
+#endif
 
 #ifdef HAS_TIFF
 extern "C" int read_tiff(const char *filename, float **pixels, size_t *width, size_t *height)
@@ -63,15 +74,15 @@ extern "C" int read_tiff(const char *filename, float **pixels, size_t *width, si
           case 8:
             // 8 bit per channel are assumed sRGB encoded.
             // We linearise to RGB
-            framebuffer[c] = from_sRGB(((uint8 *)buf_in)[spp * x + c] / 255.f);
+            framebuffer[3 * (y * w + x) + c] = from_sRGB(((uint8 *)buf_in)[spp * x + c] / 255.f);
             break;
 
           case 16:
-            framebuffer[c] = ((uint16 *)buf_in)[spp * x + c] / 65535.f;
+            framebuffer[3 * (y * w + x) + c] = ((uint16 *)buf_in)[spp * x + c] / 65535.f;
             break;
 
           case 32:
-            framebuffer[c] = ((uint32 *)buf_in)[spp * x + c] / 4294967295.f;
+            framebuffer[3 * (y * w + x) + c] = ((uint32 *)buf_in)[spp * x + c] / 4294967295.f;
             break;
         }
       }
@@ -119,15 +130,15 @@ extern "C" int write_tiff(const char *filename, const float *pixels, uint32 widt
         {
           case 8:
             // 8 bit per channel are assumed sRGB encoded.
-            ((uint8 *)buf_out)[3 * x + c] = to_sRGB(pixels[c]) * 255.f;
+            ((uint8 *)buf_out)[3 * x + c] = to_sRGB(pixels[3 * (y * width + x) + c]) * 255.f;
             break;
 
           case 16:
-            ((uint16 *)buf_out)[3 * x + c] = pixels[c] * 65535.f;
+            ((uint16 *)buf_out)[3 * x + c] = clamp(pixels[3 * (y * width + x) + c], 0.f, 1.f) * 65535.f;
             break;
 
           case 32:
-            ((uint32 *)buf_out)[3 * x + c] = pixels[c] * 4294967295.f;
+            ((uint32 *)buf_out)[3 * x + c] = clamp(pixels[3 * (y * width + x) + c], 0.f, 1.f) * 4294967295.f;
             break;
         }
       }
@@ -188,6 +199,7 @@ extern "C" int write_tiff(const char *filename, const float *pixels, uint32 widt
 //     {
 //       image[4 * i + c] = to_sRGB(pixels[3 * i + c]) * 255.f;
 //     }
+//     image[4 * i + 3] = 255;
 //   }
 
 //   const int error = lodepng_encode32_file(filename, image, width, height);
@@ -271,6 +283,8 @@ extern "C" int read_image(const char *filename, float **pixels, size_t *width, s
   }
 #endif
 
+  fprintf(stderr, "This extension is not supported %s\n", filename);
+
   return -1;
 }
 
@@ -292,9 +306,11 @@ extern "C" int write_image(const char *filename, const float *pixels, size_t wid
   if (strcmp(filename + len - 4, "tiff") == 0 || strcmp(filename + len - 4, "tiff") == 0
       || strcmp(filename + len - 3, "tif") == 0 || strcmp(filename + len - 3, "tif") == 0)
   {
-    return write_tiff(filename, pixels, width, height, 16);
+    return write_tiff(filename, pixels, width, height, 8);
   }
 #endif
+
+  fprintf(stderr, "This extension is not supported %s\n", filename);
 
   return -1;
 }

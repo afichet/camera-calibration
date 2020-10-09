@@ -5,16 +5,16 @@
 
 #include <io.h>
 #include <color-converter.h>
+#include <image.h>
 
-
-void load_boxfile(const char *filename, int **areas, size_t *size)
+int load_boxfile(const char *filename, int **areas, size_t *size)
 {
   FILE *fin = fopen(filename, "r");
 
   if (fin == NULL)
   {
     fprintf(stderr, "Cannot open file %s\n", filename);
-    return;
+    return -1;
   }
 
   int *buff_values = NULL;
@@ -28,8 +28,9 @@ void load_boxfile(const char *filename, int **areas, size_t *size)
     if (buff_values_temp == NULL)
     {
       fprintf(stderr, "Memory allocation error\n");
+      fclose(fin);
       free(buff_values);
-      return;
+      return -1;
     }
 
     buff_values = buff_values_temp;
@@ -45,14 +46,17 @@ void load_boxfile(const char *filename, int **areas, size_t *size)
     if (r == 0)
     {
       fprintf(stderr, "Error while reading file %s\n", filename);
+      fclose(fin);
+      return -1;
     }
   }
 
   fclose(fin);
 
   *areas = buff_values;
-}
 
+  return 0;
+}
 
 
 int main(int argc, char *argv[])
@@ -62,151 +66,65 @@ int main(int argc, char *argv[])
     printf(
         "Usage:\n"
         "------\n"
-        "overlay-areas <iamge_in> <areas> <image_out>\n");
+        "overlay-areas <image_in> <areas> <image_out>\n");
 
     return 0;
   }
 
+  const char *filename_image_in  = argv[1];
+  const char *filename_areas     = argv[2];
+  const char *filename_image_out = argv[3];
+
+  float *image = NULL;
+  size_t width, height;
+  int *  areas = NULL;
+  size_t n_areas;
+
   // Open image in
-  TIFF *tif_in = TIFFOpen(argv[1], "r");
-  if (tif_in == NULL)
+  int err = read_image(filename_image_in, &image, &width, &height);
+
+  if (err != 0)
   {
-    fprintf(stderr, "Cannot open image file\n");
-    return -1;
-  }
-
-  uint32 w, h;
-  uint16 bps, spp;
-  uint16 config;
-
-  TIFFGetField(tif_in, TIFFTAG_IMAGEWIDTH, &w);
-  TIFFGetField(tif_in, TIFFTAG_IMAGELENGTH, &h);
-  TIFFGetField(tif_in, TIFFTAG_BITSPERSAMPLE, &bps);
-  TIFFGetField(tif_in, TIFFTAG_SAMPLESPERPIXEL, &spp);
-  TIFFGetField(tif_in, TIFFTAG_PLANARCONFIG, &config);
-
-  if (spp < 3 || config != PLANARCONFIG_CONTIG)
-  {
-    fprintf(stderr, "Not enough channels in this image\n");
-    TIFFClose(tif_in);
+    fprintf(stderr, "Cannot read input image file\n");
     return -1;
   }
 
   // Load areas
-  int *  areas = NULL;
-  size_t n_areas;
-  load_boxfile(argv[2], &areas, &n_areas);
 
-  if (areas == NULL)
+  err = load_boxfile(filename_areas, &areas, &n_areas);
+  if (err != 0)
   {
-    TIFFClose(tif_in);
-    fprintf(stderr, "Cannot open area file\n");
+    fprintf(stderr, "Cannot open area file %s\n", filename_areas);
+    free(image);
     return -1;
-  }
-
-
-  // Open image out
-  TIFF *tif_out = TIFFOpen(argv[3], "w");
-  if (tif_out == NULL)
-  {
-    fprintf(stderr, "Cannot open image file\n");
-    TIFFClose(tif_in);
-    free(areas);
-    TIFFClose(tif_out);
-    return -1;
-  }
-
-  TIFFSetField(tif_out, TIFFTAG_IMAGEWIDTH, w);
-  TIFFSetField(tif_out, TIFFTAG_IMAGELENGTH, h);
-  TIFFSetField(tif_out, TIFFTAG_BITSPERSAMPLE, bps);
-  TIFFSetField(tif_out, TIFFTAG_SAMPLESPERPIXEL, spp);
-  TIFFSetField(tif_out, TIFFTAG_PLANARCONFIG, config);
-  TIFFSetField(tif_out, TIFFTAG_PHOTOMETRIC, PHOTOMETRIC_RGB);
-
-  tdata_t buf_in, buf_out;
-  buf_in  = _TIFFmalloc(TIFFScanlineSize(tif_in));
-  buf_out = _TIFFmalloc(TIFFScanlineSize(tif_out));
-
-  float *pixel_buffer = (float *)calloc(3 * w * h, sizeof(float));
-
-  for (uint32 y = 0; y < h; y++)
-  {
-    TIFFReadScanline(tif_in, buf_in, y, 0);
-
-    for (uint32 x = 0; x < w; x++)
-    {
-      for (int c = 0; c < 3; c++)
-      {
-        switch (bps)
-        {
-          case 8:
-            // 8 bit per channel are assumed sRGB encoded.
-            // We linearise to RGB
-            pixel_buffer[3 * (y * w + x) + c] = ((uint8 *)buf_in)[spp * x + c] / 255.f;
-            break;
-
-          case 16:
-            pixel_buffer[3 * (y * w + x) + c] = ((uint16 *)buf_in)[spp * x + c] / 65535.f;
-            break;
-
-          case 32:
-            pixel_buffer[3 * (y * w + x) + c] = ((uint32 *)buf_in)[spp * x + c] / 4294967295.f;
-            break;
-        }
-      }
-    }
   }
 
   // Overlay
   for (size_t a = 0; a < n_areas; a++)
   {
-    for (uint32 y = areas[4 * a + 1]; y < (uint32)areas[4 * a + 3]; y++)
+    for (int y = areas[4 * a + 1]; y < areas[4 * a + 3]; y++)
     {
-      for (uint32 x = areas[4 * a]; x < (uint32)areas[4 * a + 2]; x++)
+      for (int x = areas[4 * a]; x < areas[4 * a + 2]; x++)
       {
         for (int c = 1; c < 3; c++)
         {
-          pixel_buffer[3 * (y * w + x) + c] *= .5f;
+          image[3 * (y * width + x) + c] *= .5f;
         }
       }
     }
   }
 
   // Image writing
-  for (uint32 y = 0; y < h; y++)
-  {
-    for (uint32 x = 0; x < w; x++)
-    {
-      for (int c = 0; c < 3; c++)
-      {
-        switch (bps)
-        {
-          case 8:
-            // 8 bit per channel are assumed sRGB encoded.
-            ((uint8 *)buf_out)[spp * x + c] = pixel_buffer[3 * (y * w + x) + c] * 255.f;
-            break;
+  err = write_image(filename_image_out, image, width, height);
 
-          case 16:
-            ((uint16 *)buf_out)[spp * x + c] = pixel_buffer[3 * (y * w + x) + c] * 65535.f;
-            break;
-
-          case 32:
-            ((uint32 *)buf_out)[spp * x + c] = pixel_buffer[3 * (y * w + x) + c] * 4294967295.f;
-            break;
-        }
-      }
-    }
-
-    TIFFWriteScanline(tif_out, buf_out, y, 0);
-  }
-
-  _TIFFfree(buf_in);
-  _TIFFfree(buf_out);
-  TIFFClose(tif_in);
-  TIFFClose(tif_out);
-
+  free(image);
   free(areas);
 
+  if (err != 0)
+  {
+    fprintf(stderr, "Cannot write output image file\n");
+    return -1;
+  }
 
   return 0;
 }

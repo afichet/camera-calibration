@@ -51,19 +51,21 @@ int main(int argc, const char *argv[])
     return 0;
   }
 
+  const char *filename_illuminant_spd = argv[1];
+  const char *filename_cmfs           = argv[2];
+  const char *filename_output         = argv[3];
+
   // Load illuminant
   int *  wavelengths_illu_raw = NULL;
   float *values_illu_raw      = NULL;
   size_t size_illu_raw        = 0;
 
-  read_spd(argv[1], &wavelengths_illu_raw, &values_illu_raw, &size_illu_raw);
+  int err = read_spd(filename_illuminant_spd, &wavelengths_illu_raw, &values_illu_raw, &size_illu_raw);
 
-  if (wavelengths_illu_raw == NULL || values_illu_raw == NULL)
+  if (err != 0)
   {
-    fprintf(stderr, "Cannot open %s\n", argv[1]);
-    free(wavelengths_illu_raw);
-    free(values_illu_raw);
-    goto error;
+    fprintf(stderr, "Cannot open illuminant spd file\n");
+    return -1;
   }
 
   float *values_illu           = NULL;
@@ -82,17 +84,18 @@ int main(int argc, const char *argv[])
   float *values_cmfs_z_raw    = NULL;
   size_t size_cmfs_raw        = 0;
 
-  read_cmfs(argv[2], &wavelengths_cmfs_raw, &values_cmfs_x_raw, &values_cmfs_y_raw, &values_cmfs_z_raw, &size_cmfs_raw);
+  err = read_cmfs(
+      filename_cmfs,
+      &wavelengths_cmfs_raw,
+      &values_cmfs_x_raw,
+      &values_cmfs_y_raw,
+      &values_cmfs_z_raw,
+      &size_cmfs_raw);
 
-  if (wavelengths_cmfs_raw == NULL || values_cmfs_x_raw == NULL || values_cmfs_y_raw == NULL
-      || values_cmfs_z_raw == NULL)
+  if (err != 0)
   {
-    fprintf(stderr, "Cannot open %s\n", argv[2]);
-    free(wavelengths_cmfs_raw);
-    free(values_cmfs_x_raw);
-    free(values_cmfs_y_raw);
-    free(values_cmfs_z_raw);
-    goto error;
+    fprintf(stderr, "Cannot open cmfs file\n");
+    free(values_illu);
   }
 
   float *values_cmfs_x         = NULL;
@@ -124,13 +127,18 @@ int main(int argc, const char *argv[])
       size_illu,
       macbeth_patches_xyz);
 
-  save_xyz(argv[3], macbeth_patches_xyz, 24);
+  err = save_xyz(filename_output, macbeth_patches_xyz, 24);
 
-error:
   free(values_illu);
   free(values_cmfs_x);
   free(values_cmfs_y);
   free(values_cmfs_z);
+
+  if (err != 0)
+  {
+    fprintf(stderr, "Cannot save output patches file\n");
+    return -1;
+  }
 
   return 0;
 }

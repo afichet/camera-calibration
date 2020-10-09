@@ -56,30 +56,46 @@ int main(int argc, const char *argv[])
     return 0;
   }
 
+  const char *filename_patches_reference_xyz = argv[1];
+  const char *filename_patches_measured      = argv[2];
+  const char *filename_output_matrix         = argv[3];
+
   float *macbeth_patches_reference_xyz = NULL;
-  float *macbeth_patches_captured      = NULL;
+  float *macbeth_patches_measured      = NULL;
   size_t size                          = 0;
 
-  load_xyz(argv[1], &macbeth_patches_reference_xyz, &size);
-  load_xyz(argv[2], &macbeth_patches_captured, &size);
-
-  if (macbeth_patches_reference_xyz == NULL || macbeth_patches_captured == NULL)
+  int err = load_xyz(filename_patches_reference_xyz, &macbeth_patches_reference_xyz, &size);
+  if (err != 0)
   {
-    fprintf(stderr, "Cannot open one of the patch file\n");
-    free(macbeth_patches_reference_xyz);
-    free(macbeth_patches_captured);
+    fprintf(stderr, "Cannot read reference patches file\n");
     return -1;
   }
 
-  float matrix[9] = {1.f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f, 0.f, 1.f};
+  err = load_xyz(filename_patches_measured, &macbeth_patches_measured, &size);
+  if (err != 0)
+  {
+    fprintf(stderr, "Cannot read measured patches file\n");
+    free(macbeth_patches_reference_xyz);
+    return -1;
+  }
 
-  fit_params u_params = {size, macbeth_patches_reference_xyz, macbeth_patches_captured};
+  // Fit matrix to find the transformation between measured colorspace and
+  // reference color space
+  float      matrix[9] = {1.f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f, 0.f, 1.f};
+  fit_params u_params  = {size, macbeth_patches_reference_xyz, macbeth_patches_measured};
 
   slevmar_dif(measure, matrix, NULL, 9, size, 1000, NULL, NULL, NULL, NULL, &u_params);
-  save_xyz(argv[3], matrix, 3);
+
+  // Save fit result
+  err = save_xyz(filename_output_matrix, matrix, 3);
 
   free(macbeth_patches_reference_xyz);
-  free(macbeth_patches_captured);
+  free(macbeth_patches_measured);
+
+  if (err != 0)
+  {
+    fprintf(stderr, "Cannot write correction matrix file\n");
+  }
 
   return 0;
 }
