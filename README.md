@@ -12,13 +12,19 @@ cmake ..
 make
 ```
 
+# Images
+
+We currently support TIFF and EXR images for reading and
+writting. TIFF are supported only if `libtiff` is available on the
+system.
+
 # Pipeline example
 
 We provide a pipeline example in `run.sh` script.
 
-First, you need to extract from a TIFF file the values of the Macbeth 
-color checker. You need as well a CSV file (comma separated) describing
-each area to average.
+First, you need to extract from a TIFF file the values of the Macbeth
+color checker. You need as well a CSV file (comma separated)
+describing each area to average.
 
 ```bash
 mkdir output
@@ -83,7 +89,8 @@ And, create an image of the corrected patches:
     output/corrected_measured.png
 ```
 
-We also can correct any given image using the matrix, here the input image:
+We also can correct any given image using the matrix, here the input
+image:
 
 ```bash
 ./build/bin/correct-image \
