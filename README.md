@@ -1,9 +1,30 @@
-# Compilation
+# Building the toolkit
+
+First, checkout the repository:
+
+```bash
+git clone https://github.com/afichet/camera-calibration.git
+cd camera-calibration
+git submodule init
+git submodule update
+```
+
+## Dependencies
+
+On all platforms, you need CMake, a C and a C++ compiler.
+
+### Windows and macOS
+
+We compile levmar without BLAS / LAPACK to have simple compilation
+pipeline on those platforms. You can re-enable it in the
+`external/levmar-2.6/CMakeLists.txt` for better performances.
+
+### Linux
 
 You need f2c (`libf2c2-dev` on Ubuntu 20.04LTS), BLAS / LAPACK. See
 http://users.ics.forth.gr/~lourakis/levmar/
 
-Then,
+## Compilation
 
 ```bash
 mkdir build
