@@ -82,3 +82,12 @@ And, create an image of the corrected patches:
     output/corrected_patches.csv \
     output/corrected_measured.png
 ```
+
+We also can correct any given image using the matrix, here the input image:
+
+```bash
+./build/bin/correct-image \
+    data/measurements/Colors_0000000320_dem.tiff \
+    output/matrix.csv \
+    output/corrected_image.tiff
+```
