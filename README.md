@@ -39,6 +39,10 @@ We currently support TIFF and EXR images for reading and
 writting. TIFF are supported only if `libtiff` is available on the
 system.
 
+# Applications
+
+For a detailed description of each application, see the [apps](apps) folder.
+
 # Pipeline example
 
 We provide a pipeline example in `run.sh` script.
