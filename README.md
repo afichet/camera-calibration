@@ -71,7 +71,7 @@ Now, let's see how this reference colour chart looks like:
 ```bash
 ./build/bin/gen-colorchart-image \
     output/reference.csv \
-    output/reference.png
+    output/reference.exr
 ```
 
 And how the averaged measured one looks like:
@@ -79,7 +79,7 @@ And how the averaged measured one looks like:
 ```bash
 ./build/bin/gen-colorchart-image \
     output/patches.csv \
-    output/orig_measured.png \
+    output/orig_measured.exr \
 	true
 ```
 
@@ -107,7 +107,7 @@ And, create an image of the corrected patches:
 ```bash
 ./build/bin/gen-colorchart-image \
     output/corrected_patches.csv \
-    output/corrected_measured.png
+    output/corrected_measured.exr
 ```
 
 We also can correct any given image using the matrix, here the input

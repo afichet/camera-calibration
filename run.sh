@@ -29,8 +29,8 @@ ${bin_dir}overlay-areas \
 # Create a preview of the measured patches
 ${bin_dir}gen-colorchart-image \
     output/patches.csv \
-    output/orig_measured.png \
-	true
+    output/orig_measured.tiff \
+    true
 
 
 ###############################################################################
@@ -46,7 +46,7 @@ ${bin_dir}gen-ref-colorchart \
 # Create a preview of the reference patches
 ${bin_dir}gen-colorchart-image \
     output/reference.csv \
-    output/reference.png
+    output/reference.tiff
 
 
 ###############################################################################
@@ -72,7 +72,7 @@ ${bin_dir}correct-patches \
 # Create a preview of the corrected patches
 ${bin_dir}gen-colorchart-image \
     output/corrected_patches.csv \
-    output/corrected_measured.png
+    output/corrected_measured.tiff
 
 # Correct the original image using the same matrix
 ${bin_dir}correct-image \
