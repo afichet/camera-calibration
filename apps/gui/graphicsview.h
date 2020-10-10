@@ -27,7 +27,7 @@ private:
   MacbethModel *       _model;
   QGraphicsPixmapItem *_imageItem;
 
-  QVector<QGraphicsPolygonItem *> _chartItems;
+  QVector<QGraphicsItem *> _chartItems;
 
   bool                  _inSelection;
   int                   _selectedIdx;

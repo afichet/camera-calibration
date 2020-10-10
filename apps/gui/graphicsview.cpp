@@ -5,7 +5,12 @@
 #include <QPainter>
 #include <QMouseEvent>
 
-GraphicsView::GraphicsView(QWidget *parent): QGraphicsView(parent), _model(nullptr), _imageItem(nullptr)
+GraphicsView::GraphicsView(QWidget *parent)
+  : QGraphicsView(parent)
+  , _model(nullptr)
+  , _imageItem(nullptr)
+  , _inSelection(false)
+  , _selection(nullptr)
 {
   setScene(new QGraphicsScene);
   setRenderHints(QPainter::Antialiasing | QPainter::SmoothPixmapTransform);
@@ -45,7 +50,9 @@ void GraphicsView::onMacbethChartChanged()
 {
   if (_model == nullptr) return;
 
-  for (QGraphicsPolygonItem *item : _chartItems)
+  const float ratio = _model->getLoadedImage().width() / scene()->width();
+
+  for (QGraphicsItem *item : _chartItems)
   {
     scene()->removeItem(item);
     delete item;
@@ -57,7 +64,7 @@ void GraphicsView::onMacbethChartChanged()
   const QVector<QPolygonF> &macbethPatches = _model->getMacbethPatches();
 
   QPen pen(Qt::green);
-  pen.setWidth(3);
+  pen.setWidth(3. * ratio);
 
   _chartItems << scene()->addPolygon(macbethOutline, pen);
 
@@ -66,24 +73,31 @@ void GraphicsView::onMacbethChartChanged()
     _chartItems << scene()->addPolygon(patch, pen);
   }
 
-  if (_inSelection)
+  if (_selection != nullptr)
   {
-    if (_selection != nullptr)
+    scene()->removeItem(_selection);
+    delete _selection;
+    _selection = nullptr;
+  }
+
+  float r = 50. * ratio;
+
+  for (int i = 0; i < macbethOutline.size(); i++)
+  {
+    if (_inSelection && i == _selectedIdx)
     {
-      scene()->removeItem(_selection);
-      delete _selection;
+      r = 100. * ratio;
+      pen.setColor(Qt::yellow);
+      pen.setWidth(30. * ratio);
+    }
+    else
+    {
+      r = 50. * ratio;
+      pen.setColor(Qt::red);
+      pen.setWidth(30. * ratio);
     }
 
-    float r = 100.;
-    pen.setColor(Qt::red);
-    pen.setWidth(10.);
-
-    _selection = scene()->addEllipse(
-        macbethOutline[_selectedIdx].x() - r / 2.f,
-        macbethOutline[_selectedIdx].y() - r / 2.f,
-        r,
-        r,
-        pen);
+    _chartItems << scene()->addEllipse(macbethOutline[i].x() - r / 2.f, macbethOutline[i].y() - r / 2.f, r, r, pen);
   }
 }
 
