@@ -103,14 +103,14 @@ void MacbethModel::recalculateMacbethPatches()
 
       QPolygonF patch;
 
-      std::array<cv::Point2f, 4> patch_org = {
+      std::vector<cv::Point2f> patch_org = {
           cv::Point2f(x_left, y_top),
           cv::Point2f(x_right, y_top),
           cv::Point2f(x_right, y_bottom),
           cv::Point2f(x_left, y_bottom),
       };
 
-      std::array<cv::Point2f, 4> patch_dest;
+      std::vector<cv::Point2f> patch_dest;
       cv::perspectiveTransform(patch_org, patch_dest, transform);
 
       for (const cv::Point2f &p : patch_dest)
