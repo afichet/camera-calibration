@@ -3,6 +3,7 @@
 #include <cstddef>
 #include <cmath>
 #include <array>
+#include <fstream>
 
 extern "C"
 {
@@ -64,16 +65,12 @@ void MacbethModel::recalculateMacbethPatches()
 {
   _macbethPatches.clear();
 
-  std::array<cv::Point2f, 4> src {
-      cv::Point2f(0., 0.),
-      cv::Point2f(1., 0.),
-      cv::Point2f(1., 1.),
-      cv::Point2f(0., 1.)
-  };
+  std::array<cv::Point2f, 4> src {cv::Point2f(0., 0.), cv::Point2f(1., 0.), cv::Point2f(1., 1.), cv::Point2f(0., 1.)};
 
   std::array<cv::Point2f, 4> dest;
 
-  for (int i = 0; i < 4; i++) {
+  for (int i = 0; i < 4; i++)
+  {
     dest[i] = cv::Point2f(_macbethOutline[i].x(), _macbethOutline[i].y());
   }
 
@@ -106,7 +103,7 @@ void MacbethModel::recalculateMacbethPatches()
 
       QPolygonF patch;
 
-      std::array<cv::Point2f, 4>  patch_org = {
+      std::array<cv::Point2f, 4> patch_org = {
           cv::Point2f(x_left, y_top),
           cv::Point2f(x_right, y_top),
           cv::Point2f(x_right, y_bottom),
@@ -116,8 +113,9 @@ void MacbethModel::recalculateMacbethPatches()
       std::array<cv::Point2f, 4> patch_dest;
       cv::perspectiveTransform(patch_org, patch_dest, transform);
 
-      for (const cv::Point2f& p: patch_dest) {
-          patch << QPointF(p.x, p.y);
+      for (const cv::Point2f &p : patch_dest)
+      {
+        patch << QPointF(p.x, p.y);
       }
 
       _macbethPatches << patch;
@@ -162,4 +160,50 @@ void MacbethModel::setExposure(double value)
   }
 
   emit imageChanged();
+}
+
+void MacbethModel::savePatches(const QString &filename)
+{
+  if (_pixelBuffer == nullptr) return;
+
+  std::vector<float> patches_values(4 * _macbethPatches.size(), 0.f);
+
+  for (int y = 0; y < _image.height(); y++)
+  {
+    for (int x = 0; x < _image.width(); x++)
+    {
+      const QPointF currentPixel(x, y);
+
+      for (int p = 0; p < _macbethPatches.size(); p++)
+      {
+        if (_macbethPatches[p].containsPoint(currentPixel, Qt::OddEvenFill))
+        {
+          for (int c = 0; c < 3; c++)
+          {
+            patches_values[4 * p + c] += _pixelBuffer[3 * (y * _image.width() + x) + c];
+          }
+          patches_values[4 * p + 3] += 1;
+          //break;
+        }
+      }
+    }
+  }
+
+  std::vector<float> final_values(3 * _macbethPatches.size());
+
+  for (int p = 0; p < _macbethPatches.size(); p++)
+  {
+    for (int c = 0; c < 3; c++)
+    {
+      final_values[3 * p + c] = patches_values[4 * p + c] / patches_values[4 * p + 3];
+    }
+  }
+
+  std::ofstream outputFile(filename.toStdString());
+
+  for (int p = 0; p < _macbethPatches.size(); p++)
+  {
+    outputFile << final_values[3 * p + 0] << ", " << final_values[3 * p + 1] << ", " << final_values[3 * p + 2]
+               << std::endl;
+  }
 }

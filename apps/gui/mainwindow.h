@@ -28,6 +28,8 @@ private slots:
 
   void on_exposureValue_valueChanged(double value);
 
+  void on_action_Save_areas_triggered();
+
 private:
   Ui::MainWindow *ui;
   MacbethModel    _model;

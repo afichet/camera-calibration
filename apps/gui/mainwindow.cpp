@@ -19,7 +19,7 @@ MainWindow::~MainWindow()
 
 void MainWindow::on_action_Open_triggered()
 {
-  QString filename = QFileDialog::getOpenFileName(this, tr("Open Image"), "", tr("Image (*.png *.tiff *.tif *.exr)"));
+  QString filename = QFileDialog::getOpenFileName(this, tr("Open Image"), "", tr("Image (*.tiff *.tif *.exr)"));
 
   if (filename.size() != 0)
   {
@@ -46,3 +46,13 @@ void MainWindow::on_exposureValue_valueChanged(double value)
   _model.setExposure(value);
 }
 
+
+void MainWindow::on_action_Save_areas_triggered()
+{
+  QString filename = QFileDialog::getSaveFileName(this, tr("Save patches"), "", tr("CSV (*.csv)"));
+
+  if (filename.size() != 0)
+  {
+    _model.savePatches(filename);
+  }
+}

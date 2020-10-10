@@ -1,4 +1,4 @@
-#ifndef MACBETHMODEL_H
+﻿#ifndef MACBETHMODEL_H
 #define MACBETHMODEL_H
 
 #include <QObject>
@@ -29,6 +29,8 @@ public slots:
   void setOutlinePosition(int index, QPointF position);
 
   void setExposure(double value);
+
+  void savePatches(const QString &filename);
 
 signals:
   void macbethChartChanged();
