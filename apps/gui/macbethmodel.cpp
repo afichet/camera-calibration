@@ -167,12 +167,12 @@ void MacbethModel::setExposure(double value)
 {
   if (_pixelBuffer == nullptr) return;
 
-  for (size_t y = 0; y < _image.height(); y++)
+  for (int y = 0; y < _image.height(); y++)
   {
     uchar *scanline = _image.scanLine(y);
-    for (size_t x = 0; x < _image.width(); x++)
+    for (int x = 0; x < _image.width(); x++)
     {
-      for (size_t i = 0; i < 3; i++)
+      for (int i = 0; i < 3; i++)
       {
         scanline[3 * x + i] = 255 * to_sRGB(_pixelBuffer[3 * (y * _image.width() + x) + i] * std::pow(2., value));
       }
