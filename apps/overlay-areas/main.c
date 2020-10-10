@@ -1,8 +1,6 @@
 #include <stdio.h>
 #include <stdlib.h>
 
-#include <tiffio.h>
-
 #include <io.h>
 #include <color-converter.h>
 #include <image.h>
