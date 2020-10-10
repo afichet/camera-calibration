@@ -1,3 +1,5 @@
+#!/bin/sh
+
 valgrind ./build/bin/extract-patches data/measurements/Colors_0000000320_dem.tiff data/measurements/boxes.csv output/patches.csv
 valgrind ./build/bin/gen-ref-colorchart data/D65.csv data/XYZ.csv output/reference.csv
 valgrind ./build/bin/gen-colorchart-image output/reference.csv output/reference.exr
