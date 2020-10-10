@@ -22,15 +22,11 @@ public:
 private slots:
   void on_action_Open_triggered();
 
-  void on_sliderOuterMarginX_valueChanged(int value);
-
-  void on_sliderOuterMarginY_valueChanged(int value);
-
   void on_sliderInnerMarginX_valueChanged(int value);
 
   void on_sliderInnerMarginY_valueChanged(int value);
 
-  void on_exposureValue_valueChanged(double arg1);
+  void on_exposureValue_valueChanged(double value);
 
 private:
   Ui::MainWindow *ui;

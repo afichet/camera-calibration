@@ -6,6 +6,9 @@ MainWindow::MainWindow(QWidget *parent): QMainWindow(parent), ui(new Ui::MainWin
 {
   ui->setupUi(this);
   ui->graphicsView->setModel(&_model);
+
+  on_sliderInnerMarginX_valueChanged(ui->sliderInnerMarginX->value());
+  on_sliderInnerMarginY_valueChanged(ui->sliderInnerMarginY->value());
 }
 
 MainWindow::~MainWindow()
@@ -22,20 +25,6 @@ void MainWindow::on_action_Open_triggered()
   {
     _model.openFile(filename);
   }
-}
-
-void MainWindow::on_sliderOuterMarginX_valueChanged(int value)
-{
-  float p = (float)(value - ui->sliderOuterMarginX->minimum())
-            / (float)(ui->sliderOuterMarginX->maximum() - ui->sliderOuterMarginX->minimum());
-  _model.setOuterMarginX(p);
-}
-
-void MainWindow::on_sliderOuterMarginY_valueChanged(int value)
-{
-  float p = (float)(value - ui->sliderOuterMarginY->minimum())
-            / (float)(ui->sliderOuterMarginY->maximum() - ui->sliderOuterMarginY->minimum());
-  _model.setOuterMarginY(p);
 }
 
 void MainWindow::on_sliderInnerMarginX_valueChanged(int value)
@@ -56,3 +45,4 @@ void MainWindow::on_exposureValue_valueChanged(double value)
 {
   _model.setExposure(value);
 }
+

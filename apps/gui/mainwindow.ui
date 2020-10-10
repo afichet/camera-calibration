@@ -64,53 +64,16 @@
    <widget class="QWidget" name="dockWidgetContents">
     <layout class="QVBoxLayout" name="verticalLayout">
      <item>
-      <widget class="QGroupBox" name="groupBox">
-       <property name="title">
-        <string>Outer margins</string>
-       </property>
-       <layout class="QGridLayout" name="gridLayout">
-        <item row="3" column="0">
-         <widget class="QLabel" name="label_2">
-          <property name="text">
-           <string>Y</string>
-          </property>
-         </widget>
-        </item>
-        <item row="3" column="1">
-         <widget class="QSlider" name="sliderOuterMarginY">
-          <property name="orientation">
-           <enum>Qt::Horizontal</enum>
-          </property>
-         </widget>
-        </item>
-        <item row="2" column="0">
-         <widget class="QLabel" name="label">
-          <property name="text">
-           <string>X</string>
-          </property>
-         </widget>
-        </item>
-        <item row="2" column="1">
-         <widget class="QSlider" name="sliderOuterMarginX">
-          <property name="maximum">
-           <number>99</number>
-          </property>
-          <property name="orientation">
-           <enum>Qt::Horizontal</enum>
-          </property>
-         </widget>
-        </item>
-       </layout>
-      </widget>
-     </item>
-     <item>
       <widget class="QGroupBox" name="groupBox_2">
        <property name="title">
-        <string>Inner margins</string>
+        <string>Margins</string>
        </property>
        <layout class="QGridLayout" name="gridLayout_2">
         <item row="0" column="1">
          <widget class="QSlider" name="sliderInnerMarginX">
+          <property name="value">
+           <number>50</number>
+          </property>
           <property name="orientation">
            <enum>Qt::Horizontal</enum>
           </property>
@@ -118,6 +81,9 @@
         </item>
         <item row="2" column="1">
          <widget class="QSlider" name="sliderInnerMarginY">
+          <property name="value">
+           <number>50</number>
+          </property>
           <property name="orientation">
            <enum>Qt::Horizontal</enum>
           </property>
@@ -138,6 +104,13 @@
          </widget>
         </item>
        </layout>
+      </widget>
+     </item>
+     <item>
+      <widget class="QCheckBox" name="showPatchNumbers">
+       <property name="text">
+        <string>Show patch numbers</string>
+       </property>
       </widget>
      </item>
      <item>
@@ -204,8 +177,28 @@
    <class>GraphicsView</class>
    <extends>QGraphicsView</extends>
    <header>graphicsview.h</header>
+   <slots>
+    <slot>setShowPatchNumbers(bool)</slot>
+   </slots>
   </customwidget>
  </customwidgets>
  <resources/>
- <connections/>
+ <connections>
+  <connection>
+   <sender>showPatchNumbers</sender>
+   <signal>toggled(bool)</signal>
+   <receiver>graphicsView</receiver>
+   <slot>setShowPatchNumbers(bool)</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>27</x>
+     <y>158</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>274</x>
+     <y>134</y>
+    </hint>
+   </hints>
+  </connection>
+ </connections>
 </ui>

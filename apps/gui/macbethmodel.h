@@ -23,8 +23,6 @@ public slots:
 
   void recalculateMacbethPatches();
 
-  void setOuterMarginX(float position);
-  void setOuterMarginY(float position);
   void setInnerMarginX(float position);
   void setInnerMarginY(float position);
 
@@ -40,7 +38,6 @@ private:
   float *_pixelBuffer;
   QImage _image;
 
-  float _outerMarginX, _outerMarginY;
   float _innerMarginX, _innerMarginY;
 
   QPolygonF          _macbethOutline;

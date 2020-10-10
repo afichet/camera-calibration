@@ -38,6 +38,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 find_package(QT NAMES Qt6 Qt5 COMPONENTS Widgets REQUIRED)
 find_package(Qt${QT_VERSION_MAJOR} COMPONENTS Widgets REQUIRED)
 
+find_package(OpenCV REQUIRED core imgproc)
 #set(TS_FILES macbeth-detect_fr_FR.ts)
 
 add_executable(gui
@@ -53,7 +54,7 @@ add_executable(gui
 )
 
 
-target_link_libraries(gui PRIVATE Qt${QT_VERSION_MAJOR}::Widgets image colors)
+target_link_libraries(gui PRIVATE Qt${QT_VERSION_MAJOR}::Widgets ${OpenCV_LIBS} image colors)
 # Eigen3::Eigen)
 
 #qt5_create_translation(QM_FILES ${CMAKE_SOURCE_DIR} ${TS_FILES})

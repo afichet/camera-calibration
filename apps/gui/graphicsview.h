@@ -17,6 +17,7 @@ public slots:
 
   void onImageChanged();
   void onMacbethChartChanged();
+  void setShowPatchNumbers(bool show);
 
 protected:
   void mousePressEvent(QMouseEvent *event) override;
@@ -32,6 +33,8 @@ private:
   bool                  _inSelection;
   int                   _selectedIdx;
   QGraphicsEllipseItem *_selection;
+
+  bool _showPatchNumbers;
 };
 
 

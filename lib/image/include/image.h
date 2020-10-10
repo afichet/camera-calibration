@@ -27,4 +27,4 @@ extern "C"
 #endif
 
 
-#endif // IMAGE_H_
+#endif   // IMAGE_H_

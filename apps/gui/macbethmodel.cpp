@@ -1,7 +1,8 @@
 #include "macbethmodel.h"
-// #include <image.h>
+
 #include <cstddef>
 #include <cmath>
+#include <array>
 
 extern "C"
 {
@@ -9,15 +10,15 @@ extern "C"
 #include <color-converter.h>
 }
 
-MacbethModel::MacbethModel()
-  : QObject()
-  , _pixelBuffer(nullptr)
-  , _outerMarginX(0.01)
-  , _outerMarginY(0.01)
-  , _innerMarginX(0.01)
-  , _innerMarginY(0.01)
-  , _macbethOutline(QRectF(0, 0, 1, 1))
-{}
+#include <opencv2/core.hpp>
+#include <opencv2/imgproc/imgproc.hpp>
+
+MacbethModel::MacbethModel(): QObject(), _pixelBuffer(nullptr), _innerMarginX(0.01), _innerMarginY(0.01)
+{
+  _macbethOutline << QPointF(0, 0) << QPointF(100, 0) << QPointF(100, 100) << QPointF(0, 100);
+
+  recalculateMacbethPatches();
+}
 
 MacbethModel::~MacbethModel()
 {
@@ -47,10 +48,8 @@ void MacbethModel::openFile(const QString &filename)
   emit imageChanged();
 
   _macbethOutline.clear();
-  _macbethOutline << QPointF(0, 0);
-  _macbethOutline << QPointF(_image.width(), 0);
-  _macbethOutline << QPointF(_image.width(), _image.height());
-  _macbethOutline << QPointF(0, _image.height());
+  _macbethOutline << QPointF(0, 0) << QPointF(_image.width(), 0) << QPointF(_image.width(), _image.height())
+                  << QPointF(0, _image.height());
 
   recalculateMacbethPatches();
 }
@@ -65,66 +64,61 @@ void MacbethModel::recalculateMacbethPatches()
 {
   _macbethPatches.clear();
 
-  const QPointF &topLeft     = _macbethOutline[0];
-  const QPointF &topRight    = _macbethOutline[1];
-  const QPointF &bottomRight = _macbethOutline[2];
-  const QPointF &bottomLeft  = _macbethOutline[3];
+  std::array<cv::Point2f, 4> src {
+      cv::Point2f(0., 0.),
+      cv::Point2f(1., 0.),
+      cv::Point2f(1., 1.),
+      cv::Point2f(0., 1.)
+  };
+
+  std::array<cv::Point2f, 4> dest;
+
+  for (int i = 0; i < 4; i++) {
+    dest[i] = cv::Point2f(_macbethOutline[i].x(), _macbethOutline[i].y());
+  }
+
+  cv::Mat transform = cv::getPerspectiveTransform(&src[0], &dest[0]);
 
   const int n_cols  = 6;
   const int n_lines = 4;
 
-  const float usable_space_x = 1.f - 2. * _outerMarginX;
-  const float usable_space_y = 1.f - 2. * _outerMarginY;
+  const float margin_x = _innerMarginX / (n_cols + 1);
+  const float margin_y = _innerMarginY / (n_lines + 1);
 
-  const float sepX = (_innerMarginX / (n_cols - 1)) * usable_space_x;
-  const float sepY = (_innerMarginY / (n_lines - 1)) * usable_space_y;
+  const float usable_space_x = 1.f - _innerMarginX;
+  const float usable_space_y = 1.f - _innerMarginY;
 
-  const float patch_footprint_x = usable_space_x / n_cols;
-  const float patch_footprint_y = usable_space_y / n_lines;
+  const float patch_width  = usable_space_x / n_cols;
+  const float patch_height = usable_space_y / n_lines;
 
-  const float patch_width  = patch_footprint_x - sepX;
-  const float patch_height = patch_footprint_y - sepY;
+  const float patch_footprint_x = patch_width + margin_x;
+  const float patch_footprint_y = patch_height + margin_y;
 
   for (int y = 0; y < n_lines; y++)
   {
     for (int x = 0; x < n_cols; x++)
     {
-      const float x_left  = _outerMarginX + x * patch_footprint_x + sepX / 2.f;
-      const float x_right = x_left + patch_width - sepX / 2.f;
+      const float x_left  = margin_x + x * patch_footprint_x;
+      const float x_right = x_left + patch_width;
 
-      const float y_top    = _outerMarginY + y * patch_footprint_y + sepY / 2.f;
-      const float y_bottom = y_top + patch_height - sepY / 2.f;
-
-      const float x_top_left_interp  = lerp(topLeft.x(), topRight.x(), x_left);
-      const float x_top_right_interp = lerp(topLeft.x(), topRight.x(), x_right);
-
-      const float x_bottom_left_interp  = lerp(bottomLeft.x(), bottomRight.x(), x_left);
-      const float x_bottom_right_interp = lerp(bottomLeft.x(), bottomRight.x(), x_right);
-
-      const float y_left_top_interp    = lerp(topLeft.y(), bottomLeft.y(), y_top);
-      const float y_left_bottom_interp = lerp(topLeft.y(), bottomLeft.y(), y_bottom);
-
-      const float y_right_top_interp    = lerp(topRight.y(), bottomRight.y(), y_top);
-      const float y_right_bottom_interp = lerp(topRight.y(), bottomRight.y(), y_bottom);
-
-
-      const float x_top_left    = lerp(x_top_left_interp, x_bottom_left_interp, y_top);
-      const float x_bottom_left = lerp(x_top_left_interp, x_bottom_left_interp, y_bottom);
-
-      const float x_top_right    = lerp(x_top_right_interp, x_bottom_right_interp, y_top);
-      const float x_bottom_right = lerp(x_top_right_interp, x_bottom_right_interp, y_bottom);
-
-      const float y_top_left  = lerp(y_left_top_interp, y_right_top_interp, x_left);
-      const float y_top_right = lerp(y_left_top_interp, y_right_top_interp, x_right);
-
-      const float y_bottom_left  = lerp(y_left_bottom_interp, y_right_bottom_interp, x_left);
-      const float y_bottom_right = lerp(y_left_bottom_interp, y_right_bottom_interp, x_right);
+      const float y_top    = margin_y + y * patch_footprint_y;
+      const float y_bottom = y_top + patch_height;
 
       QPolygonF patch;
-      patch << QPointF(x_top_left, y_top_left);
-      patch << QPointF(x_top_right, y_top_right);
-      patch << QPointF(x_bottom_right, y_bottom_right);
-      patch << QPointF(x_bottom_left, y_bottom_left);
+
+      std::array<cv::Point2f, 4>  patch_org = {
+          cv::Point2f(x_left, y_top),
+          cv::Point2f(x_right, y_top),
+          cv::Point2f(x_right, y_bottom),
+          cv::Point2f(x_left, y_bottom),
+      };
+
+      std::array<cv::Point2f, 4> patch_dest;
+      cv::perspectiveTransform(patch_org, patch_dest, transform);
+
+      for (const cv::Point2f& p: patch_dest) {
+          patch << QPointF(p.x, p.y);
+      }
 
       _macbethPatches << patch;
     }
@@ -133,27 +127,15 @@ void MacbethModel::recalculateMacbethPatches()
   emit macbethChartChanged();
 }
 
-void MacbethModel::setOuterMarginX(float position)
-{
-  _outerMarginX = .5f * position;
-  recalculateMacbethPatches();
-}
-
-void MacbethModel::setOuterMarginY(float position)
-{
-  _outerMarginY = .5f * position;
-  recalculateMacbethPatches();
-}
-
 void MacbethModel::setInnerMarginX(float position)
 {
-  _innerMarginX = .5f * position;
+  _innerMarginX = position;
   recalculateMacbethPatches();
 }
 
 void MacbethModel::setInnerMarginY(float position)
 {
-  _innerMarginY = .5f * position;
+  _innerMarginY = position;
   recalculateMacbethPatches();
 }
 
