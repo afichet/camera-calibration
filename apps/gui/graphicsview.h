@@ -15,14 +15,23 @@ public:
 public slots:
   void setModel(MacbethModel *model);
 
+  void onImageLoaded(int width, int height);
   void onImageChanged();
   void onMacbethChartChanged();
   void setShowPatchNumbers(bool show);
+  void setZoomLevel(float zoom);
+  void zoomIn();
+  void zoomOut();
 
 protected:
+//  void wheelEvent( QWheelEvent * event ) override;
+
   void mousePressEvent(QMouseEvent *event) override;
   void mouseMoveEvent(QMouseEvent *event) override;
   void mouseReleaseEvent(QMouseEvent *event) override;
+
+  void dropEvent(QDropEvent *ev) override;
+  void dragEnterEvent(QDragEnterEvent *ev) override;
 
 private:
   MacbethModel *       _model;
@@ -34,7 +43,11 @@ private:
   int                   _selectedIdx;
   QGraphicsEllipseItem *_selection;
 
+  QPoint _startDrag;
+
   bool _showPatchNumbers;
+
+  float _zoomLevel;
 };
 
 

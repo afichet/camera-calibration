@@ -36,6 +36,7 @@ public slots:
 signals:
   void macbethChartChanged();
   void imageChanged();
+  void imageLoaded(int width, int height);
 
 private:
   float *_pixelBuffer;

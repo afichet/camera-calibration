@@ -34,6 +34,7 @@ void MacbethModel::openFile(const QString &filename)
 
   _image = QImage(width, height, QImage::Format_RGB888);
 
+  #pragma omp parallel for
   for (size_t y = 0; y < height; y++)
   {
     uchar *scanline = _image.scanLine(y);
@@ -47,7 +48,7 @@ void MacbethModel::openFile(const QString &filename)
   }
 
   emit imageChanged();
-
+  emit imageLoaded(width, height);
   _macbethOutline.clear();
   _macbethOutline << QPointF(0, 0) << QPointF(_image.width(), 0) << QPointF(_image.width(), _image.height())
                   << QPointF(0, _image.height());
@@ -147,6 +148,7 @@ void MacbethModel::setExposure(double value)
 {
   if (_pixelBuffer == nullptr) return;
 
+  #pragma omp parallel for
   for (int y = 0; y < _image.height(); y++)
   {
     uchar *scanline = _image.scanLine(y);
@@ -168,6 +170,7 @@ void MacbethModel::savePatches(const QString &filename)
 
   std::vector<float> patches_values(4 * _macbethPatches.size(), 0.f);
 
+  #pragma omp parallel for
   for (int y = 0; y < _image.height(); y++)
   {
     for (int x = 0; x < _image.width(); x++)
@@ -191,6 +194,7 @@ void MacbethModel::savePatches(const QString &filename)
 
   std::vector<float> final_values(3 * _macbethPatches.size());
 
+  #pragma omp parallel for
   for (int p = 0; p < _macbethPatches.size(); p++)
   {
     for (int c = 0; c < 3; c++)

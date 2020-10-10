@@ -1,0 +1,120 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   xmlns:dc="http://purl.org/dc/elements/1.1/"
+   xmlns:cc="http://creativecommons.org/ns#"
+   xmlns:rdf="http://www.w3.org/1999/02/22-rdf-syntax-ns#"
+   xmlns:svg="http://www.w3.org/2000/svg"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   inkscape:version="1.0 (4035a4fb49, 2020-05-01)"
+   sodipodi:docname="undock.svg"
+   id="svg896"
+   version="1.1"
+   viewBox="0 0 135.46666 135.46666"
+   height="512"
+   width="512">
+  <defs
+     id="defs890" />
+  <sodipodi:namedview
+     inkscape:window-maximized="1"
+     inkscape:window-y="0"
+     inkscape:window-x="0"
+     inkscape:window-height="1126"
+     inkscape:window-width="1920"
+     units="px"
+     showgrid="false"
+     inkscape:document-rotation="0"
+     inkscape:current-layer="g1647"
+     inkscape:document-units="mm"
+     inkscape:cy="42.034948"
+     inkscape:cx="343.50678"
+     inkscape:zoom="0.7"
+     inkscape:pageshadow="2"
+     inkscape:pageopacity="0.0"
+     borderopacity="1.0"
+     bordercolor="#666666"
+     pagecolor="#ffffff"
+     id="base" />
+  <metadata
+     id="metadata893">
+    <rdf:RDF>
+      <cc:Work
+         rdf:about="">
+        <dc:format>image/svg+xml</dc:format>
+        <dc:type
+           rdf:resource="http://purl.org/dc/dcmitype/StillImage" />
+        <dc:title></dc:title>
+      </cc:Work>
+    </rdf:RDF>
+  </metadata>
+  <g
+     id="layer1"
+     inkscape:groupmode="layer"
+     inkscape:label="Layer 1">
+    <g
+       transform="translate(0.39261739,2.2258724)"
+       id="g1659">
+      <rect
+         transform="matrix(0,1,1,0,0,0)"
+         y="3.8244679"
+         x="31.961954"
+         height="9.0089636"
+         width="96.096169"
+         id="rect839-3-5"
+         style="fill:#36a9e4;fill-opacity:1;stroke:none;stroke-width:0.733137;stroke-linecap:square;stroke-linejoin:bevel;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;paint-order:markers fill stroke" />
+      <rect
+         style="fill:#36a9e4;fill-opacity:1;stroke:none;stroke-width:0.733137;stroke-linecap:square;stroke-linejoin:bevel;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;paint-order:markers fill stroke"
+         id="rect839-3-5-3"
+         width="96.096169"
+         height="9.0089636"
+         x="3.8244679"
+         y="-128.05812"
+         transform="scale(1,-1)" />
+      <rect
+         style="fill:#36a9e4;fill-opacity:1;stroke:none;stroke-width:0.733137;stroke-linecap:square;stroke-linejoin:bevel;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;paint-order:markers fill stroke"
+         id="rect839-3-5-5"
+         width="96.096169"
+         height="9.0089636"
+         x="31.961945"
+         y="90.911674"
+         transform="matrix(0,1,1,0,0,0)" />
+      <rect
+         style="fill:#36a9e4;fill-opacity:1;stroke:none;stroke-width:0.733137;stroke-linecap:square;stroke-linejoin:bevel;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;paint-order:markers fill stroke"
+         id="rect839-3-5-6"
+         width="96.096169"
+         height="9.0089636"
+         x="3.8244712"
+         y="-40.970909"
+         transform="scale(1,-1)" />
+      <g
+         id="g1647"
+         transform="rotate(45,106.44337,-89.329048)">
+        <rect
+           style="fill:#36a9e4;fill-opacity:1;stroke:none;stroke-width:0.465744;stroke-linecap:square;stroke-linejoin:bevel;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;paint-order:markers fill stroke"
+           id="rect839-3-5-2-1"
+           width="38.782101"
+           height="9.0089636"
+           x="104.3875"
+           y="153.83664"
+           transform="matrix(0.70710678,0.70710678,0.70710678,-0.70710678,0,0)" />
+        <rect
+           style="fill:#36a9e4;fill-opacity:1;stroke:none;stroke-width:0.676851;stroke-linecap:square;stroke-linejoin:bevel;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;paint-order:markers fill stroke"
+           id="rect839-3-5-2-9"
+           width="81.907204"
+           height="9.0089636"
+           x="-29.006479"
+           y="184.45786"
+           transform="matrix(0,1,1,0,0,0)" />
+        <rect
+           transform="matrix(-0.70710678,0.70710678,0.70710678,0.70710678,0,0)"
+           y="104.3875"
+           x="-162.8456"
+           height="9.0089636"
+           width="38.782101"
+           id="rect839-3-5-2-1-8"
+           style="fill:#36a9e4;fill-opacity:1;stroke:none;stroke-width:0.465743;stroke-linecap:square;stroke-linejoin:bevel;stroke-miterlimit:4;stroke-dasharray:none;stroke-opacity:1;paint-order:markers fill stroke" />
+      </g>
+    </g>
+  </g>
+</svg>

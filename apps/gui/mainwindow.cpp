@@ -1,6 +1,9 @@
 #include "mainwindow.h"
 #include "ui_mainwindow.h"
 #include <QFileDialog>
+#include <QUrl>
+#include <QMimeData>
+#include <QDragEnterEvent>
 
 MainWindow::MainWindow(QWidget *parent): QMainWindow(parent), ui(new Ui::MainWindow)
 {
@@ -16,6 +19,38 @@ MainWindow::~MainWindow()
   delete ui;
 }
 
+void MainWindow::openFile(const QString& filename)
+{
+  _model.openFile(filename);
+}
+
+void MainWindow::dropEvent(QDropEvent *ev)
+{
+    QList<QUrl> urls = ev->mimeData()->urls();
+
+    if (!urls.empty())
+    {
+        QString fileName = urls[0].toString();
+        QString startFileTypeString =
+            #ifdef _WIN32
+                "file:///";
+            #else
+                "file://";
+            #endif
+
+        if (fileName.startsWith(startFileTypeString))
+        {
+            fileName = fileName.remove(0, startFileTypeString.length());
+            openFile(fileName);
+        }
+    }
+}
+
+
+void MainWindow::dragEnterEvent(QDragEnterEvent *ev)
+{
+    ev->acceptProposedAction();
+}
 
 void MainWindow::on_action_Open_triggered()
 {
@@ -23,7 +58,7 @@ void MainWindow::on_action_Open_triggered()
 
   if (filename.size() != 0)
   {
-    _model.openFile(filename);
+    openFile(filename);
   }
 }
 

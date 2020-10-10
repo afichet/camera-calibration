@@ -37,7 +37,7 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 find_package(QT NAMES Qt6 Qt5 COMPONENTS Widgets REQUIRED)
 find_package(Qt${QT_VERSION_MAJOR} COMPONENTS Widgets REQUIRED)
-
+find_package(OpenMP)
 find_package(OpenCV REQUIRED core imgproc)
 #set(TS_FILES macbeth-detect_fr_FR.ts)
 
@@ -50,9 +50,17 @@ add_executable(gui
     macbethmodel.h
     graphicsview.cpp
     graphicsview.h
+    graphicsscene.cpp
+    graphicsscene.h
+    theme/theme.qrc
+
     #${TS_FILES}
 )
 
+
+if (OpenMP_FOUND OR OpenMP_CXX_FOUND)
+   target_link_libraries(gui PRIVATE OpenMP::OpenMP_CXX)
+endif()
 
 target_link_libraries(gui PRIVATE Qt${QT_VERSION_MAJOR}::Widgets ${OpenCV_LIBS} image colors)
 # Eigen3::Eigen)

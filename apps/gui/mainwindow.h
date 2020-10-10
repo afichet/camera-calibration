@@ -19,6 +19,12 @@ public:
   MainWindow(QWidget *parent = nullptr);
   ~MainWindow();
 
+  void openFile(const QString& filename);
+
+private:
+  void dropEvent(QDropEvent* event);
+  void dragEnterEvent(QDragEnterEvent *ev);
+
 private slots:
   void on_action_Open_triggered();
 

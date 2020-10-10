@@ -1,0 +1,15 @@
+<RCC>
+    <qresource prefix="/">
+        <file>icons/checked.svg</file>
+        <file>icons/close.svg</file>
+        <file>icons/undock.svg</file>
+        <file>icons/loading.svg</file>
+        <file>icons/down.svg</file>
+        <file>theme.qss</file>
+        <file>icons/down-scroll.svg</file>
+        <file>icons/left-scroll.svg</file>
+        <file>icons/right-scroll.svg</file>
+        <file>icons/up-scroll.svg</file>
+        <file>icons/up.svg</file>
+    </qresource>
+</RCC>
