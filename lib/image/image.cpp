@@ -17,16 +17,16 @@ extern "C"
 #define TINYEXR_IMPLEMENTATION
 #include <tinyexr.h>
 
-#ifndef min
-#  define min(a, b) (((a) < (b)) ? (a) : (b))
+#ifndef MIN
+#  define MIN(a, b) (((a) < (b)) ? (a) : (b))
 #endif
 
-#ifndef max
-#  define max(a, b) (((a) < (b)) ? (b) : (a))
+#ifndef MAX
+#  define MAX(a, b) (((a) < (b)) ? (b) : (a))
 #endif
 
 #ifndef clamp
-#  define clamp(v, _min, _max) (min(max(v, _min), _max))
+#  define clamp(v, _min, _max) (MIN(MAX(v, _min), _max))
 #endif
 
 #ifdef __cplusplus
@@ -222,24 +222,124 @@ extern "C"
 
   int read_exr(const char *filename, float **pixels, size_t *width, size_t *height)
   {
-    const char *err = NULL;
-    int         w, h;
+    EXRVersion version;
+    int        status = ParseEXRVersionFromFile(&version, filename);
 
-    const int status = LoadEXRWithLayer(pixels, &w, &h, filename, NULL, &err);
+    if (status != TINYEXR_SUCCESS)
+    {
+      fprintf(stderr, "Invalid EXR file %s\n", filename);
+      return -1;
+    }
+
+    if (version.multipart)
+    {
+      fprintf(stderr, "We do not support EXR multipart\n");
+      return -1;
+    }
+
+    EXRHeader header;
+    InitEXRHeader(&header);
+
+    const char *err = NULL;
+    status          = ParseEXRHeaderFromFile(&header, &version, filename, &err);
 
     if (status != TINYEXR_SUCCESS)
     {
       if (err)
       {
-        fprintf(stderr, "Cannot read image file%s\nError: %s\n", filename, err);
+        fprintf(stderr, "Cannot open EXR file %s\nError: %s\n", filename, err);
         FreeEXRErrorMessage(err);
       }
-
       return -1;
     }
 
-    *width  = w;
-    *height = h;
+    EXRImage image;
+    InitEXRImage(&image);
+
+    status = LoadEXRImageFromFile(&image, &header, filename, &err);
+    if (status != TINYEXR_SUCCESS)
+    {
+      if (err)
+      {
+        fprintf(stderr, "Cannot open EXR file %s\nError: %s\n", filename, err);
+        FreeEXRErrorMessage(err);
+      }
+      FreeEXRImage(&image);
+      return -1;
+    }
+
+    if (image.images == NULL)
+    {
+      fprintf(stderr, "Load EXR error: Tiled format not supported\n");
+      FreeEXRImage(&image);
+      return -1;
+    }
+
+    int idxR = 0;
+    int idxG = 0;
+    int idxB = 0;
+
+    for (int c = 0; c < header.num_channels; c++)
+    {
+      if (strcmp(header.channels[c].name, "R") == 0)
+      {
+        idxR = c;
+      }
+      else if (strcmp(header.channels[c].name, "G") == 0)
+      {
+        idxG = c;
+      }
+      else if (strcmp(header.channels[c].name, "B") == 0)
+      {
+        idxB = c;
+      }
+    }
+
+    float *framebuffer = (float *)calloc(3 * image.width * image.height, sizeof(float));
+
+    if (header.pixel_types[0] == TINYEXR_PIXELTYPE_FLOAT)
+    {
+      float *buffer_r = (float *)(image.images[idxR]);
+      float *buffer_g = (float *)(image.images[idxG]);
+      float *buffer_b = (float *)(image.images[idxB]);
+
+      for (int i = 0; i < image.width * image.height; i++)
+      {
+        // set all channels to 0 in case exr file contains only one or two
+        // channels
+        framebuffer[3 * i + 0] = buffer_r[i];
+        framebuffer[3 * i + 1] = buffer_g[i];
+        framebuffer[3 * i + 2] = buffer_b[i];
+      }
+    }
+    else if (header.pixel_types[0] == TINYEXR_PIXELTYPE_UINT)
+    {
+      unsigned int *buffer_r = (unsigned int *)(image.images[idxR]);
+      unsigned int *buffer_g = (unsigned int *)(image.images[idxG]);
+      unsigned int *buffer_b = (unsigned int *)(image.images[idxB]);
+
+      for (int i = 0; i < image.width * image.height; i++)
+      {
+        // set all channels to 0 in case exr file contains only one or two
+        // channels
+        framebuffer[3 * i + 0] = buffer_r[i] / std::numeric_limits<unsigned int>::max();
+        framebuffer[3 * i + 1] = buffer_g[i] / std::numeric_limits<unsigned int>::max();
+        framebuffer[3 * i + 2] = buffer_b[i] / std::numeric_limits<unsigned int>::max();
+      }
+    }
+    else
+    {
+      FreeEXRImage(&image);
+      free(framebuffer);
+    }
+
+    // Free image data
+    FreeEXRImage(&image);
+
+
+    *width  = image.width;
+    *height = image.height;
+    *pixels = framebuffer;
 
     return 0;
   }
