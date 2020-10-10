@@ -48,7 +48,7 @@ void GraphicsView::onImageChanged()
 
 void GraphicsView::onMacbethChartChanged()
 {
-  if (_model == nullptr) return;
+  if (_model == nullptr || !_model->isImageLoaded()) return;
 
   const float ratio = _model->getLoadedImage().width() / 500;
 
@@ -121,7 +121,7 @@ void GraphicsView::setShowPatchNumbers(bool show)
 
 void GraphicsView::mousePressEvent(QMouseEvent *event)
 {
-  if (_model == nullptr) return;
+  if (_model == nullptr || !_model->isImageLoaded()) return;
   _inSelection = true;
 
   const QPointF selection = mapToScene(event->pos());
@@ -141,13 +141,13 @@ void GraphicsView::mousePressEvent(QMouseEvent *event)
     }
   }
 
-  emit onMacbethChartChanged();
+  _model->setOutlinePosition(_selectedIdx, selection);
 }
 
 
 void GraphicsView::mouseMoveEvent(QMouseEvent *event)
 {
-  if (_model == nullptr) return;
+  if (_model == nullptr || !_model->isImageLoaded()) return;
 
   if (_inSelection)
   {
@@ -158,7 +158,7 @@ void GraphicsView::mouseMoveEvent(QMouseEvent *event)
 
 void GraphicsView::mouseReleaseEvent(QMouseEvent *event)
 {
-  if (_model == nullptr) return;
+  if (_model == nullptr || !_model->isImageLoaded()) return;
 
   if (_inSelection)
   {

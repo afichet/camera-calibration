@@ -17,6 +17,7 @@ public:
   const QPolygonF &         getMacbethOutline() const { return _macbethOutline; }
   const QVector<QPolygonF> &getMacbethPatches() const { return _macbethPatches; }
 
+  bool isImageLoaded() const { return _pixelBuffer != nullptr; }
 
 public slots:
   void openFile(const QString &filename);
