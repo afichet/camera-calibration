@@ -11,7 +11,8 @@ add_library(image STATIC
 if (TIFF_FOUND)
     include_directories(image ${TIFF_INCLUDE_DIR})
     add_definitions(-DHAS_TIFF)
-    target_link_libraries(image PUBLIC tiff)
+
+    target_link_libraries(image PUBLIC TIFF::TIFF)
 endif()
 
 set_target_properties(image PROPERTIES PUBLIC_HEADER "${PUBLIC_HEADERS}")
@@ -29,7 +30,7 @@ endif()
 
 target_link_libraries(image PUBLIC colors lodepng)
 
-install(TARGETS image
-    ARCHIVE DESTINATION ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY}
-    PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
-)
+#install(TARGETS image
+#    ARCHIVE DESTINATION ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY}
+#    PUBLIC_HEADER DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}
+#)
