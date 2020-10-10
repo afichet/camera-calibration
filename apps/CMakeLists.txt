@@ -7,8 +7,8 @@ add_subdirectory(extract-matrix)
 add_subdirectory(correct-patches)
 add_subdirectory(correct-image)
 
-find_package(QT QUIET)
+find_package(QT NAMES Qt6 Qt5 COMPONENTS Widgets QUIET)
 
-if (QT_FOUND)
+if (QT_VERSION_MAJOR)
   add_subdirectory(gui)
 endif()
