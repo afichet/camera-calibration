@@ -7,4 +7,8 @@ add_subdirectory(extract-matrix)
 add_subdirectory(correct-patches)
 add_subdirectory(correct-image)
 
-add_subdirectory(gui)
+find_package(QT QUIET)
+
+if (QT_FOUND)
+  add_subdirectory(gui)
+endif()
