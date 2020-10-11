@@ -65,9 +65,9 @@ float lerp(float a, float b, float t)
 void MacbethModel::recalculateMacbethPatches()
 {
   _macbethPatches.clear();
+  _macbethPatchesCenters.clear();
 
   std::array<cv::Point2f, 4> src {cv::Point2f(0., 0.), cv::Point2f(1., 0.), cv::Point2f(1., 1.), cv::Point2f(0., 1.)};
-
   std::array<cv::Point2f, 4> dest;
 
   for (int i = 0; i < 4; i++)
@@ -80,31 +80,35 @@ void MacbethModel::recalculateMacbethPatches()
   const int n_cols  = 6;
   const int n_lines = 4;
 
-  const float margin_x = _innerMarginX / (n_cols + 1);
-  const float margin_y = _innerMarginY / (n_lines + 1);
+  const float dead_width  = 1.f * _innerMarginX;
+  const float dead_height = 1.f * _innerMarginY;
 
-  const float usable_space_x = 1.f - _innerMarginX;
-  const float usable_space_y = 1.f - _innerMarginY;
+  const float margin_width = dead_width / float(n_cols + 1);
+  const float margin_height = dead_height / float(n_lines + 1);
 
-  const float patch_width  = usable_space_x / n_cols;
-  const float patch_height = usable_space_y / n_lines;
+  const float effective_width  = 1.f - dead_width;
+  const float effective_height = 1.f - dead_height;
 
-  const float patch_footprint_x = patch_width + margin_x;
-  const float patch_footprint_y = patch_height + margin_y;
+  const float patch_width  = effective_width / float(n_cols);
+  const float patch_height = effective_height / float(n_lines);
+
 
   for (int y = 0; y < n_lines; y++)
   {
     for (int x = 0; x < n_cols; x++)
     {
-      const float x_left  = margin_x + x * patch_footprint_x;
-      const float x_right = x_left + patch_width;
+        // Compute patch position in local coordinates (0..1, 0..1)
+        const float x_left = float(x + 1) * margin_width + x * patch_width;
+        const float x_right = x_left + patch_width;
 
-      const float y_top    = margin_y + y * patch_footprint_y;
-      const float y_bottom = y_top + patch_height;
+        const float y_top = float(y + 1) * margin_height + y * patch_height;
+        const float y_bottom = y_top + patch_height;
 
-      QPolygonF patch;
+        const float x_center = x_left + patch_width / 2.f;
+        const float y_center = y_top + patch_height / 2.f;
 
-      std::vector<cv::Point2f> patch_org = {
+        // Transform perspective given the Macbeth outline
+      const std::vector<cv::Point2f> patch_org = {
           cv::Point2f(x_left, y_top),
           cv::Point2f(x_right, y_top),
           cv::Point2f(x_right, y_bottom),
@@ -114,12 +118,22 @@ void MacbethModel::recalculateMacbethPatches()
       std::vector<cv::Point2f> patch_dest;
       cv::perspectiveTransform(patch_org, patch_dest, transform);
 
+      QPolygonF patch;
+
       for (const cv::Point2f &p : patch_dest)
       {
         patch << QPointF(p.x, p.y);
       }
 
       _macbethPatches << patch;
+
+      // Transformation for patch center
+      const std::vector<cv::Point2f> patch_center_org = {cv::Point2f(x_center, y_center)};
+      std::vector<cv::Point2f> patch_center_dest;
+
+      cv::perspectiveTransform(patch_center_org, patch_center_dest, transform);
+
+      _macbethPatchesCenters << QPointF(patch_center_dest[0].x, patch_center_dest[0].y);
     }
   }
 

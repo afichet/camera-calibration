@@ -26,7 +26,9 @@ GraphicsView::GraphicsView(QWidget *parent)
   setAcceptDrops(true);
 }
 
+
 GraphicsView::~GraphicsView() {}
+
 
 void GraphicsView::setModel(MacbethModel *model)
 {
@@ -37,11 +39,13 @@ void GraphicsView::setModel(MacbethModel *model)
   connect(_model, SIGNAL(macbethChartChanged()), this, SLOT(onMacbethChartChanged()));
 }
 
+
 void GraphicsView::onImageLoaded(int width, int height)
 {
   _zoomLevel = 1.f;
   fitInView(0, 0, width, height, Qt::KeepAspectRatio);
 }
+
 
 void GraphicsView::onImageChanged()
 {
@@ -60,6 +64,7 @@ void GraphicsView::onImageChanged()
 
   onMacbethChartChanged();
 }
+
 
 void GraphicsView::onMacbethChartChanged()
 {
@@ -85,19 +90,22 @@ void GraphicsView::onMacbethChartChanged()
 
   pen.setWidth(1. * ratio);
 
-  for (int i = 0; i < macbethPatches.size(); i++)
+  for (const QPolygonF &patch: macbethPatches)
   {
-    const QPolygonF &patch = macbethPatches[i];
     _chartItems << scene()->addPolygon(patch, pen);
+  }
 
-    if (_showPatchNumbers)
-    {
-      QGraphicsTextItem *text = scene()->addText(QString::number(i + 1));
-      text->setDefaultTextColor(Qt::red);
-      text->setPos((patch[0].x() + patch[2].x()) / 2.f, (patch[0].y() + patch[2].y()) / 2.f);
-      text->setScale(ratio);
-      _chartItems << text;
-    }
+  if (_showPatchNumbers)
+  {
+      const QVector<QPointF>& patchCenters = _model->getMacbethPatchesCenters();
+
+      for (int i = 0; i < patchCenters.size(); i++) {
+        QGraphicsTextItem *text = scene()->addText(QString::number(i + 1));
+        text->setDefaultTextColor(Qt::red);
+        text->setPos(patchCenters[i]);
+        text->setScale(ratio);
+        _chartItems << text;
+      }
   }
 
   if (_selection != nullptr)
@@ -128,11 +136,13 @@ void GraphicsView::onMacbethChartChanged()
   }
 }
 
+
 void GraphicsView::setShowPatchNumbers(bool show)
 {
   _showPatchNumbers = show;
   emit onMacbethChartChanged();
 }
+
 
 void GraphicsView::setZoomLevel(float zoom)
 {
@@ -140,11 +150,13 @@ void GraphicsView::setZoomLevel(float zoom)
     scale(_zoomLevel, _zoomLevel);
 }
 
+
 void GraphicsView::zoomIn()
 {
     _zoomLevel = _zoomLevel * 1.2;
     scale(_zoomLevel, _zoomLevel);
 }
+
 
 void GraphicsView::zoomOut()
 {
@@ -172,6 +184,7 @@ void GraphicsView::zoomOut()
 //        }
 //    }
 //}
+
 
 void GraphicsView::mousePressEvent(QMouseEvent *event)
 {

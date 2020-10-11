@@ -16,6 +16,7 @@ public:
   const QImage &            getLoadedImage() const { return _image; }
   const QPolygonF &         getMacbethOutline() const { return _macbethOutline; }
   const QVector<QPolygonF> &getMacbethPatches() const { return _macbethPatches; }
+  const QVector<QPointF> &getMacbethPatchesCenters() const { return _macbethPatchesCenters; }
 
   bool isImageLoaded() const { return _pixelBuffer != nullptr; }
 
@@ -46,6 +47,7 @@ private:
 
   QPolygonF          _macbethOutline;
   QVector<QPolygonF> _macbethPatches;
+  QVector<QPointF>   _macbethPatchesCenters;
 };
 
 #endif   // MACBETHMODEL_H
