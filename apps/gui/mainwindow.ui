@@ -74,6 +74,9 @@
        <layout class="QGridLayout" name="gridLayout_2">
         <item row="0" column="1">
          <widget class="QSlider" name="sliderInnerMarginX">
+          <property name="enabled">
+           <bool>false</bool>
+          </property>
           <property name="value">
            <number>50</number>
           </property>
@@ -84,6 +87,9 @@
         </item>
         <item row="2" column="1">
          <widget class="QSlider" name="sliderInnerMarginY">
+          <property name="enabled">
+           <bool>false</bool>
+          </property>
           <property name="value">
            <number>50</number>
           </property>
@@ -111,6 +117,9 @@
      </item>
      <item>
       <widget class="QCheckBox" name="showPatchNumbers">
+       <property name="enabled">
+        <bool>false</bool>
+       </property>
        <property name="text">
         <string>Show patch numbers</string>
        </property>
@@ -146,6 +155,9 @@
     <layout class="QFormLayout" name="formLayout_2">
      <item row="0" column="1">
       <widget class="QDoubleSpinBox" name="exposureValue">
+       <property name="enabled">
+        <bool>false</bool>
+       </property>
        <property name="minimum">
         <double>-99.000000000000000</double>
        </property>
@@ -339,7 +351,34 @@
     </layout>
    </widget>
   </widget>
+  <widget class="QToolBar" name="toolBar">
+   <property name="windowTitle">
+    <string>toolBar</string>
+   </property>
+   <property name="movable">
+    <bool>false</bool>
+   </property>
+   <property name="iconSize">
+    <size>
+     <width>20</width>
+     <height>20</height>
+    </size>
+   </property>
+   <attribute name="toolBarArea">
+    <enum>TopToolBarArea</enum>
+   </attribute>
+   <attribute name="toolBarBreak">
+    <bool>false</bool>
+   </attribute>
+   <addaction name="action_Open"/>
+   <addaction name="action_Save_areas"/>
+   <addaction name="actionSave_correction_matrix"/>
+  </widget>
   <action name="action_Open">
+   <property name="icon">
+    <iconset resource="resource.qrc">
+     <normaloff>:/icons/folder.svg</normaloff>:/icons/folder.svg</iconset>
+   </property>
    <property name="text">
     <string>&amp;Open...</string>
    </property>
@@ -351,11 +390,19 @@
    <property name="enabled">
     <bool>false</bool>
    </property>
+   <property name="icon">
+    <iconset resource="resource.qrc">
+     <normaloff>:/icons/grid.svg</normaloff>:/icons/grid.svg</iconset>
+   </property>
    <property name="text">
-    <string>Save &amp;areas...</string>
+    <string>Export &amp;areas...</string>
    </property>
   </action>
   <action name="actionQuit">
+   <property name="icon">
+    <iconset resource="resource.qrc">
+     <normaloff>:/icons/x.svg</normaloff>:/icons/x.svg</iconset>
+   </property>
    <property name="text">
     <string>&amp;Quit</string>
    </property>
@@ -363,6 +410,10 @@
   <action name="actionSave_correction_matrix">
    <property name="enabled">
     <bool>false</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="resource.qrc">
+     <normaloff>:/icons/save.svg</normaloff>:/icons/save.svg</iconset>
    </property>
    <property name="text">
     <string>Save correction &amp;matrix...</string>
@@ -382,7 +433,9 @@
    </slots>
   </customwidget>
  </customwidgets>
- <resources/>
+ <resources>
+  <include location="resource.qrc"/>
+ </resources>
  <connections>
   <connection>
    <sender>showPatchNumbers</sender>

@@ -71,6 +71,7 @@ add_executable(gui
     macbethview.h
 
     radiometry.h
+    resource.qrc
     #${TS_FILES}
 )
 

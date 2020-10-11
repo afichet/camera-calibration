@@ -217,6 +217,10 @@ void MainWindow::on_buttonFit_clicked()
 
 void MainWindow::onImageLoaded(int, int)
 {
+  ui->exposureValue->setEnabled(true);
+  ui->sliderInnerMarginX->setEnabled(true);
+  ui->sliderInnerMarginY->setEnabled(true);
+  ui->showPatchNumbers->setEnabled(true);
   ui->buttonFit->setEnabled(true);
   ui->action_Save_areas->setEnabled(true);
 
