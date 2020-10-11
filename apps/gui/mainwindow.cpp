@@ -101,6 +101,17 @@ void MainWindow::on_action_Save_areas_triggered()
 }
 
 
+void MainWindow::on_actionSave_correction_matrix_triggered()
+{
+  QString filename = QFileDialog::getSaveFileName(this, tr("Save correction matrix"), "", tr("CSV (*.csv)"));
+
+  if (filename.size() != 0)
+  {
+    _model.saveMatrix(filename);
+  }
+}
+
+
 void MainWindow::on_sliderInnerMarginX_valueChanged(int value)
 {
   float p = (float)(value - ui->sliderInnerMarginX->minimum())
@@ -122,6 +133,26 @@ void MainWindow::on_exposureValue_valueChanged(double value)
   _model.setExposure(value);
 }
 
+
+void MainWindow::onImageLoaded(int, int)
+{
+  ui->exposureValue->setEnabled(true);
+  ui->sliderInnerMarginX->setEnabled(true);
+  ui->sliderInnerMarginY->setEnabled(true);
+  ui->showPatchNumbers->setEnabled(true);
+  ui->buttonFit->setEnabled(true);
+  ui->action_Save_areas->setEnabled(true);
+
+  if (_model.isMatrixLoaded())
+  {
+    ui->activeMatrix->setEnabled(true);
+  }
+
+  ui->actionZoom_in->setEnabled(true);
+  ui->actionZoom_out->setEnabled(true);
+}
+
+
 void MainWindow::onMatrixLoaded(const std::array<float, 9> &matrix)
 {
   ui->m00->setText(QString::number(matrix[0]));
@@ -142,12 +173,14 @@ void MainWindow::onMatrixLoaded(const std::array<float, 9> &matrix)
   ui->actionSave_correction_matrix->setEnabled(true);
 }
 
+
 void MainWindow::on_m00_textChanged(const QString &arg1)
 {
   std::array<float, 9> prevMatrix = _model.getCorrectionMatrix();
   prevMatrix[0]                   = arg1.toFloat();
   _model.setMatrix(prevMatrix);
 }
+
 
 void MainWindow::on_m01_textChanged(const QString &arg1)
 {
@@ -156,12 +189,14 @@ void MainWindow::on_m01_textChanged(const QString &arg1)
   _model.setMatrix(prevMatrix);
 }
 
+
 void MainWindow::on_m02_textChanged(const QString &arg1)
 {
   std::array<float, 9> prevMatrix = _model.getCorrectionMatrix();
   prevMatrix[2]                   = arg1.toFloat();
   _model.setMatrix(prevMatrix);
 }
+
 
 void MainWindow::on_m10_textChanged(const QString &arg1)
 {
@@ -170,12 +205,14 @@ void MainWindow::on_m10_textChanged(const QString &arg1)
   _model.setMatrix(prevMatrix);
 }
 
+
 void MainWindow::on_m11_textChanged(const QString &arg1)
 {
   std::array<float, 9> prevMatrix = _model.getCorrectionMatrix();
   prevMatrix[4]                   = arg1.toFloat();
   _model.setMatrix(prevMatrix);
 }
+
 
 void MainWindow::on_m12_textChanged(const QString &arg1)
 {
@@ -184,12 +221,14 @@ void MainWindow::on_m12_textChanged(const QString &arg1)
   _model.setMatrix(prevMatrix);
 }
 
+
 void MainWindow::on_m20_textChanged(const QString &arg1)
 {
   std::array<float, 9> prevMatrix = _model.getCorrectionMatrix();
   prevMatrix[6]                   = arg1.toFloat();
   _model.setMatrix(prevMatrix);
 }
+
 
 void MainWindow::on_m21_textChanged(const QString &arg1)
 {
@@ -198,12 +237,14 @@ void MainWindow::on_m21_textChanged(const QString &arg1)
   _model.setMatrix(prevMatrix);
 }
 
+
 void MainWindow::on_m22_textChanged(const QString &arg1)
 {
   std::array<float, 9> prevMatrix = _model.getCorrectionMatrix();
   prevMatrix[8]                   = arg1.toFloat();
   _model.setMatrix(prevMatrix);
 }
+
 
 void MainWindow::on_buttonFit_clicked()
 {
@@ -212,30 +253,5 @@ void MainWindow::on_buttonFit_clicked()
   if (f->exec() == QDialog::Accepted)
   {
     _model.setMatrix(f->getFitMatrix());
-  }
-}
-
-void MainWindow::onImageLoaded(int, int)
-{
-  ui->exposureValue->setEnabled(true);
-  ui->sliderInnerMarginX->setEnabled(true);
-  ui->sliderInnerMarginY->setEnabled(true);
-  ui->showPatchNumbers->setEnabled(true);
-  ui->buttonFit->setEnabled(true);
-  ui->action_Save_areas->setEnabled(true);
-
-  if (_model.isMatrixLoaded())
-  {
-    ui->activeMatrix->setEnabled(true);
-  }
-}
-
-void MainWindow::on_actionSave_correction_matrix_triggered()
-{
-  QString filename = QFileDialog::getSaveFileName(this, tr("Save correction matrix"), "", tr("CSV (*.csv)"));
-
-  if (filename.size() != 0)
-  {
-    _model.saveMatrix(filename);
   }
 }

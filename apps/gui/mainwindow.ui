@@ -469,6 +469,9 @@
    <addaction name="action_Open"/>
    <addaction name="action_Save_areas"/>
    <addaction name="actionSave_correction_matrix"/>
+   <addaction name="separator"/>
+   <addaction name="actionZoom_out"/>
+   <addaction name="actionZoom_in"/>
   </widget>
   <action name="action_Open">
    <property name="icon">
@@ -518,6 +521,36 @@
     <string>Ctrl+S</string>
    </property>
   </action>
+  <action name="actionZoom_in">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="resource.qrc">
+     <normaloff>:/icons/zoom-in.svg</normaloff>:/icons/zoom-in.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Zoom &amp;in</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl++</string>
+   </property>
+  </action>
+  <action name="actionZoom_out">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="icon">
+    <iconset resource="resource.qrc">
+     <normaloff>:/icons/zoom-out.svg</normaloff>:/icons/zoom-out.svg</iconset>
+   </property>
+   <property name="text">
+    <string>Zoom &amp;out</string>
+   </property>
+   <property name="shortcut">
+    <string>Ctrl+-</string>
+   </property>
+  </action>
  </widget>
  <customwidgets>
   <customwidget>
@@ -526,6 +559,8 @@
    <header>graphicsview.h</header>
    <slots>
     <slot>setShowPatchNumbers(bool)</slot>
+    <slot>zoomIn()</slot>
+    <slot>zoomOut()</slot>
    </slots>
   </customwidget>
  </customwidgets>
@@ -541,7 +576,7 @@
    <hints>
     <hint type="sourcelabel">
      <x>27</x>
-     <y>158</y>
+     <y>197</y>
     </hint>
     <hint type="destinationlabel">
      <x>564</x>
@@ -560,8 +595,8 @@
      <y>612</y>
     </hint>
     <hint type="destinationlabel">
-     <x>61</x>
-     <y>494</y>
+     <x>62</x>
+     <y>517</y>
     </hint>
    </hints>
   </connection>
@@ -576,8 +611,8 @@
      <y>612</y>
     </hint>
     <hint type="destinationlabel">
-     <x>133</x>
-     <y>491</y>
+     <x>126</x>
+     <y>517</y>
     </hint>
    </hints>
   </connection>
@@ -592,8 +627,8 @@
      <y>612</y>
     </hint>
     <hint type="destinationlabel">
-     <x>218</x>
-     <y>491</y>
+     <x>188</x>
+     <y>517</y>
     </hint>
    </hints>
   </connection>
@@ -624,8 +659,8 @@
      <y>612</y>
     </hint>
     <hint type="destinationlabel">
-     <x>277</x>
-     <y>533</y>
+     <x>188</x>
+     <y>548</y>
     </hint>
    </hints>
   </connection>
@@ -656,8 +691,8 @@
      <y>612</y>
     </hint>
     <hint type="destinationlabel">
-     <x>277</x>
-     <y>572</y>
+     <x>188</x>
+     <y>579</y>
     </hint>
    </hints>
   </connection>
@@ -672,8 +707,8 @@
      <y>612</y>
     </hint>
     <hint type="destinationlabel">
-     <x>186</x>
-     <y>572</y>
+     <x>126</x>
+     <y>579</y>
     </hint>
    </hints>
   </connection>
@@ -688,8 +723,8 @@
      <y>612</y>
     </hint>
     <hint type="destinationlabel">
-     <x>186</x>
-     <y>533</y>
+     <x>126</x>
+     <y>548</y>
     </hint>
    </hints>
   </connection>
@@ -706,6 +741,38 @@
     <hint type="destinationlabel">
      <x>488</x>
      <y>337</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>actionZoom_in</sender>
+   <signal>triggered()</signal>
+   <receiver>graphicsView</receiver>
+   <slot>zoomIn()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>-1</x>
+     <y>-1</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>588</x>
+     <y>354</y>
+    </hint>
+   </hints>
+  </connection>
+  <connection>
+   <sender>actionZoom_out</sender>
+   <signal>triggered()</signal>
+   <receiver>graphicsView</receiver>
+   <slot>zoomOut()</slot>
+   <hints>
+    <hint type="sourcelabel">
+     <x>-1</x>
+     <y>-1</y>
+    </hint>
+    <hint type="destinationlabel">
+     <x>588</x>
+     <y>354</y>
     </hint>
    </hints>
   </connection>

@@ -58,7 +58,6 @@ void GraphicsView::onImageChanged()
     _imageItem = nullptr;
   }
 
-  //scene()->clear();
   const QImage &image = _model->getLoadedImage();
   _imageItem          = scene()->addPixmap(QPixmap::fromImage(image));
 
@@ -147,6 +146,7 @@ void GraphicsView::setShowPatchNumbers(bool show)
 
 void GraphicsView::setZoomLevel(float zoom)
 {
+  if (_model == nullptr || !_model->isImageLoaded()) return;
   _zoomLevel = std::max(0.01f, zoom);
   resetTransform();
   scale(_zoomLevel, _zoomLevel);
@@ -155,12 +155,14 @@ void GraphicsView::setZoomLevel(float zoom)
 
 void GraphicsView::zoomIn()
 {
+  if (_model == nullptr || !_model->isImageLoaded()) return;
   setZoomLevel(_zoomLevel * 1.2);
 }
 
 
 void GraphicsView::zoomOut()
 {
+  if (_model == nullptr || !_model->isImageLoaded()) return;
   setZoomLevel(_zoomLevel / 1.2);
 }
 
@@ -173,6 +175,7 @@ void GraphicsView::wheelEvent(QWheelEvent *event)
   }
   else
   {
+    if (_model == nullptr || !_model->isImageLoaded()) return;
     const QPoint delta = event->angleDelta();
 
     if (delta.y() != 0)
