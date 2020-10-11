@@ -147,7 +147,6 @@
         <file>icons/loader.svg</file>
         <file>icons/lock.svg</file>
         <file>icons/log-in.svg</file>
-        <file>icons/logo_spectrallViewer.svg</file>
         <file>icons/log-out.svg</file>
         <file>icons/mail.svg</file>
         <file>icons/map.svg</file>
@@ -286,5 +285,7 @@
         <file>icons/zap-off.svg</file>
         <file>icons/zoom-in.svg</file>
         <file>icons/zoom-out.svg</file>
+        <file>icons/Colourotron.ico</file>
+        <file>icons/Colourotron.png</file>
     </qresource>
 </RCC>

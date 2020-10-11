@@ -13,6 +13,10 @@
   <property name="windowTitle">
    <string>Macbeth calibration</string>
   </property>
+  <property name="windowIcon">
+   <iconset resource="resource.qrc">
+    <normaloff>:/icons/Colourotron.ico</normaloff>:/icons/Colourotron.ico</iconset>
+  </property>
   <widget class="QWidget" name="centralwidget">
    <layout class="QHBoxLayout" name="horizontalLayout">
     <property name="leftMargin">
@@ -76,6 +80,10 @@
      <width>200</width>
      <height>160</height>
     </size>
+   </property>
+   <property name="windowIcon">
+    <iconset resource="resource.qrc">
+     <normaloff>:/icons/Colourotron.ico</normaloff>:/icons/Colourotron.ico</iconset>
    </property>
    <property name="features">
     <set>QDockWidget::DockWidgetMovable</set>
@@ -176,6 +184,10 @@
      <height>63</height>
     </size>
    </property>
+   <property name="windowIcon">
+    <iconset resource="resource.qrc">
+     <normaloff>:/icons/Colourotron.ico</normaloff>:/icons/Colourotron.ico</iconset>
+   </property>
    <property name="features">
     <set>QDockWidget::DockWidgetMovable</set>
    </property>
@@ -228,6 +240,10 @@
      <width>100</width>
      <height>0</height>
     </size>
+   </property>
+   <property name="windowIcon">
+    <iconset resource="resource.qrc">
+     <normaloff>:/icons/Colourotron.ico</normaloff>:/icons/Colourotron.ico</iconset>
    </property>
    <property name="features">
     <set>QDockWidget::DockWidgetMovable</set>

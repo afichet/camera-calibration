@@ -1,0 +1,10 @@
+[Desktop Entry]
+Type=Application
+#Version=1.0
+Name=Colourotron
+Comment=Tool for color calibration.
+Exec=colourotron %F
+Icon=Colourotron
+Categories=Graphics;
+MimeType=image/x-exr;
+

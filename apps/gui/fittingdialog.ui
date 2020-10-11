@@ -13,6 +13,10 @@
   <property name="windowTitle">
    <string>Fitting</string>
   </property>
+  <property name="windowIcon">
+   <iconset resource="resource.qrc">
+    <normaloff>:/icons/Colourotron.ico</normaloff>:/icons/Colourotron.ico</iconset>
+  </property>
   <layout class="QVBoxLayout" name="verticalLayout_5">
    <item>
     <layout class="QHBoxLayout" name="horizontalLayout_2">
@@ -192,7 +196,9 @@
    <header>macbethview.h</header>
   </customwidget>
  </customwidgets>
- <resources/>
+ <resources>
+  <include location="resource.qrc"/>
+ </resources>
  <connections>
   <connection>
    <sender>cancel</sender>

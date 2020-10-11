@@ -1,6 +1,8 @@
+project(Colourotron VERSION 0.1.5)
+
 cmake_minimum_required(VERSION 3.5)
 
-#project(macbeth-detect LANGUAGES CXX)
+set(CMAKE_MODULE_PATH ${PROJECT_SOURCE_DIR}/cmake)
 
 set(CMAKE_INCLUDE_CURRENT_DIR ON)
 
@@ -41,7 +43,7 @@ find_package(OpenMP)
 find_package(OpenCV REQUIRED core imgproc)
 #set(TS_FILES macbeth-detect_fr_FR.ts)
 
-add_executable(gui
+set(SOURCES
     main.cpp
     mainwindow.cpp
     mainwindow.h
@@ -71,18 +73,99 @@ add_executable(gui
     macbethview.h
 
     radiometry.h
+
+    resource.rc
     resource.qrc
     #${TS_FILES}
-)
+    )
+
+if (WIN32)
+    add_executable(Colourotron WIN32 ${SOURCES})
+    add_definitions(-DWIN32NOCONSOLE)
+elseif (CMAKE_HOST_APPLE)
+    add_executable(Colourotron MACOSX_BUNDLE ${SOURCES})
+else()
+    add_executable(Colourotron ${SOURCES})
+endif()
+
 
 
 if (OpenMP_FOUND OR OpenMP_CXX_FOUND)
-   target_link_libraries(gui PRIVATE OpenMP::OpenMP_CXX)
+   target_link_libraries(Colourotron PRIVATE OpenMP::OpenMP_CXX)
 endif()
 
-target_link_libraries(gui PRIVATE Qt${QT_VERSION_MAJOR}::Widgets Qt${QT_VERSION_MAJOR}::Concurrent ${OpenCV_LIBS} image colors levmar)
+target_link_libraries(Colourotron PRIVATE Qt${QT_VERSION_MAJOR}::Widgets Qt${QT_VERSION_MAJOR}::Concurrent ${OpenCV_LIBS} image colors levmar)
 # Eigen3::Eigen)
 
 #qt5_create_translation(QM_FILES ${CMAKE_SOURCE_DIR} ${TS_FILES})
 
 
+#-------------------------------------------------------------------------------
+# INSTALL RULES FOR MacOS
+#-------------------------------------------------------------------------------
+
+# From ManaoExplorer
+if (APPLE)
+    set(CMAKE_OSX_DEPLOYMENT_TARGET 10.9)
+    #qt5_add_resources(RESOURCE_FILES resource.qrc)
+    # use, i.e. don't skip the full RPATH for the build tree
+    set(CMAKE_SKIP_BUILD_RPATH  FALSE)
+
+    # when building, don't use the install RPATH already
+    # (but later on when installing)
+    set(CMAKE_BUILD_WITH_INSTALL_RPATH FALSE)
+
+    set(CMAKE_INSTALL_RPATH "${CMAKE_INSTALL_PREFIX}/lib")
+
+    # add the automatically determined parts of the RPATH
+    # which point to directories outside the build tree to the install RPATH
+    set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
+
+    # Bundle creation on Mac
+    set(CMAKE_MODULE_PATH  ${CMAKE_MODULE_PATH} "${CMAKE_SOURCE_DIR}/cmake/modules/")
+    set(MACOSX_BUNDLE_BUNDLE_NAME "${PROJECT_NAME}")
+    set(MACOSX_BUNDLE_CONTENTS    "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.app/Contents/" )
+    set(MACOSX_BUNDLE_RESOURCES   "${CMAKE_CURRENT_BINARY_DIR}/${PROJECT_NAME}.app/Contents/Resources")
+    set(MACOSX_BUNDLE_ICON_FILE   "icon.icns")
+    set(MACOSX_BUNDLE_ICON        "${PROJECT_SOURCE_DIR}/resource/icons/${MACOSX_BUNDLE_ICON_FILE}")
+    execute_process(COMMAND ${CMAKE_COMMAND} -E make_directory ${MACOSX_BUNDLE_RESOURCES})
+    execute_process(COMMAND ${CMAKE_COMMAND} -E copy_if_different ${MACOSX_BUNDLE_ICON} ${MACOSX_BUNDLE_RESOURCES})
+endif()
+
+# Installation
+if (UNIX AND NOT APPLE)
+    string(TOLOWER ${PROJECT_NAME} PROJECT_NAME_LOWERCASE)
+    set(BIN_INSTALL_DIR "bin")
+    set(DOC_INSTALL_DIR "share/doc/${PROJECT_NAME_LOWERCASE}/")
+else()
+    set(BIN_INSTALL_DIR ".")
+    set(DOC_INSTALL_DIR ".")
+endif()
+
+
+# THE INSTALL RULE IS NECESSARY.
+# WITHOUT it CPack will not package correctly
+install(TARGETS ${PROJECT_NAME} DESTINATION ${BIN_INSTALL_DIR} COMPONENT Libraries)
+
+if (UNIX AND NOT APPLE)
+    install(FILES colourotron.desktop     DESTINATION "share/applications")
+    install(FILES icons/Colourotron.png   DESTINATION "share/pixmaps")
+elseif (WIN32)
+    # THIS STRATEGY is from BRDFEXplorer and uses WindeployQt
+    set(CMAKE_INSTALL_OPENMP_LIBRARIES TRUE)
+    include(InstallRequiredSystemLibraries)
+    # INSTALL WINDOWS DLL
+    install(
+        FILES ${CMAKE_INSTALL_SYSTEM_RUNTIME_LIBS}
+        DESTINATION ${BIN_INSTALL_DIR}
+        COMPONENT Libraries)
+
+    include(Windeployqt)
+    windeployqt(${PROJECT_NAME} ${BIN_INSTALL_DIR})
+elseif (APPLE)
+    include(Macdeployqt)
+    macdeployqt(${PROJECT_NAME})
+endif()
+
+# CPack
+include(ColourotronCPack)
