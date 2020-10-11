@@ -10,6 +10,7 @@ class MacbethModel: public QObject
 public:
   explicit MacbethModel(QObject *parent = nullptr);
 
+  bool ready() const { return _ready; }
 
   const std::array<QColor, 24> &getPatchesColors() const { return _tonemappedColors; }
   const std::array<float, 72> & getLinearColors() const { return _linearColors; }
@@ -19,6 +20,7 @@ signals:
 protected:
   std::array<float, 72>  _linearColors;
   std::array<QColor, 24> _tonemappedColors;
+  bool                   _ready;
 };
 
 #endif   // MACBETHMODEL_H

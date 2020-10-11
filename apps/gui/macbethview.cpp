@@ -1,12 +1,16 @@
 #include "macbethview.h"
 
 #include <QPointF>
+#include <QGraphicsTextItem>
 
 MacbethView::MacbethView(QWidget *parent): QGraphicsView(parent), _model(nullptr)
 {
   setScene(new QGraphicsScene);
   setRenderHints(QPainter::Antialiasing | QPainter::SmoothPixmapTransform);
-  scene()->addText(tr("Loading..."));
+  QGraphicsTextItem *text = scene()->addText(tr("Loading..."));
+  text->setScale(3);
+  text->setDefaultTextColor(Qt::white);
+
   qRegisterMetaType<std::array<QColor, 24>>("std::array<QColor, 24>");
 }
 
@@ -14,12 +18,14 @@ MacbethView::MacbethView(QWidget *parent): QGraphicsView(parent), _model(nullptr
 void MacbethView::setModel(MacbethModel *model)
 {
   _model = model;
-  onMacbethChanged(_model->getPatchesColors());
+
   connect(
       model,
       SIGNAL(macbethChanged(const std::array<QColor, 24> &)),
       this,
       SLOT(onMacbethChanged(const std::array<QColor, 24> &)));
+
+  if (_model->ready()) onMacbethChanged(_model->getPatchesColors());
 }
 
 void MacbethView::resizeEvent(QResizeEvent *)

@@ -207,11 +207,11 @@ void MainWindow::on_m22_textChanged(const QString &arg1)
 
 void MainWindow::on_buttonFit_clicked()
 {
-  FittingDialog f(&_model, this);
+  FittingDialog *f = new FittingDialog(&_model, this);
 
-  if (f.exec() == QDialog::Accepted)
+  if (f->exec() == QDialog::Accepted)
   {
-    _model.setMatrix(f.getFitMatrix());
+    _model.setMatrix(f->getFitMatrix());
   }
 }
 

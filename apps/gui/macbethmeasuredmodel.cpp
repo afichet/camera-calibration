@@ -58,6 +58,8 @@ void MacbethMeasuredModel::updateColors()
           255.f * to_sRGB(_linearColors[3 * i + 2]));
     }
   }
+
+  _ready = true;
   emit macbethChanged(_tonemappedColors);
 }
 

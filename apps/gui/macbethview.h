@@ -12,7 +12,6 @@ public:
 
 public slots:
   void setModel(MacbethModel *model);
-
   void onMacbethChanged(const std::array<QColor, 24> &colors);
 
 protected:
@@ -21,7 +20,6 @@ protected:
 
 private:
   MacbethModel *_model;
-
 
   const float _macbethWidth  = 600;
   const float _macbethHeight = 400;

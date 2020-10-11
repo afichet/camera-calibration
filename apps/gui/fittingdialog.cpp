@@ -100,6 +100,10 @@ void FittingDialog::initModels()
     _image->getAveragedPatches(measuredValues);
     _measured.setPatchesValues(measuredValues);
     fit();
+    ui->applyMatrix->setEnabled(true);
+    ui->illuminant->setEnabled(true);
+    ui->colorMatchingFunctions->setEnabled(true);
+    ui->apply->setEnabled(true);
   });
 
   _processWatcher->setFuture(imageLoading);

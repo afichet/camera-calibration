@@ -187,6 +187,8 @@ void GraphicsView::zoomOut()
 //}
 void GraphicsView::resizeEvent(QResizeEvent *)
 {
+  if (_model == nullptr || !_model->isImageLoaded()) return;
+
   fitInView(0, 0, _model->getLoadedImage().width(), _model->getLoadedImage().height(), Qt::KeepAspectRatio);
 }
 

@@ -97,5 +97,6 @@ void MacbethReferenceModel::updateColors()
         = QColor(255.f * to_sRGB(temp_color[0]), 255.f * to_sRGB(temp_color[1]), 255.f * to_sRGB(temp_color[2]));
   }
 
+  _ready = true;
   emit macbethChanged(_tonemappedColors);
 }
