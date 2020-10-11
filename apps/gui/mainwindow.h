@@ -4,7 +4,7 @@
 #include <QMainWindow>
 #include <QProgressBar>
 
-#include "macbethmodel.h"
+#include "imagemodel.h"
 
 QT_BEGIN_NAMESPACE
 namespace Ui
@@ -49,9 +49,11 @@ private slots:
   void on_m21_textChanged(const QString &arg1);
   void on_m22_textChanged(const QString &arg1);
 
+  void on_buttonFit_clicked();
+
 private:
   Ui::MainWindow *ui;
-  MacbethModel    _model;
+  ImageModel      _model;
   QProgressBar *  _statusBarProgress;
 };
 #endif   // MAINWINDOW_H

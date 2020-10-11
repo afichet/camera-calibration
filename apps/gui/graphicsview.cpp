@@ -30,7 +30,7 @@ GraphicsView::GraphicsView(QWidget *parent)
 GraphicsView::~GraphicsView() {}
 
 
-void GraphicsView::setModel(MacbethModel *model)
+void GraphicsView::setModel(ImageModel *model)
 {
   _model = model;
 
@@ -185,6 +185,10 @@ void GraphicsView::zoomOut()
 //        }
 //    }
 //}
+void GraphicsView::resizeEvent(QResizeEvent *)
+{
+  fitInView(0, 0, _model->getLoadedImage().width(), _model->getLoadedImage().height(), Qt::KeepAspectRatio);
+}
 
 
 void GraphicsView::mousePressEvent(QMouseEvent *event)

@@ -3,7 +3,7 @@
 
 #include <QGraphicsView>
 
-#include "macbethmodel.h"
+#include "imagemodel.h"
 
 class GraphicsView: public QGraphicsView
 {
@@ -13,7 +13,7 @@ public:
   virtual ~GraphicsView();
 
 public slots:
-  void setModel(MacbethModel *model);
+  void setModel(ImageModel *model);
 
   void onImageLoaded(int width, int height);
   void onImageChanged();
@@ -25,6 +25,7 @@ public slots:
 
 protected:
   //  void wheelEvent( QWheelEvent * event ) override;
+  void resizeEvent(QResizeEvent *event) override;
 
   void mousePressEvent(QMouseEvent *event) override;
   void mouseMoveEvent(QMouseEvent *event) override;
@@ -34,7 +35,7 @@ protected:
   void dragEnterEvent(QDragEnterEvent *ev) override;
 
 private:
-  MacbethModel *       _model;
+  ImageModel *         _model;
   QGraphicsPixmapItem *_imageItem;
 
   QVector<QGraphicsItem *> _chartItems;

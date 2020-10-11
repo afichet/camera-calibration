@@ -4,6 +4,7 @@
 #include <QUrl>
 #include <QMimeData>
 #include <QDragEnterEvent>
+#include "fittingdialog.h"
 
 MainWindow::MainWindow(QWidget *parent)
   : QMainWindow(parent)
@@ -194,4 +195,14 @@ void MainWindow::on_m22_textChanged(const QString &arg1)
   std::array<float, 9> prevMatrix = _model.getCorrectionMatrix();
   prevMatrix[8]                   = arg1.toFloat();
   _model.setMatrix(prevMatrix);
+}
+
+void MainWindow::on_buttonFit_clicked()
+{
+  FittingDialog f(&_model, this);
+
+  if (f.exec() == QDialog::Accepted)
+  {
+    _model.setMatrix(f.getFitMatrix());
+  }
 }

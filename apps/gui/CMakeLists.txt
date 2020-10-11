@@ -46,14 +46,31 @@ add_executable(gui
     mainwindow.cpp
     mainwindow.h
     mainwindow.ui
-    macbethmodel.cpp
-    macbethmodel.h
+    imagemodel.cpp
+    imagemodel.h
     graphicsview.cpp
     graphicsview.h
     graphicsscene.cpp
     graphicsscene.h
     theme/theme.qrc
 
+    fittingdialog.cpp
+    fittingdialog.h
+    fittingdialog.ui
+
+    macbethmodel.cpp
+    macbethmodel.h
+
+    macbethreferencemodel.cpp
+    macbethreferencemodel.h
+
+    macbethmeasuredmodel.cpp
+    macbethmeasuredmodel.h
+
+    macbethview.cpp
+    macbethview.h
+
+    radiometry.h
     #${TS_FILES}
 )
 
@@ -62,7 +79,7 @@ if (OpenMP_FOUND OR OpenMP_CXX_FOUND)
    target_link_libraries(gui PRIVATE OpenMP::OpenMP_CXX)
 endif()
 
-target_link_libraries(gui PRIVATE Qt${QT_VERSION_MAJOR}::Widgets Qt${QT_VERSION_MAJOR}::Concurrent ${OpenCV_LIBS} image colors)
+target_link_libraries(gui PRIVATE Qt${QT_VERSION_MAJOR}::Widgets Qt${QT_VERSION_MAJOR}::Concurrent ${OpenCV_LIBS} image colors levmar)
 # Eigen3::Eigen)
 
 #qt5_create_translation(QM_FILES ${CMAKE_SOURCE_DIR} ${TS_FILES})

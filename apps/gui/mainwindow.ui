@@ -249,6 +249,13 @@
        </property>
       </widget>
      </item>
+     <item>
+      <widget class="QPushButton" name="buttonFit">
+       <property name="text">
+        <string>Fit...</string>
+       </property>
+      </widget>
+     </item>
     </layout>
    </widget>
   </widget>
@@ -294,8 +301,8 @@
      <y>158</y>
     </hint>
     <hint type="destinationlabel">
-     <x>274</x>
-     <y>134</y>
+     <x>564</x>
+     <y>154</y>
     </hint>
    </hints>
   </connection>
@@ -307,11 +314,11 @@
    <hints>
     <hint type="sourcelabel">
      <x>48</x>
-     <y>634</y>
+     <y>612</y>
     </hint>
     <hint type="destinationlabel">
-     <x>60</x>
-     <y>498</y>
+     <x>61</x>
+     <y>494</y>
     </hint>
    </hints>
   </connection>
@@ -323,7 +330,7 @@
    <hints>
     <hint type="sourcelabel">
      <x>133</x>
-     <y>633</y>
+     <y>612</y>
     </hint>
     <hint type="destinationlabel">
      <x>133</x>
@@ -339,7 +346,7 @@
    <hints>
     <hint type="sourcelabel">
      <x>133</x>
-     <y>633</y>
+     <y>612</y>
     </hint>
     <hint type="destinationlabel">
      <x>218</x>
@@ -355,11 +362,11 @@
    <hints>
     <hint type="sourcelabel">
      <x>133</x>
-     <y>633</y>
+     <y>612</y>
     </hint>
     <hint type="destinationlabel">
-     <x>49</x>
-     <y>538</y>
+     <x>50</x>
+     <y>533</y>
     </hint>
    </hints>
   </connection>
@@ -371,11 +378,11 @@
    <hints>
     <hint type="sourcelabel">
      <x>133</x>
-     <y>633</y>
+     <y>612</y>
     </hint>
     <hint type="destinationlabel">
-     <x>218</x>
-     <y>538</y>
+     <x>277</x>
+     <y>533</y>
     </hint>
    </hints>
   </connection>
@@ -387,11 +394,11 @@
    <hints>
     <hint type="sourcelabel">
      <x>133</x>
-     <y>633</y>
+     <y>612</y>
     </hint>
     <hint type="destinationlabel">
-     <x>49</x>
-     <y>585</y>
+     <x>50</x>
+     <y>572</y>
     </hint>
    </hints>
   </connection>
@@ -403,11 +410,11 @@
    <hints>
     <hint type="sourcelabel">
      <x>133</x>
-     <y>633</y>
+     <y>612</y>
     </hint>
     <hint type="destinationlabel">
-     <x>218</x>
-     <y>585</y>
+     <x>277</x>
+     <y>572</y>
     </hint>
    </hints>
   </connection>
@@ -419,11 +426,11 @@
    <hints>
     <hint type="sourcelabel">
      <x>133</x>
-     <y>633</y>
+     <y>612</y>
     </hint>
     <hint type="destinationlabel">
-     <x>133</x>
-     <y>585</y>
+     <x>186</x>
+     <y>572</y>
     </hint>
    </hints>
   </connection>
@@ -435,11 +442,11 @@
    <hints>
     <hint type="sourcelabel">
      <x>133</x>
-     <y>633</y>
+     <y>612</y>
     </hint>
     <hint type="destinationlabel">
-     <x>133</x>
-     <y>538</y>
+     <x>186</x>
+     <y>533</y>
     </hint>
    </hints>
   </connection>
