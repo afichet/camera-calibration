@@ -35,6 +35,19 @@ private slots:
   void on_sliderInnerMarginY_valueChanged(int value);
   void on_exposureValue_valueChanged(double value);
 
+  void onMatrixChanged(const std::array<float, 9> &matrix);
+
+  void on_m00_textChanged(const QString &arg1);
+  void on_m01_textChanged(const QString &arg1);
+  void on_m02_textChanged(const QString &arg1);
+
+  void on_m10_textChanged(const QString &arg1);
+  void on_m11_textChanged(const QString &arg1);
+  void on_m12_textChanged(const QString &arg1);
+
+  void on_m20_textChanged(const QString &arg1);
+  void on_m21_textChanged(const QString &arg1);
+  void on_m22_textChanged(const QString &arg1);
 
 private:
   Ui::MainWindow *ui;

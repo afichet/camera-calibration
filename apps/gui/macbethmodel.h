@@ -19,7 +19,10 @@ public:
   const QVector<QPolygonF> &getMacbethPatches() const { return _macbethPatches; }
   const QVector<QPointF> &  getMacbethPatchesCenters() const { return _macbethPatchesCenters; }
 
+  const std::array<float, 9> &getCorrectionMatrix() const { return _correctionMatrix; }
+
   bool isImageLoaded() const { return _imageLoaded; }
+  bool isMatrixActive() const { return _isMatrixActive; }
 
 public slots:
   void openFile(const QString &filename);
@@ -32,6 +35,8 @@ public slots:
   void setOutlinePosition(int index, QPointF position);
 
   void setExposure(double value);
+  void setMatrix(const std::array<float, 9> matrix);
+  void setMatrixActive(bool active);
 
   void savePatches(const QString &filename);
 
@@ -43,6 +48,8 @@ signals:
   void loadFailed(QString message);
   void processProgress(int progress);
   void loadingMessage(QString const &message);
+  void matrixChanged(const std::array<float, 9> &matrix);
+  void matrixActivationStateChanged(bool state);
 
 
 protected:
@@ -57,7 +64,7 @@ private:
 
   QImage _image;
   bool   _imageLoaded;
-  bool   _correctionMatrixLoaded;
+  bool   _isMatrixActive;
 
   float _innerMarginX, _innerMarginY;
 

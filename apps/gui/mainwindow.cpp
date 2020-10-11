@@ -24,6 +24,15 @@ MainWindow::MainWindow(QWidget *parent)
   connect(&_model, SIGNAL(exposureChanged(double)), ui->exposureValue, SLOT(setValue(double)));
   connect(&_model, SIGNAL(processProgress(int)), _statusBarProgress, SLOT(setValue(int)));
   connect(&_model, SIGNAL(loadingMessage(QString const &)), statusBar(), SLOT(showMessage(QString const &)));
+
+  connect(&_model, SIGNAL(matrixActivationStateChanged(bool)), ui->activeMatrix, SLOT(setChecked(bool)));
+  connect(ui->activeMatrix, SIGNAL(toggled(bool)), &_model, SLOT(setMatrixActive(bool)));
+
+  connect(
+      &_model,
+      SIGNAL(matrixChanged(const std::array<float, 9> &)),
+      this,
+      SLOT(onMatrixChanged(const std::array<float, 9> &)));
 }
 
 
@@ -109,4 +118,80 @@ void MainWindow::on_sliderInnerMarginY_valueChanged(int value)
 void MainWindow::on_exposureValue_valueChanged(double value)
 {
   _model.setExposure(value);
+}
+
+void MainWindow::onMatrixChanged(const std::array<float, 9> &matrix)
+{
+  ui->m00->setText(QString::number(matrix[0]));
+  ui->m01->setText(QString::number(matrix[1]));
+  ui->m02->setText(QString::number(matrix[2]));
+  ui->m10->setText(QString::number(matrix[3]));
+  ui->m11->setText(QString::number(matrix[4]));
+  ui->m12->setText(QString::number(matrix[5]));
+  ui->m20->setText(QString::number(matrix[6]));
+  ui->m21->setText(QString::number(matrix[7]));
+  ui->m22->setText(QString::number(matrix[8]));
+}
+
+void MainWindow::on_m00_textChanged(const QString &arg1)
+{
+  std::array<float, 9> prevMatrix = _model.getCorrectionMatrix();
+  prevMatrix[0]                   = arg1.toFloat();
+  _model.setMatrix(prevMatrix);
+}
+
+void MainWindow::on_m01_textChanged(const QString &arg1)
+{
+  std::array<float, 9> prevMatrix = _model.getCorrectionMatrix();
+  prevMatrix[1]                   = arg1.toFloat();
+  _model.setMatrix(prevMatrix);
+}
+
+void MainWindow::on_m02_textChanged(const QString &arg1)
+{
+  std::array<float, 9> prevMatrix = _model.getCorrectionMatrix();
+  prevMatrix[2]                   = arg1.toFloat();
+  _model.setMatrix(prevMatrix);
+}
+
+void MainWindow::on_m10_textChanged(const QString &arg1)
+{
+  std::array<float, 9> prevMatrix = _model.getCorrectionMatrix();
+  prevMatrix[3]                   = arg1.toFloat();
+  _model.setMatrix(prevMatrix);
+}
+
+void MainWindow::on_m11_textChanged(const QString &arg1)
+{
+  std::array<float, 9> prevMatrix = _model.getCorrectionMatrix();
+  prevMatrix[4]                   = arg1.toFloat();
+  _model.setMatrix(prevMatrix);
+}
+
+void MainWindow::on_m12_textChanged(const QString &arg1)
+{
+  std::array<float, 9> prevMatrix = _model.getCorrectionMatrix();
+  prevMatrix[5]                   = arg1.toFloat();
+  _model.setMatrix(prevMatrix);
+}
+
+void MainWindow::on_m20_textChanged(const QString &arg1)
+{
+  std::array<float, 9> prevMatrix = _model.getCorrectionMatrix();
+  prevMatrix[6]                   = arg1.toFloat();
+  _model.setMatrix(prevMatrix);
+}
+
+void MainWindow::on_m21_textChanged(const QString &arg1)
+{
+  std::array<float, 9> prevMatrix = _model.getCorrectionMatrix();
+  prevMatrix[7]                   = arg1.toFloat();
+  _model.setMatrix(prevMatrix);
+}
+
+void MainWindow::on_m22_textChanged(const QString &arg1)
+{
+  std::array<float, 9> prevMatrix = _model.getCorrectionMatrix();
+  prevMatrix[8]                   = arg1.toFloat();
+  _model.setMatrix(prevMatrix);
 }

@@ -23,7 +23,7 @@ MacbethModel::MacbethModel()
   , _pixelBuffer(nullptr)
   , _correctionMatrix({1.f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f, 0.f, 1.f})
   , _imageLoaded(false)
-  , _correctionMatrixLoaded(false)
+  , _isMatrixActive(false)
   , _innerMarginX(0.01)
   , _innerMarginY(0.01)
   , _exposure(0)
@@ -34,11 +34,11 @@ MacbethModel::MacbethModel()
   recalculateMacbethPatches();
 }
 
+
 MacbethModel::~MacbethModel()
 {
   delete[] _pixelBuffer;
 }
-
 
 
 void MacbethModel::openFile(const QString &filename)
@@ -88,7 +88,7 @@ void MacbethModel::openImage(const QString &filename)
     _pixelCorrected.resize(3 * width * height);
     _image = QImage(width, height, QImage::Format_RGB888);
 
-    if (_correctionMatrixLoaded)
+    if (_isMatrixActive)
     {
       for (size_t y = 0; y < height; y++)
       {
@@ -181,9 +181,10 @@ void MacbethModel::openCorrectionMatrix(const QString &filename)
     return;
   }
 
-  _correctionMatrix       = tempMatrix;
-  _correctionMatrixLoaded = true;
-  recalculateCorrection(_exposure);
+  _isMatrixActive = true;
+  emit matrixActivationStateChanged(_isMatrixActive);
+
+  setMatrix(tempMatrix);
 }
 
 
@@ -193,17 +194,20 @@ void MacbethModel::setInnerMarginX(float position)
   recalculateMacbethPatches();
 }
 
+
 void MacbethModel::setInnerMarginY(float position)
 {
   _innerMarginY = position;
   recalculateMacbethPatches();
 }
 
+
 void MacbethModel::setOutlinePosition(int index, QPointF position)
 {
   _macbethOutline[index] = position;
   recalculateMacbethPatches();
 }
+
 
 void MacbethModel::setExposure(double value)
 {
@@ -212,6 +216,27 @@ void MacbethModel::setExposure(double value)
 
   recalculateCorrection(value);
 }
+
+
+void MacbethModel::setMatrix(const std::array<float, 9> matrix)
+{
+  if (_correctionMatrix == matrix) return;
+
+  _correctionMatrix = matrix;
+
+  recalculateCorrection(_exposure);
+  emit matrixChanged(_correctionMatrix);
+}
+
+
+void MacbethModel::setMatrixActive(bool active)
+{
+  if (_isMatrixActive == active) return;
+
+  _isMatrixActive = active;
+  recalculateCorrection(_exposure);
+}
+
 
 void MacbethModel::savePatches(const QString &filename)
 {
@@ -279,8 +304,6 @@ void MacbethModel::savePatches(const QString &filename)
 }
 
 
-
-
 void MacbethModel::recalculateCorrection(double exposure)
 {
   if (!isImageLoaded()) return;
@@ -297,7 +320,7 @@ void MacbethModel::recalculateCorrection(double exposure)
 
     const float ev = std::pow(2., exposure);
 
-    if (_correctionMatrixLoaded)
+    if (_isMatrixActive)
     {
       for (int y = 0; y < _image.height(); y++)
       {
@@ -358,6 +381,7 @@ float lerp(float a, float b, float t)
   return a + t * (b - a);
 }
 
+
 void MacbethModel::recalculateMacbethPatches()
 {
   _macbethPatches.clear();
@@ -387,7 +411,6 @@ void MacbethModel::recalculateMacbethPatches()
 
   const float patch_width  = effective_width / float(n_cols);
   const float patch_height = effective_height / float(n_lines);
-
 
   for (int y = 0; y < n_lines; y++)
   {
