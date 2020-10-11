@@ -90,22 +90,23 @@ void GraphicsView::onMacbethChartChanged()
 
   pen.setWidth(1. * ratio);
 
-  for (const QPolygonF &patch: macbethPatches)
+  for (const QPolygonF &patch : macbethPatches)
   {
     _chartItems << scene()->addPolygon(patch, pen);
   }
 
   if (_showPatchNumbers)
   {
-      const QVector<QPointF>& patchCenters = _model->getMacbethPatchesCenters();
+    const QVector<QPointF> &patchCenters = _model->getMacbethPatchesCenters();
 
-      for (int i = 0; i < patchCenters.size(); i++) {
-        QGraphicsTextItem *text = scene()->addText(QString::number(i + 1));
-        text->setDefaultTextColor(Qt::red);
-        text->setPos(patchCenters[i]);
-        text->setScale(ratio);
-        _chartItems << text;
-      }
+    for (int i = 0; i < patchCenters.size(); i++)
+    {
+      QGraphicsTextItem *text = scene()->addText(QString::number(i + 1));
+      text->setDefaultTextColor(Qt::red);
+      text->setPos(patchCenters[i]);
+      text->setScale(ratio);
+      _chartItems << text;
+    }
   }
 
   if (_selection != nullptr)
@@ -146,22 +147,22 @@ void GraphicsView::setShowPatchNumbers(bool show)
 
 void GraphicsView::setZoomLevel(float zoom)
 {
-    _zoomLevel = zoom;
-    scale(_zoomLevel, _zoomLevel);
+  _zoomLevel = zoom;
+  scale(_zoomLevel, _zoomLevel);
 }
 
 
 void GraphicsView::zoomIn()
 {
-    _zoomLevel = _zoomLevel * 1.2;
-    scale(_zoomLevel, _zoomLevel);
+  _zoomLevel = _zoomLevel * 1.2;
+  scale(_zoomLevel, _zoomLevel);
 }
 
 
 void GraphicsView::zoomOut()
 {
-    _zoomLevel = _zoomLevel / 1.2;
-    scale(_zoomLevel, _zoomLevel);
+  _zoomLevel = _zoomLevel / 1.2;
+  scale(_zoomLevel, _zoomLevel);
 }
 
 //void GraphicsView::wheelEvent(QWheelEvent * event)
@@ -192,34 +193,35 @@ void GraphicsView::mousePressEvent(QMouseEvent *event)
 
   if (event->button() == Qt::LeftButton)
   {
-      _inSelection = true;
+    _inSelection = true;
 
-      const QPointF selection = mapToScene(event->pos());
-      // Find the closest corner
-      float distance = std::numeric_limits<float>::max();
+    const QPointF selection = mapToScene(event->pos());
+    // Find the closest corner
+    float distance = std::numeric_limits<float>::max();
 
-      const QPolygonF &macbethOutline = _model->getMacbethOutline();
+    const QPolygonF &macbethOutline = _model->getMacbethOutline();
 
-      for (int i = 0; i < macbethOutline.size(); i++)
+    for (int i = 0; i < macbethOutline.size(); i++)
+    {
+      const float currDistance = QLineF(selection, macbethOutline[i]).length();
+
+      if (currDistance < distance)
       {
-        const float currDistance = QLineF(selection, macbethOutline[i]).length();
-
-        if (currDistance < distance)
-        {
-          distance     = currDistance;
-          _selectedIdx = i;
-        }
+        distance     = currDistance;
+        _selectedIdx = i;
       }
+    }
 
-      _model->setOutlinePosition(_selectedIdx, selection);
+    _model->setOutlinePosition(_selectedIdx, selection);
   }
-  else if ( (event->button() == Qt::MidButton) ||
-            (event->button() == Qt::LeftButton && QGuiApplication::keyboardModifiers() == Qt::ControlModifier) )
+  else if (
+      (event->button() == Qt::MidButton)
+      || (event->button() == Qt::LeftButton && QGuiApplication::keyboardModifiers() == Qt::ControlModifier))
   {
-      QGraphicsView::mousePressEvent(event);
-      setCursor(Qt::ClosedHandCursor);
-      _startDrag = event->pos();
-      return;
+    QGraphicsView::mousePressEvent(event);
+    setCursor(Qt::ClosedHandCursor);
+    _startDrag = event->pos();
+    return;
   }
 }
 
@@ -231,18 +233,20 @@ void GraphicsView::mouseMoveEvent(QMouseEvent *event)
   if (_inSelection)
   {
     _model->setOutlinePosition(_selectedIdx, mapToScene(event->pos()));
-  } else if ( (event->button() == Qt::MidButton) ||
-              (event->button() == Qt::LeftButton && QGuiApplication::keyboardModifiers() == Qt::ControlModifier) )
+  }
+  else if (
+      (event->button() == Qt::MidButton)
+      || (event->button() == Qt::LeftButton && QGuiApplication::keyboardModifiers() == Qt::ControlModifier))
   {
-     QScrollBar *hBar = horizontalScrollBar();
-     QScrollBar *vBar = verticalScrollBar();
-     QPoint delta = event->pos() - _startDrag;
-     std::pair<int, int> bar_values;
-     bar_values.first = hBar->value() + (isRightToLeft() ? delta.x() : -delta.x());
-     bar_values.second = vBar->value() - delta.y();
-     hBar->setValue(bar_values.first);
-     vBar->setValue(bar_values.second);
-     _startDrag = event->pos();
+    QScrollBar *        hBar  = horizontalScrollBar();
+    QScrollBar *        vBar  = verticalScrollBar();
+    QPoint              delta = event->pos() - _startDrag;
+    std::pair<int, int> bar_values;
+    bar_values.first  = hBar->value() + (isRightToLeft() ? delta.x() : -delta.x());
+    bar_values.second = vBar->value() - delta.y();
+    hBar->setValue(bar_values.first);
+    vBar->setValue(bar_values.second);
+    _startDrag = event->pos();
   }
 }
 
@@ -265,30 +269,30 @@ void GraphicsView::mouseReleaseEvent(QMouseEvent *event)
 
 void GraphicsView::dropEvent(QDropEvent *ev)
 {
-    if (_model == nullptr) return;
+  if (_model == nullptr) return;
 
-    QList<QUrl> urls = ev->mimeData()->urls();
+  QList<QUrl> urls = ev->mimeData()->urls();
 
-    if (!urls.empty())
+  if (!urls.empty())
+  {
+    QString fileName = urls[0].toString();
+    QString startFileTypeString =
+#ifdef _WIN32
+        "file:///";
+#else
+        "file://";
+#endif
+
+    if (fileName.startsWith(startFileTypeString))
     {
-        QString fileName = urls[0].toString();
-        QString startFileTypeString =
-            #ifdef _WIN32
-                "file:///";
-            #else
-                "file://";
-            #endif
-
-        if (fileName.startsWith(startFileTypeString))
-        {
-            fileName = fileName.remove(0, startFileTypeString.length());
-            _model->openFile(fileName);
-        }
+      fileName = fileName.remove(0, startFileTypeString.length());
+      _model->openFile(fileName);
     }
+  }
 }
 
 
 void GraphicsView::dragEnterEvent(QDragEnterEvent *ev)
 {
-    ev->acceptProposedAction();
+  ev->acceptProposedAction();
 }

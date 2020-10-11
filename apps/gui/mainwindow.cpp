@@ -19,37 +19,37 @@ MainWindow::~MainWindow()
   delete ui;
 }
 
-void MainWindow::openFile(const QString& filename)
+void MainWindow::openFile(const QString &filename)
 {
   _model.openFile(filename);
 }
 
 void MainWindow::dropEvent(QDropEvent *ev)
 {
-    QList<QUrl> urls = ev->mimeData()->urls();
+  QList<QUrl> urls = ev->mimeData()->urls();
 
-    if (!urls.empty())
+  if (!urls.empty())
+  {
+    QString fileName = urls[0].toString();
+    QString startFileTypeString =
+#ifdef _WIN32
+        "file:///";
+#else
+        "file://";
+#endif
+
+    if (fileName.startsWith(startFileTypeString))
     {
-        QString fileName = urls[0].toString();
-        QString startFileTypeString =
-            #ifdef _WIN32
-                "file:///";
-            #else
-                "file://";
-            #endif
-
-        if (fileName.startsWith(startFileTypeString))
-        {
-            fileName = fileName.remove(0, startFileTypeString.length());
-            openFile(fileName);
-        }
+      fileName = fileName.remove(0, startFileTypeString.length());
+      openFile(fileName);
     }
+  }
 }
 
 
 void MainWindow::dragEnterEvent(QDragEnterEvent *ev)
 {
-    ev->acceptProposedAction();
+  ev->acceptProposedAction();
 }
 
 void MainWindow::on_action_Open_triggered()

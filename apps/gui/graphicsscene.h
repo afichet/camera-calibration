@@ -3,22 +3,22 @@
 
 #include <QGraphicsScene>
 
-class GraphicsScene : public QGraphicsScene
+class GraphicsScene: public QGraphicsScene
 {
-    Q_OBJECT
+  Q_OBJECT
 public:
- virtual ~GraphicsScene();
+  virtual ~GraphicsScene();
 
- GraphicsScene(QObject * parent = 0 );
+  GraphicsScene(QObject *parent = 0);
 
- void dragEnterEvent(QGraphicsSceneDragDropEvent *event);
+  void dragEnterEvent(QGraphicsSceneDragDropEvent *event);
 
- void dragMoveEvent(QGraphicsSceneDragDropEvent *event);
+  void dragMoveEvent(QGraphicsSceneDragDropEvent *event);
 
- void dropEvent(QGraphicsSceneDragDropEvent *event);
+  void dropEvent(QGraphicsSceneDragDropEvent *event);
 
 signals:
- void openFileOnDropEvent(QString);
+  void openFileOnDropEvent(QString);
 };
 
-#endif // GRAPHICSSCENE_H
+#endif   // GRAPHICSSCENE_H

@@ -34,7 +34,7 @@ void MacbethModel::openFile(const QString &filename)
 
   _image = QImage(width, height, QImage::Format_RGB888);
 
-  #pragma omp parallel for
+#pragma omp parallel for
   for (size_t y = 0; y < height; y++)
   {
     uchar *scanline = _image.scanLine(y);
@@ -83,7 +83,7 @@ void MacbethModel::recalculateMacbethPatches()
   const float dead_width  = 1.f * _innerMarginX;
   const float dead_height = 1.f * _innerMarginY;
 
-  const float margin_width = dead_width / float(n_cols + 1);
+  const float margin_width  = dead_width / float(n_cols + 1);
   const float margin_height = dead_height / float(n_lines + 1);
 
   const float effective_width  = 1.f - dead_width;
@@ -97,17 +97,17 @@ void MacbethModel::recalculateMacbethPatches()
   {
     for (int x = 0; x < n_cols; x++)
     {
-        // Compute patch position in local coordinates (0..1, 0..1)
-        const float x_left = float(x + 1) * margin_width + x * patch_width;
-        const float x_right = x_left + patch_width;
+      // Compute patch position in local coordinates (0..1, 0..1)
+      const float x_left  = float(x + 1) * margin_width + x * patch_width;
+      const float x_right = x_left + patch_width;
 
-        const float y_top = float(y + 1) * margin_height + y * patch_height;
-        const float y_bottom = y_top + patch_height;
+      const float y_top    = float(y + 1) * margin_height + y * patch_height;
+      const float y_bottom = y_top + patch_height;
 
-        const float x_center = x_left + patch_width / 2.f;
-        const float y_center = y_top + patch_height / 2.f;
+      const float x_center = x_left + patch_width / 2.f;
+      const float y_center = y_top + patch_height / 2.f;
 
-        // Transform perspective given the Macbeth outline
+      // Transform perspective given the Macbeth outline
       const std::vector<cv::Point2f> patch_org = {
           cv::Point2f(x_left, y_top),
           cv::Point2f(x_right, y_top),
@@ -129,7 +129,7 @@ void MacbethModel::recalculateMacbethPatches()
 
       // Transformation for patch center
       const std::vector<cv::Point2f> patch_center_org = {cv::Point2f(x_center, y_center)};
-      std::vector<cv::Point2f> patch_center_dest;
+      std::vector<cv::Point2f>       patch_center_dest;
 
       cv::perspectiveTransform(patch_center_org, patch_center_dest, transform);
 
@@ -162,7 +162,7 @@ void MacbethModel::setExposure(double value)
 {
   if (_pixelBuffer == nullptr) return;
 
-  #pragma omp parallel for
+#pragma omp parallel for
   for (int y = 0; y < _image.height(); y++)
   {
     uchar *scanline = _image.scanLine(y);
@@ -184,7 +184,7 @@ void MacbethModel::savePatches(const QString &filename)
 
   std::vector<float> patches_values(4 * _macbethPatches.size(), 0.f);
 
-  #pragma omp parallel for
+#pragma omp parallel for
   for (int y = 0; y < _image.height(); y++)
   {
     for (int x = 0; x < _image.width(); x++)
@@ -208,7 +208,7 @@ void MacbethModel::savePatches(const QString &filename)
 
   std::vector<float> final_values(3 * _macbethPatches.size());
 
-  #pragma omp parallel for
+#pragma omp parallel for
   for (int p = 0; p < _macbethPatches.size(); p++)
   {
     for (int c = 0; c < 3; c++)

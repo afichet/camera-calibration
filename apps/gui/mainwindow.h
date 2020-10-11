@@ -19,10 +19,10 @@ public:
   MainWindow(QWidget *parent = nullptr);
   ~MainWindow();
 
-  void openFile(const QString& filename);
+  void openFile(const QString &filename);
 
 private:
-  void dropEvent(QDropEvent* event);
+  void dropEvent(QDropEvent *event);
   void dragEnterEvent(QDragEnterEvent *ev);
 
 private slots:

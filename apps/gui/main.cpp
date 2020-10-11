@@ -12,12 +12,15 @@ int main(int argc, char *argv[])
   // Set theme
   QFile f(":/theme.qss");
 
-  if (!f.exists()) {
-      //qWarning() << "Unable to set stylesheet, file not found";
-  } else {
-      f.open(QFile::ReadOnly | QFile::Text);
-      QTextStream ts(&f);
-      a.setStyleSheet(ts.readAll());
+  if (!f.exists())
+  {
+    //qWarning() << "Unable to set stylesheet, file not found";
+  }
+  else
+  {
+    f.open(QFile::ReadOnly | QFile::Text);
+    QTextStream ts(&f);
+    a.setStyleSheet(ts.readAll());
   }
 
   w.show();
