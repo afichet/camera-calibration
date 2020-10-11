@@ -35,7 +35,7 @@ private slots:
   void on_sliderInnerMarginY_valueChanged(int value);
   void on_exposureValue_valueChanged(double value);
 
-  void onMatrixChanged(const std::array<float, 9> &matrix);
+  void onMatrixLoaded(const std::array<float, 9> &matrix);
 
   void on_m00_textChanged(const QString &arg1);
   void on_m01_textChanged(const QString &arg1);
@@ -50,6 +50,10 @@ private slots:
   void on_m22_textChanged(const QString &arg1);
 
   void on_buttonFit_clicked();
+
+  void onImageLoaded(int width, int height);
+
+  void on_actionSave_correction_matrix_triggered();
 
 private:
   Ui::MainWindow *ui;

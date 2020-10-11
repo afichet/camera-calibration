@@ -9,6 +9,7 @@ extern "C"
 {
 #include <image.h>
 #include <color-converter.h>
+#include <io.h>
 }
 
 #include <opencv2/core.hpp>
@@ -22,7 +23,8 @@ ImageModel::ImageModel()
   : QObject()
   , _pixelBuffer(nullptr)
   , _correctionMatrix({1.f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f, 0.f, 1.f})
-  , _imageLoaded(false)
+  , _isImageLoaded(false)
+  , _isMatrixLoaded(false)
   , _isMatrixActive(false)
   , _innerMarginX(0.01)
   , _innerMarginY(0.01)
@@ -98,8 +100,8 @@ void ImageModel::openFile(const QString &filename)
 void ImageModel::openImage(const QString &filename)
 {
   delete[] _pixelBuffer;
-  _pixelBuffer = nullptr;
-  _imageLoaded = false;
+  _pixelBuffer   = nullptr;
+  _isImageLoaded = false;
 
   if (_processWatcher->isRunning())
   {
@@ -179,7 +181,7 @@ void ImageModel::openImage(const QString &filename)
     emit exposureChanged(_exposure);
 
     recalculateMacbethPatches();
-    _imageLoaded = true;
+    _isImageLoaded = true;
     emit processProgress(100);
     emit loadingMessage("");
   });
@@ -262,10 +264,11 @@ void ImageModel::setMatrix(const std::array<float, 9> matrix)
 {
   if (_correctionMatrix == matrix) return;
 
+  _isMatrixLoaded   = true;
   _correctionMatrix = matrix;
 
   recalculateCorrection(_exposure);
-  emit matrixChanged(_correctionMatrix);
+  emit matrixLoaded(_correctionMatrix);
 }
 
 
@@ -309,6 +312,12 @@ void ImageModel::savePatches(const QString &filename)
   });
 
   _processWatcher->setFuture(imageLoading);
+}
+
+
+void ImageModel::saveMatrix(const QString &filename)
+{
+  save_xyz(filename.toStdString().c_str(), &_correctionMatrix[0], 3);
 }
 
 

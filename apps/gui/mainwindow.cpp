@@ -25,15 +25,16 @@ MainWindow::MainWindow(QWidget *parent)
   connect(&_model, SIGNAL(exposureChanged(double)), ui->exposureValue, SLOT(setValue(double)));
   connect(&_model, SIGNAL(processProgress(int)), _statusBarProgress, SLOT(setValue(int)));
   connect(&_model, SIGNAL(loadingMessage(QString const &)), statusBar(), SLOT(showMessage(QString const &)));
+  connect(&_model, SIGNAL(imageLoaded(int, int)), this, SLOT(onImageLoaded(int, int)));
 
   connect(&_model, SIGNAL(matrixActivationStateChanged(bool)), ui->activeMatrix, SLOT(setChecked(bool)));
   connect(ui->activeMatrix, SIGNAL(toggled(bool)), &_model, SLOT(setMatrixActive(bool)));
 
   connect(
       &_model,
-      SIGNAL(matrixChanged(const std::array<float, 9> &)),
+      SIGNAL(matrixLoaded(const std::array<float, 9> &)),
       this,
-      SLOT(onMatrixChanged(const std::array<float, 9> &)));
+      SLOT(onMatrixLoaded(const std::array<float, 9> &)));
 }
 
 
@@ -80,7 +81,7 @@ void MainWindow::dragEnterEvent(QDragEnterEvent *ev)
 
 void MainWindow::on_action_Open_triggered()
 {
-  QString filename = QFileDialog::getOpenFileName(this, tr("Open Image"), "", tr("Image (*.tiff *.tif *.exr)"));
+  QString filename = QFileDialog::getOpenFileName(this, tr("Open file"), "", tr("Image (*.tiff *.tif *.exr, *.csv)"));
 
   if (filename.size() != 0)
   {
@@ -121,7 +122,7 @@ void MainWindow::on_exposureValue_valueChanged(double value)
   _model.setExposure(value);
 }
 
-void MainWindow::onMatrixChanged(const std::array<float, 9> &matrix)
+void MainWindow::onMatrixLoaded(const std::array<float, 9> &matrix)
 {
   ui->m00->setText(QString::number(matrix[0]));
   ui->m01->setText(QString::number(matrix[1]));
@@ -132,6 +133,13 @@ void MainWindow::onMatrixChanged(const std::array<float, 9> &matrix)
   ui->m20->setText(QString::number(matrix[6]));
   ui->m21->setText(QString::number(matrix[7]));
   ui->m22->setText(QString::number(matrix[8]));
+
+  if (_model.isImageLoaded())
+  {
+    ui->activeMatrix->setEnabled(true);
+  }
+
+  ui->actionSave_correction_matrix->setEnabled(true);
 }
 
 void MainWindow::on_m00_textChanged(const QString &arg1)
@@ -204,5 +212,26 @@ void MainWindow::on_buttonFit_clicked()
   if (f.exec() == QDialog::Accepted)
   {
     _model.setMatrix(f.getFitMatrix());
+  }
+}
+
+void MainWindow::onImageLoaded(int, int)
+{
+  ui->buttonFit->setEnabled(true);
+  ui->action_Save_areas->setEnabled(true);
+
+  if (_model.isMatrixLoaded())
+  {
+    ui->activeMatrix->setEnabled(true);
+  }
+}
+
+void MainWindow::on_actionSave_correction_matrix_triggered()
+{
+  QString filename = QFileDialog::getSaveFileName(this, tr("Save correction matrix"), "", tr("CSV (*.csv)"));
+
+  if (filename.size() != 0)
+  {
+    _model.saveMatrix(filename);
   }
 }

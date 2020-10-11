@@ -1,4 +1,4 @@
-﻿#ifndef IMAGEMODEL_H
+#ifndef IMAGEMODEL_H
 #define IMAGEMODEL_H
 
 #include <QObject>
@@ -23,7 +23,8 @@ public:
 
   void getAveragedPatches(std::vector<float> &values);
 
-  bool isImageLoaded() const { return _imageLoaded; }
+  bool isImageLoaded() const { return _isImageLoaded; }
+  bool isMatrixLoaded() const { return _isMatrixLoaded; }
   bool isMatrixActive() const { return _isMatrixActive; }
 
 public slots:
@@ -41,6 +42,7 @@ public slots:
   void setMatrixActive(bool active);
 
   void savePatches(const QString &filename);
+  void saveMatrix(const QString &filename);
 
 signals:
   void macbethChartChanged();
@@ -50,7 +52,7 @@ signals:
   void loadFailed(QString message);
   void processProgress(int progress);
   void loadingMessage(QString const &message);
-  void matrixChanged(const std::array<float, 9> &matrix);
+  void matrixLoaded(const std::array<float, 9> &matrix);
   void matrixActivationStateChanged(bool state);
 
 
@@ -65,7 +67,8 @@ private:
   std::array<float, 9> _correctionMatrix;
 
   QImage _image;
-  bool   _imageLoaded;
+  bool   _isImageLoaded;
+  bool   _isMatrixLoaded;
   bool   _isMatrixActive;
 
   float _innerMarginX, _innerMarginY;
