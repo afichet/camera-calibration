@@ -44,12 +44,7 @@ int main(int argc, char *argv[])
     return -1;
   }
 
-  for (size_t i = 0; i < width * height; i++)
-  {
-    float tmp_color[3];
-    matmul(matrix, &image[3 * i], tmp_color);
-    XYZ_to_RGB(tmp_color, &image[3 * i]);
-  }
+  correct_image(image, width, height, matrix);
 
   err = write_image(filename_image_out, image, width, height);
 

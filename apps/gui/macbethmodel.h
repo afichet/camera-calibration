@@ -23,8 +23,8 @@ public:
 
 public slots:
   void openFile(const QString &filename);
-
-  void recalculateMacbethPatches();
+  void openImage(const QString &filename);
+  void openCorrectionMatrix(const QString &filename);
 
   void setInnerMarginX(float position);
   void setInnerMarginY(float position);
@@ -44,10 +44,20 @@ signals:
   void processProgress(int progress);
   void loadingMessage(QString const &message);
 
+
+protected:
+  void recalculateCorrection(double exposure);
+
+  void recalculateMacbethPatches();
+
 private:
-  float *_pixelBuffer;
+  float *              _pixelBuffer;
+  std::vector<float>   _pixelCorrected;
+  std::array<float, 9> _correctionMatrix;
+
   QImage _image;
   bool   _imageLoaded;
+  bool   _correctionMatrixLoaded;
 
   float _innerMarginX, _innerMarginY;
 

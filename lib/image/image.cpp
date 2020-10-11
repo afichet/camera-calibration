@@ -407,8 +407,8 @@ extern "C"
     }
 
 #ifdef HAS_TIFF
-    if (strcmp(filename + len - 4, "tiff") == 0 || strcmp(filename + len - 4, "tiff") == 0
-        || strcmp(filename + len - 3, "tif") == 0 || strcmp(filename + len - 3, "tif") == 0)
+    if (strcmp(filename + len - 4, "tiff") == 0 || strcmp(filename + len - 4, "TIFF") == 0
+        || strcmp(filename + len - 3, "tif") == 0 || strcmp(filename + len - 3, "TIF") == 0)
     {
       return write_tiff(filename, pixels, width, height, 8);
     }
@@ -417,6 +417,16 @@ extern "C"
     fprintf(stderr, "This extension is not supported %s\n", filename);
 
     return -1;
+  }
+
+  void correct_image(float *pixels, size_t width, size_t height, float *matrix)
+  {
+    for (size_t i = 0; i < width * height; i++)
+    {
+      float tmp_color[3];
+      matmul(matrix, &pixels[3 * i], tmp_color);
+      XYZ_to_RGB(tmp_color, &pixels[3 * i]);
+    }
   }
 
 #ifdef __cplusplus

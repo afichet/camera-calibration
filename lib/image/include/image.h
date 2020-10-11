@@ -22,6 +22,7 @@ extern "C"
   int read_image(const char *filename, float **pixels, size_t *width, size_t *height);
   int write_image(const char *filename, const float *pixels, size_t width, size_t height);
 
+  void correct_image(float *pixels, size_t width, size_t height, float *matrix);
 #ifdef __cpluplus
 }
 #endif
