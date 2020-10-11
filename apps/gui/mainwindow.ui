@@ -28,7 +28,17 @@
      <number>0</number>
     </property>
     <item>
-     <widget class="GraphicsView" name="graphicsView"/>
+     <widget class="GraphicsView" name="graphicsView">
+      <property name="verticalScrollBarPolicy">
+       <enum>Qt::ScrollBarAlwaysOn</enum>
+      </property>
+      <property name="horizontalScrollBarPolicy">
+       <enum>Qt::ScrollBarAlwaysOn</enum>
+      </property>
+      <property name="renderHints">
+       <set>QPainter::Antialiasing|QPainter::HighQualityAntialiasing|QPainter::TextAntialiasing</set>
+      </property>
+     </widget>
     </item>
    </layout>
   </widget>

@@ -24,7 +24,7 @@ public slots:
   void zoomOut();
 
 protected:
-  //  void wheelEvent( QWheelEvent * event ) override;
+  void wheelEvent(QWheelEvent *event) override;
   void resizeEvent(QResizeEvent *event) override;
 
   void mousePressEvent(QMouseEvent *event) override;

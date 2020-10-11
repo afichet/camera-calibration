@@ -21,7 +21,7 @@ GraphicsView::GraphicsView(QWidget *parent)
   , _zoomLevel(1.f)
 {
   setScene(new GraphicsScene);
-  setRenderHints(QPainter::Antialiasing | QPainter::SmoothPixmapTransform);
+  //  setRenderHints(QPainter::Antialiasing | QPainter::SmoothPixmapTransform);
   setMouseTracking(true);
   setAcceptDrops(true);
 }
@@ -147,46 +147,54 @@ void GraphicsView::setShowPatchNumbers(bool show)
 
 void GraphicsView::setZoomLevel(float zoom)
 {
-  _zoomLevel = zoom;
+  _zoomLevel = std::max(0.01f, zoom);
+  resetTransform();
   scale(_zoomLevel, _zoomLevel);
 }
 
 
 void GraphicsView::zoomIn()
 {
-  _zoomLevel = _zoomLevel * 1.2;
-  scale(_zoomLevel, _zoomLevel);
+  setZoomLevel(_zoomLevel * 1.2);
 }
 
 
 void GraphicsView::zoomOut()
 {
-  _zoomLevel = _zoomLevel / 1.2;
-  scale(_zoomLevel, _zoomLevel);
+  setZoomLevel(_zoomLevel / 1.2);
 }
 
-//void GraphicsView::wheelEvent(QWheelEvent * event)
-//{
-//    if((event->modifiers() & Qt::ControlModifier) != 0U) {
-//        QGraphicsView::wheelEvent(event);
-//    } else {
-//        const QPoint delta = event->angleDelta();
 
-//        if(delta.y() != 0) {
-//            const double zoom_factor = 1.2 * float(std::abs(delta.y())) / 120.F;
-
-//            if(delta.y() > 0) {
-//                _zoomLevel = std::max(0.01, _zoomLevel * zoom_factor);
-//            } else {
-//                _zoomLevel = std::max(0.01, _zoomLevel / zoom_factor);
-//            }
-
-//            scale(_zoomLevel, _zoomLevel);
-//        }
-//    }
-//}
-void GraphicsView::resizeEvent(QResizeEvent *)
+void GraphicsView::wheelEvent(QWheelEvent *event)
 {
+  if ((event->modifiers() & Qt::ControlModifier) != 0U)
+  {
+    QGraphicsView::wheelEvent(event);
+  }
+  else
+  {
+    const QPoint delta = event->angleDelta();
+
+    if (delta.y() != 0)
+    {
+      const double zoom_factor = 1.2 * float(std::abs(delta.y())) / 120.F;
+
+      if (delta.y() > 0)
+      {
+        setZoomLevel(_zoomLevel * zoom_factor);
+      }
+      else
+      {
+        setZoomLevel(_zoomLevel / zoom_factor);
+      }
+    }
+  }
+}
+
+
+void GraphicsView::resizeEvent(QResizeEvent *e)
+{
+  QGraphicsView::resizeEvent(e);
   if (_model == nullptr || !_model->isImageLoaded()) return;
 
   fitInView(0, 0, _model->getLoadedImage().width(), _model->getLoadedImage().height(), Qt::KeepAspectRatio);
@@ -241,8 +249,8 @@ void GraphicsView::mouseMoveEvent(QMouseEvent *event)
     _model->setOutlinePosition(_selectedIdx, mapToScene(event->pos()));
   }
   else if (
-      (event->button() == Qt::MidButton)
-      || (event->button() == Qt::LeftButton && QGuiApplication::keyboardModifiers() == Qt::ControlModifier))
+      ((event->buttons() & Qt::MidButton) != 0U)
+      || (((event->buttons() & Qt::LeftButton) != 0U) && QGuiApplication::keyboardModifiers() == Qt::ControlModifier))
   {
     QScrollBar *        hBar  = horizontalScrollBar();
     QScrollBar *        vBar  = verticalScrollBar();
