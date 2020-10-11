@@ -2,6 +2,8 @@
 #define MAINWINDOW_H
 
 #include <QMainWindow>
+#include <QProgressBar>
+
 #include "macbethmodel.h"
 
 QT_BEGIN_NAMESPACE
@@ -27,17 +29,16 @@ private:
 
 private slots:
   void on_action_Open_triggered();
+  void on_action_Save_areas_triggered();
 
   void on_sliderInnerMarginX_valueChanged(int value);
-
   void on_sliderInnerMarginY_valueChanged(int value);
-
   void on_exposureValue_valueChanged(double value);
 
-  void on_action_Save_areas_triggered();
 
 private:
   Ui::MainWindow *ui;
   MacbethModel    _model;
+  QProgressBar *  _statusBarProgress;
 };
 #endif   // MAINWINDOW_H

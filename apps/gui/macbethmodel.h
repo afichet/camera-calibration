@@ -41,6 +41,8 @@ signals:
   void imageLoaded(int width, int height);
   void exposureChanged(double exposure);
   void loadFailed(QString message);
+  void processProgress(int progress);
+  void loadingMessage(QString const &message);
 
 private:
   float *_pixelBuffer;
