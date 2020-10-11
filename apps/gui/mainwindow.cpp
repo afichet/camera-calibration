@@ -12,6 +12,7 @@ MainWindow::MainWindow(QWidget *parent): QMainWindow(parent), ui(new Ui::MainWin
 
   on_sliderInnerMarginX_valueChanged(ui->sliderInnerMarginX->value());
   on_sliderInnerMarginY_valueChanged(ui->sliderInnerMarginY->value());
+  connect(&_model, SIGNAL(exposureChanged(double)), ui->exposureValue, SLOT(setValue(double)));
 }
 
 MainWindow::~MainWindow()

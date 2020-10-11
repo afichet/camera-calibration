@@ -4,6 +4,7 @@
 #include <QObject>
 #include <QImage>
 #include <QVector>
+#include <QFutureWatcher>
 
 class MacbethModel: public QObject
 {
@@ -18,7 +19,7 @@ public:
   const QVector<QPolygonF> &getMacbethPatches() const { return _macbethPatches; }
   const QVector<QPointF> &  getMacbethPatchesCenters() const { return _macbethPatchesCenters; }
 
-  bool isImageLoaded() const { return _pixelBuffer != nullptr; }
+  bool isImageLoaded() const { return _imageLoaded; }
 
 public slots:
   void openFile(const QString &filename);
@@ -38,16 +39,23 @@ signals:
   void macbethChartChanged();
   void imageChanged();
   void imageLoaded(int width, int height);
+  void exposureChanged(double exposure);
+  void loadFailed(QString message);
 
 private:
   float *_pixelBuffer;
   QImage _image;
+  bool   _imageLoaded;
 
   float _innerMarginX, _innerMarginY;
 
   QPolygonF          _macbethOutline;
   QVector<QPolygonF> _macbethPatches;
   QVector<QPointF>   _macbethPatchesCenters;
+
+  double _exposure;
+
+  QFutureWatcher<void> *_processWatcher;
 };
 
 #endif   // MACBETHMODEL_H

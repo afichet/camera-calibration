@@ -14,7 +14,17 @@ extern "C"
 #include <opencv2/core.hpp>
 #include <opencv2/imgproc/imgproc.hpp>
 
-MacbethModel::MacbethModel(): QObject(), _pixelBuffer(nullptr), _innerMarginX(0.01), _innerMarginY(0.01)
+#include <QFuture>
+#include <QtConcurrent/QtConcurrent>
+
+MacbethModel::MacbethModel()
+  : QObject()
+  , _pixelBuffer(nullptr)
+  , _imageLoaded(false)
+  , _innerMarginX(0.01)
+  , _innerMarginY(0.01)
+  , _exposure(0)
+  , _processWatcher(new QFutureWatcher<void>(this))
 {
   _macbethOutline << QPointF(0, 0) << QPointF(100, 0) << QPointF(100, 100) << QPointF(0, 100);
 
@@ -23,37 +33,63 @@ MacbethModel::MacbethModel(): QObject(), _pixelBuffer(nullptr), _innerMarginX(0.
 
 MacbethModel::~MacbethModel()
 {
-  delete _pixelBuffer;
+  delete[] _pixelBuffer;
 }
 
 void MacbethModel::openFile(const QString &filename)
 {
-  size_t width, height;
+  delete[] _pixelBuffer;
+  _pixelBuffer = nullptr;
+  _imageLoaded = false;
 
-  read_image(filename.toStdString().c_str(), &_pixelBuffer, &width, &height);
-
-  _image = QImage(width, height, QImage::Format_RGB888);
-
-#pragma omp parallel for
-  for (size_t y = 0; y < height; y++)
+  if (_processWatcher->isRunning())
   {
-    uchar *scanline = _image.scanLine(y);
-    for (size_t x = 0; x < width; x++)
-    {
-      for (size_t i = 0; i < 3; i++)
-      {
-        scanline[3 * x + i] = 255 * to_sRGB(_pixelBuffer[3 * (y * width + x) + i]);
-      }
-    }
+    emit _processWatcher->cancel();
+    _processWatcher->waitForFinished();
   }
 
-  emit imageChanged();
-  emit imageLoaded(width, height);
-  _macbethOutline.clear();
-  _macbethOutline << QPointF(0, 0) << QPointF(_image.width(), 0) << QPointF(_image.width(), _image.height())
-                  << QPointF(0, _image.height());
+  QFuture<void> imageLoading = QtConcurrent::run([=]() {
+    size_t width, height;
 
-  recalculateMacbethPatches();
+    int success = read_image(filename.toStdString().c_str(), &_pixelBuffer, &width, &height);
+
+    if (success != 0)
+    {
+      emit loadFailed("Cannot open image file");
+      delete[] _pixelBuffer;
+      _pixelBuffer = nullptr;
+      return;
+    }
+
+    _image = QImage(width, height, QImage::Format_RGB888);
+
+#pragma omp parallel for
+    for (size_t y = 0; y < height; y++)
+    {
+      uchar *scanline = _image.scanLine(y);
+      for (size_t x = 0; x < width; x++)
+      {
+        for (size_t i = 0; i < 3; i++)
+        {
+          scanline[3 * x + i] = 255 * to_sRGB(_pixelBuffer[3 * (y * width + x) + i]);
+        }
+      }
+    }
+
+    emit imageChanged();
+    emit imageLoaded(width, height);
+    _macbethOutline.clear();
+    _macbethOutline << QPointF(0, 0) << QPointF(_image.width(), 0) << QPointF(_image.width(), _image.height())
+                    << QPointF(0, _image.height());
+
+    _exposure = 0.f;
+    emit exposureChanged(_exposure);
+
+    recalculateMacbethPatches();
+    _imageLoaded = true;
+  });
+
+  _processWatcher->setFuture(imageLoading);
 }
 
 
@@ -160,68 +196,93 @@ void MacbethModel::setOutlinePosition(int index, QPointF position)
 
 void MacbethModel::setExposure(double value)
 {
-  if (_pixelBuffer == nullptr) return;
+  if (!isImageLoaded()) return;
+  if (_exposure == value) return;
 
-#pragma omp parallel for
-  for (int y = 0; y < _image.height(); y++)
+  if (_processWatcher->isRunning())
   {
-    uchar *scanline = _image.scanLine(y);
-    for (int x = 0; x < _image.width(); x++)
-    {
-      for (int i = 0; i < 3; i++)
-      {
-        scanline[3 * x + i] = 255 * to_sRGB(_pixelBuffer[3 * (y * _image.width() + x) + i] * std::pow(2., value));
-      }
-    }
+    emit _processWatcher->cancel();
+    _processWatcher->waitForFinished();
   }
 
-  emit imageChanged();
+  QFuture<void> imageLoading = QtConcurrent::run([=]() {
+    for (int y = 0; y < _image.height(); y++)
+    {
+      if (_processWatcher->isCanceled()) return;
+      uchar *scanline = _image.scanLine(y);
+
+#pragma omp parallel for
+      for (int x = 0; x < _image.width(); x++)
+      {
+        for (int i = 0; i < 3; i++)
+        {
+          scanline[3 * x + i] = 255 * to_sRGB(_pixelBuffer[3 * (y * _image.width() + x) + i] * std::pow(2., value));
+        }
+      }
+    }
+    _exposure = value;
+
+    emit exposureChanged(_exposure);
+    emit imageChanged();
+  });
+
+  _processWatcher->setFuture(imageLoading);
 }
 
 void MacbethModel::savePatches(const QString &filename)
 {
-  if (_pixelBuffer == nullptr) return;
+  if (!isImageLoaded()) return;
 
-  std::vector<float> patches_values(4 * _macbethPatches.size(), 0.f);
+  if (_processWatcher->isRunning())
+  {
+    emit _processWatcher->cancel();
+    _processWatcher->waitForFinished();
+  }
+
+  QFuture<void> imageLoading = QtConcurrent::run([=]() {
+    std::vector<float> patches_values(4 * _macbethPatches.size(), 0.f);
 
 #pragma omp parallel for
-  for (int y = 0; y < _image.height(); y++)
-  {
-    for (int x = 0; x < _image.width(); x++)
+    for (int y = 0; y < _image.height(); y++)
     {
-      const QPointF currentPixel(x, y);
-
-      for (int p = 0; p < _macbethPatches.size(); p++)
+      for (int x = 0; x < _image.width(); x++)
       {
-        if (_macbethPatches[p].containsPoint(currentPixel, Qt::OddEvenFill))
+        const QPointF currentPixel(x, y);
+
+        for (int p = 0; p < _macbethPatches.size(); p++)
         {
-          for (int c = 0; c < 3; c++)
+          if (_macbethPatches[p].containsPoint(currentPixel, Qt::OddEvenFill))
           {
-            patches_values[4 * p + c] += _pixelBuffer[3 * (y * _image.width() + x) + c];
+            for (int c = 0; c < 3; c++)
+            {
+              patches_values[4 * p + c] += _pixelBuffer[3 * (y * _image.width() + x) + c];
+            }
+            patches_values[4 * p + 3] += 1;
+            //break;
           }
-          patches_values[4 * p + 3] += 1;
-          //break;
         }
       }
     }
-  }
 
-  std::vector<float> final_values(3 * _macbethPatches.size());
+    std::vector<float> final_values(3 * _macbethPatches.size());
 
 #pragma omp parallel for
-  for (int p = 0; p < _macbethPatches.size(); p++)
-  {
-    for (int c = 0; c < 3; c++)
+    for (int p = 0; p < _macbethPatches.size(); p++)
     {
-      final_values[3 * p + c] = patches_values[4 * p + c] / patches_values[4 * p + 3];
+      for (int c = 0; c < 3; c++)
+      {
+        final_values[3 * p + c] = patches_values[4 * p + c] / patches_values[4 * p + 3];
+      }
     }
-  }
 
-  std::ofstream outputFile(filename.toStdString());
+    std::ofstream outputFile(filename.toStdString());
 
-  for (int p = 0; p < _macbethPatches.size(); p++)
-  {
-    outputFile << final_values[3 * p + 0] << ", " << final_values[3 * p + 1] << ", " << final_values[3 * p + 2]
-               << std::endl;
-  }
+    for (int p = 0; p < _macbethPatches.size(); p++)
+    {
+      outputFile << final_values[3 * p + 0] << ", " << final_values[3 * p + 1] << ", " << final_values[3 * p + 2]
+                 << std::endl;
+    }
+  });
+
+  _processWatcher->setFuture(imageLoading);
 }
