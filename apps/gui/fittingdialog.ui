@@ -38,6 +38,16 @@
               <string>CIE-XYZ 1931 2°</string>
              </property>
             </item>
+            <item>
+             <property name="text">
+              <string>CIE-XYZ 1964 10°</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>Load file...</string>
+             </property>
+            </item>
            </widget>
           </item>
           <item>
@@ -52,6 +62,16 @@
             <item>
              <property name="text">
               <string>D65</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>D50</string>
+             </property>
+            </item>
+            <item>
+             <property name="text">
+              <string>Load file...</string>
              </property>
             </item>
            </widget>

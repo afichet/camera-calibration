@@ -4,6 +4,7 @@
 #include <QTimer>
 #include <QFuture>
 #include <QtConcurrent/QtConcurrent>
+#include <QFileDialog>
 
 #include <radiometry.h>
 
@@ -11,6 +12,8 @@ extern "C"
 {
 #include <levmar.h>
 #include <color-converter.h>
+#include <spectrum-converter.h>
+#include <io.h>
 }
 
 FittingDialog::FittingDialog(ImageModel *model, QWidget *parent)
@@ -102,11 +105,168 @@ void FittingDialog::initModels()
   _processWatcher->setFuture(imageLoading);
 }
 
-void FittingDialog::on_colorMatchingFunctions_currentIndexChanged(const QString &arg1) {}
-
-void FittingDialog::on_illuminant_currentIndexChanged(const QString &arg1) {}
 
 void FittingDialog::on_applyMatrix_toggled(bool checked)
 {
   _measured.setMatrixActive(checked);
+}
+
+
+void FittingDialog::on_colorMatchingFunctions_currentIndexChanged(int index)
+{
+  if (index == 0)
+  {
+    _reference.setCMFs(
+        SENSITIVITY_CIE_1931_2DEG_X,
+        SENSITIVITY_CIE_1931_2DEG_Y,
+        SENSITIVITY_CIE_1931_2DEG_Z,
+        SENSITIVITY_CIE_1931_2DEG_FIRST_WAVELENGTH,
+        SENSITIVITY_CIE_1931_2DEG_SIZE);
+  }
+  else if (index == 1)
+  {
+    _reference.setCMFs(
+        SENSITIVITY_CIE_1964_10DEG_X,
+        SENSITIVITY_CIE_1964_10DEG_Y,
+        SENSITIVITY_CIE_1964_10DEG_Z,
+        SENSITIVITY_CIE_1964_10DEG_FIRST_WAVELENGTH,
+        SENSITIVITY_CIE_1964_10DEG_SIZE);
+  }
+  else if (index == 2)
+  {
+    QString filename = QFileDialog::getOpenFileName(this, tr("Open file"), "", tr("Spectrum (*.csv)"));
+
+    if (filename.size() != 0)
+    {
+      int *  wavelengths_cmfs_raw = nullptr;
+      float *values_cmfs_x_raw    = nullptr;
+      float *values_cmfs_y_raw    = nullptr;
+      float *values_cmfs_z_raw    = nullptr;
+      size_t size_cmfs_raw        = 0;
+      float *values_cmfs_x        = nullptr;
+      float *values_cmfs_y        = nullptr;
+      float *values_cmfs_z        = nullptr;
+      size_t size_cmfs            = 0;
+
+      int err = read_cmfs(
+          filename.toStdString().c_str(),
+          &wavelengths_cmfs_raw,
+          &values_cmfs_x_raw,
+          &values_cmfs_y_raw,
+          &values_cmfs_z_raw,
+          &size_cmfs_raw);
+
+      if (err != 0)
+      {
+        // TODO
+        fprintf(stderr, "Cannot open CMFs file\n");
+      }
+      else
+      {
+        spectrum_oversample(wavelengths_cmfs_raw, values_cmfs_x_raw, size_cmfs_raw, &values_cmfs_x, &size_cmfs);
+        spectrum_oversample(wavelengths_cmfs_raw, values_cmfs_y_raw, size_cmfs_raw, &values_cmfs_y, &size_cmfs);
+        spectrum_oversample(wavelengths_cmfs_raw, values_cmfs_z_raw, size_cmfs_raw, &values_cmfs_z, &size_cmfs);
+
+        cmf_data d;
+        d.firstWavelength = wavelengths_cmfs_raw[0];
+        d.x.resize(size_cmfs);
+        d.y.resize(size_cmfs);
+        d.z.resize(size_cmfs);
+
+        memcpy(d.x.data(), values_cmfs_x, size_cmfs * sizeof(float));
+        memcpy(d.y.data(), values_cmfs_y, size_cmfs * sizeof(float));
+        memcpy(d.z.data(), values_cmfs_z, size_cmfs * sizeof(float));
+
+        _userCMFs.push_back(d);
+
+        delete[] wavelengths_cmfs_raw;
+        delete[] values_cmfs_x_raw;
+        delete[] values_cmfs_y_raw;
+        delete[] values_cmfs_z_raw;
+        delete[] values_cmfs_x;
+        delete[] values_cmfs_y;
+        delete[] values_cmfs_z;
+
+        const QFileInfo fileInfo(filename);
+
+        const size_t insertIndex = ui->colorMatchingFunctions->count();
+        ui->colorMatchingFunctions->insertItem(insertIndex, fileInfo.fileName());
+        ui->colorMatchingFunctions->setCurrentIndex(insertIndex);
+      }
+    }
+  }
+  else
+  {
+    _reference.setCMFs(
+        _userCMFs[index - 3].x.data(),
+        _userCMFs[index - 3].y.data(),
+        _userCMFs[index - 3].z.data(),
+        _userCMFs[index - 3].firstWavelength,
+        _userCMFs[index - 3].x.size());
+  }
+
+  fit();
+}
+
+
+void FittingDialog::on_illuminant_currentIndexChanged(int index)
+{
+  if (index == 0)
+  {
+    _reference.setIlluminant(D_65_SPD, D_65_FIRST_WAVELENGTH, D_65_ARRAY_SIZE);
+  }
+  else if (index == 1)
+  {
+    _reference.setIlluminant(D_50_SPD, D_50_FIRST_WAVELENGTH, D_50_ARRAY_SIZE);
+  }
+  else if (index == 2)
+  {
+    QString filename = QFileDialog::getOpenFileName(this, tr("Open file"), "", tr("Spectrum (*.csv)"));
+
+    if (filename.size() != 0)
+    {
+      int *  wavelengths_raw = nullptr;
+      float *spd_raw         = nullptr;
+      float *spd             = nullptr;
+      size_t size_raw, size;
+
+      int err = read_spd(filename.toStdString().c_str(), &wavelengths_raw, &spd_raw, &size_raw);
+
+      if (err != 0)
+      {
+        // TODO
+        fprintf(stderr, "Cannot open illuminant spd file\n");
+      }
+      else
+      {
+        spectrum_oversample(wavelengths_raw, spd_raw, size_raw, &spd, &size);
+
+        illuminant_data d;
+        d.firstWavelength = wavelengths_raw[0];
+        d.illuminantSPD.resize(size);
+
+        memcpy(d.illuminantSPD.data(), spd, size * sizeof(float));
+        _userIlluminants.push_back(d);
+
+        delete[] wavelengths_raw;
+        delete[] spd_raw;
+        delete[] spd;
+
+        const QFileInfo fileInfo(filename);
+
+        const size_t insertIndex = ui->illuminant->count();
+        ui->illuminant->insertItem(insertIndex, fileInfo.fileName());
+        ui->illuminant->setCurrentIndex(insertIndex);
+      }
+    }
+  }
+  else
+  {
+    _reference.setIlluminant(
+        _userIlluminants[index - 3].illuminantSPD.data(),
+        _userIlluminants[index - 3].firstWavelength,
+        _userIlluminants[index - 3].illuminantSPD.size());
+  }
+
+  fit();
 }

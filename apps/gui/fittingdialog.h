@@ -24,6 +24,20 @@ class FittingDialog: public QDialog
     const float *measured_patches;
   } fit_params;
 
+  typedef struct
+  {
+    std::vector<float> illuminantSPD;
+    int                firstWavelength;
+  } illuminant_data;
+
+
+  typedef struct
+  {
+    std::vector<float> x;
+    std::vector<float> y;
+    std::vector<float> z;
+    int                firstWavelength;
+  } cmf_data;
 
 public:
   explicit FittingDialog(ImageModel *model, QWidget *parent = nullptr);
@@ -41,11 +55,11 @@ protected slots:
   void initModels();
 
 private slots:
-  void on_colorMatchingFunctions_currentIndexChanged(const QString &arg1);
-
-  void on_illuminant_currentIndexChanged(const QString &arg1);
-
   void on_applyMatrix_toggled(bool checked);
+
+  void on_colorMatchingFunctions_currentIndexChanged(int index);
+
+  void on_illuminant_currentIndexChanged(int index);
 
 private:
   Ui::FittingDialog *ui;
@@ -58,6 +72,9 @@ private:
   QFutureWatcher<void> *_processWatcher;
 
   std::array<float, 9> _fitMatrix;
+
+  std::vector<illuminant_data> _userIlluminants;
+  std::vector<cmf_data>        _userCMFs;
 };
 
 #endif   // FITTINGDIALOG_H

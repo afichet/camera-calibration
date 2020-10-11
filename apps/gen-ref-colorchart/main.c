@@ -94,7 +94,7 @@ int main(int argc, const char *argv[])
 
   if (err != 0)
   {
-    fprintf(stderr, "Cannot open cmfs file\n");
+    fprintf(stderr, "Cannot open CMFs file\n");
     free(values_illu);
   }
 
