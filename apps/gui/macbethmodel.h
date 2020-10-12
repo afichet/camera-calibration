@@ -3,6 +3,7 @@
 
 #include <QObject>
 #include <QColor>
+#include <array>
 
 class MacbethModel: public QObject
 {

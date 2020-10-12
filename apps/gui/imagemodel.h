@@ -5,6 +5,7 @@
 #include <QImage>
 #include <QVector>
 #include <QFutureWatcher>
+#include <array>
 
 class ImageModel: public QObject
 {
