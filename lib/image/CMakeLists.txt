@@ -28,6 +28,13 @@ else()
 endif()
 
 
+find_package(OpenMP)
+
+if (OpenMP_FOUND OR OpenMP_CXX_FOUND)
+   target_link_libraries(image PUBLIC OpenMP::OpenMP_CXX)
+endif()
+
+
 target_link_libraries(image PUBLIC colors lodepng)
 
 #install(TARGETS image

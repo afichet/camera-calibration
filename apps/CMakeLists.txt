@@ -1,3 +1,6 @@
+add_subdirectory(derawzinator)
+add_subdirectory(demo-demoz)
+
 add_subdirectory(gen-colorchart-image)
 add_subdirectory(gen-ref-colorchart)
 add_subdirectory(extract-patches)
