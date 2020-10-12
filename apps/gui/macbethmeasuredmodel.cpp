@@ -5,7 +5,7 @@ extern "C"
 #include <color-converter.h>
 }
 
-MacbethMeasuredModel::MacbethMeasuredModel(QObject *parent): MacbethModel(parent), _isMatrixActive(false) {}
+MacbethMeasuredModel::MacbethMeasuredModel(QObject *parent): MacbethModel(parent), _isMatrixActive(true) {}
 
 
 void MacbethMeasuredModel::setPatchesValues(const std::vector<float> &values)

@@ -267,8 +267,9 @@ void ImageModel::setMatrix(const std::array<float, 9> matrix)
   _isMatrixLoaded   = true;
   _correctionMatrix = matrix;
 
-  recalculateCorrection(_exposure);
+  if (_isMatrixActive) recalculateCorrection(_exposure);
   emit matrixLoaded(_correctionMatrix);
+  setMatrixActive(true);
 }
 
 
@@ -278,6 +279,7 @@ void ImageModel::setMatrixActive(bool active)
 
   _isMatrixActive = active;
   recalculateCorrection(_exposure);
+  emit matrixActivationStateChanged(_isMatrixActive);
 }
 
 

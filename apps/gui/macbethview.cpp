@@ -2,6 +2,8 @@
 
 #include <QPointF>
 #include <QGraphicsTextItem>
+#include <QColor>
+#include <array>
 
 MacbethView::MacbethView(QWidget *parent): QGraphicsView(parent), _model(nullptr)
 {

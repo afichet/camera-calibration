@@ -11,7 +11,7 @@
    </rect>
   </property>
   <property name="windowTitle">
-   <string>Macbeth calibration</string>
+   <string>Colourotron</string>
   </property>
   <property name="windowIcon">
    <iconset resource="resource.qrc">
@@ -52,7 +52,7 @@
      <x>0</x>
      <y>0</y>
      <width>977</width>
-     <height>20</height>
+     <height>22</height>
     </rect>
    </property>
    <widget class="QMenu" name="menu_File">
@@ -78,7 +78,7 @@
    <property name="minimumSize">
     <size>
      <width>200</width>
-     <height>160</height>
+     <height>177</height>
     </size>
    </property>
    <property name="windowIcon">
@@ -181,7 +181,7 @@
    <property name="minimumSize">
     <size>
      <width>200</width>
-     <height>63</height>
+     <height>67</height>
     </size>
    </property>
    <property name="windowIcon">
