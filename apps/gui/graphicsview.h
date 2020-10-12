@@ -49,6 +49,7 @@ private:
   bool _showPatchNumbers;
 
   float _zoomLevel;
+  bool  _autoscale;
 };
 
 

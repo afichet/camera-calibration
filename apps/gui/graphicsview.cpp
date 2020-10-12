@@ -19,6 +19,7 @@ GraphicsView::GraphicsView(QWidget *parent)
   , _selection(nullptr)
   , _showPatchNumbers(false)
   , _zoomLevel(1.f)
+  , _autoscale(true)
 {
   setScene(new GraphicsScene);
   //  setRenderHints(QPainter::Antialiasing | QPainter::SmoothPixmapTransform);
@@ -44,6 +45,8 @@ void GraphicsView::onImageLoaded(int width, int height)
 {
   _zoomLevel = 1.f;
   fitInView(0, 0, width, height, Qt::KeepAspectRatio);
+  _zoomLevel = std::min(viewportTransform().m11(), viewportTransform().m22());
+  _autoscale = true;
 }
 
 
@@ -147,6 +150,7 @@ void GraphicsView::setShowPatchNumbers(bool show)
 void GraphicsView::setZoomLevel(float zoom)
 {
   if (_model == nullptr || !_model->isImageLoaded()) return;
+  _autoscale = false;
   _zoomLevel = std::max(0.01f, zoom);
   resetTransform();
   scale(_zoomLevel, _zoomLevel);
@@ -198,7 +202,8 @@ void GraphicsView::resizeEvent(QResizeEvent *e)
   QGraphicsView::resizeEvent(e);
   if (_model == nullptr || !_model->isImageLoaded()) return;
 
-  fitInView(0, 0, _model->getLoadedImage().width(), _model->getLoadedImage().height(), Qt::KeepAspectRatio);
+  if (_autoscale)
+    fitInView(0, 0, _model->getLoadedImage().width(), _model->getLoadedImage().height(), Qt::KeepAspectRatio);
 }
 
 
