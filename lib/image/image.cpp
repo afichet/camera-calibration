@@ -1,18 +1,10 @@
+#include <image.h>
 
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
 
-#include <lodepng.h>
-
-extern "C"
-{
-#include <color-converter.h>
-
-#ifdef HAS_TIFF
-#  include <tiffio.h>
-#endif
-}
+//#include <lodepng.h>
 
 #define TINYEXR_IMPLEMENTATION
 #include <tinyexr.h>
@@ -29,11 +21,13 @@ extern "C"
 #  define clamp(v, _min, _max) (MIN(MAX(v, _min), _max))
 #endif
 
-#ifdef __cplusplus
 extern "C"
 {
-#endif
+#include <color-converter.h>
+
 #ifdef HAS_TIFF
+#  include <tiffio.h>
+
   int read_tiff(const char *filename, float **pixels, size_t *width, size_t *height)
   {
     // Open image in
@@ -156,8 +150,7 @@ extern "C"
 
     return 0;
   }
-
-#endif
+#endif   // HAS_TIFF
 
 
   // int read_png(const char *filename, float **pixels, size_t *width, size_t *height)
@@ -355,12 +348,347 @@ extern "C"
     {
       if (err)
       {
-        fprintf(stderr, "Cannot write image file%s\nError: %s\n", filename, err);
+        fprintf(stderr, "Cannot write image file %s\nError: %s\n", filename, err);
         FreeEXRErrorMessage(err);
       }
 
       return -1;
     }
+
+    return 0;
+  }
+
+
+  int read_dat(const char *filename, float **pixels, size_t *width, size_t *height)
+  {
+    FILE *fin = fopen(filename, "rb");
+
+    if (fin == NULL)
+    {
+      fprintf(stderr, "Cannot open image file %s", filename);
+      return -1;
+    }
+
+    // Image format
+    // ------------
+    //
+    // | Type         | Description              |
+    // | ------------ | ------------------------ |
+    // | char         | datatype                 |
+    // | unsigned int | width                    |
+    // | unsigned int | height                   |
+    // | unsigned int | number of channers       |
+    // | void*        | image data               |
+
+    // Data types
+    // ----------
+    //
+    // | Value | Type           |
+    // | ----- | -------------- |
+    // | 1     | BOOL           |
+    // | 2     | unsigned char  |
+    // | 3     | char           |
+    // | 4     | unsigned short |
+    // | 5     | short          |
+    // | 6     | unsigned int   |
+    // | 7     | int            |
+    // | 8     | float          |
+    // | 9     | double         |
+
+    char         data_type;
+    unsigned int l_width, l_height, n_channels;
+    void *       in_raw_buff = NULL;
+
+    fread(&data_type, sizeof(char), 1, fin);
+    fread(&l_width, sizeof(unsigned int), 1, fin);
+    fread(&l_height, sizeof(unsigned int), 1, fin);
+    fread(&n_channels, sizeof(unsigned int), 1, fin);
+
+    if (n_channels != 1 && n_channels != 3)
+    {
+      fprintf(stderr, "Unsupported number of channels: %d", n_channels);
+    }
+
+    size_t n_elems    = l_width * l_height * n_channels;
+    float *out_buffer = (float *)calloc(3 * l_width * l_height, sizeof(float));
+
+    switch (data_type)
+    {
+      case 0:
+        fprintf(stderr, "Undefined data type\n");
+        free(out_buffer);
+        return -1;
+
+      case 1:   // BOOL
+        fprintf(stderr, "Unsupported data type\n");
+        free(out_buffer);
+        return -1;
+
+      case 2:   // unsigned char
+      {
+        in_raw_buff = calloc(n_elems, sizeof(unsigned char));
+        fread(in_raw_buff, sizeof(unsigned char), n_elems, fin);
+
+        const unsigned char *buff = (unsigned char *)in_raw_buff;
+
+        if (n_channels == 1)
+        {
+          for (size_t i = 0; i < l_width * l_height; i++)
+          {
+            float val = float(buff[i]) / 255.f;
+            for (int c = 0; c < 3; c++)
+            {
+              out_buffer[3 * i + c] = val;
+            }
+          }
+        }
+        else
+        {
+          for (size_t i = 0; i < l_width * l_height; i++)
+          {
+            for (int c = 0; c < 3; c++)
+            {
+              out_buffer[3 * i + c] = float(buff[3 * i + c]) / 255.f;
+            }
+          }
+        }
+
+        free(in_raw_buff);
+      }
+      break;
+
+      case 3:   // char
+      {
+        in_raw_buff = calloc(n_elems, sizeof(char));
+        fread(in_raw_buff, sizeof(char), n_elems, fin);
+
+        const char *buff = (char *)in_raw_buff;
+
+        if (n_channels == 1)
+        {
+          for (size_t i = 0; i < l_width * l_height; i++)
+          {
+            float val = float(buff[i]) / 127.f;
+            for (int c = 0; c < 3; c++)
+            {
+              out_buffer[3 * i + c] = val;
+            }
+          }
+        }
+        else
+        {
+          for (size_t i = 0; i < l_width * l_height; i++)
+          {
+            for (int c = 0; c < 3; c++)
+            {
+              out_buffer[3 * i + c] = float(buff[3 * i + c]) / 127.f;
+            }
+          }
+        }
+
+        free(in_raw_buff);
+      }
+      break;
+      case 4:   // unsigned short
+      {
+        in_raw_buff = calloc(n_elems, sizeof(unsigned short));
+        fread(in_raw_buff, sizeof(unsigned short), n_elems, fin);
+
+        const unsigned short *buff = (unsigned short *)in_raw_buff;
+
+        if (n_channels == 1)
+        {
+          for (size_t i = 0; i < l_width * l_height; i++)
+          {
+            float val = float(buff[i]) / 65535.f;
+            for (int c = 0; c < 3; c++)
+            {
+              out_buffer[3 * i + c] = val;
+            }
+          }
+        }
+        else
+        {
+          for (size_t i = 0; i < l_width * l_height; i++)
+          {
+            for (int c = 0; c < 3; c++)
+            {
+              out_buffer[3 * i + c] = float(buff[3 * i + c]) / 65535.f;
+            }
+          }
+        }
+
+        free(in_raw_buff);
+      }
+      break;
+
+      case 5:   // short
+      {
+        in_raw_buff = calloc(n_elems, sizeof(short));
+        fread(in_raw_buff, sizeof(short), n_elems, fin);
+
+        const short *buff = (short *)in_raw_buff;
+
+        if (n_channels == 1)
+        {
+          for (size_t i = 0; i < l_width * l_height; i++)
+          {
+            float val = float(buff[i]) / 32767.f;
+            for (int c = 0; c < 3; c++)
+            {
+              out_buffer[3 * i + c] = val;
+            }
+          }
+        }
+        else
+        {
+          for (size_t i = 0; i < l_width * l_height; i++)
+          {
+            for (int c = 0; c < 3; c++)
+            {
+              out_buffer[3 * i + c] = float(buff[3 * i + c]) / 32767.f;
+            }
+          }
+        }
+
+        free(in_raw_buff);
+      }
+      break;
+
+      case 6:   // unsigned int
+      {
+        in_raw_buff = calloc(n_elems, sizeof(unsigned int));
+        fread(in_raw_buff, sizeof(unsigned int), n_elems, fin);
+
+        const unsigned int *buff = (unsigned int *)in_raw_buff;
+
+        if (n_channels == 1)
+        {
+          for (size_t i = 0; i < l_width * l_height; i++)
+          {
+            float val = float(buff[i]) / 65535.f;
+            for (int c = 0; c < 3; c++)
+            {
+              out_buffer[3 * i + c] = val;
+            }
+          }
+        }
+        else
+        {
+          for (size_t i = 0; i < l_width * l_height; i++)
+          {
+            for (int c = 0; c < 3; c++)
+            {
+              out_buffer[3 * i + c] = float(buff[3 * i + c]) / 65535.f;
+            }
+          }
+        }
+
+        free(in_raw_buff);
+      }
+      break;
+
+      case 7:   // int
+      {
+        in_raw_buff = calloc(n_elems, sizeof(int));
+        fread(in_raw_buff, sizeof(int), n_elems, fin);
+
+        const int *buff = (int *)in_raw_buff;
+
+        if (n_channels == 1)
+        {
+          for (size_t i = 0; i < l_width * l_height; i++)
+          {
+            float val = float(buff[i]) / 32767.f;
+            for (int c = 0; c < 3; c++)
+            {
+              out_buffer[3 * i + c] = val;
+            }
+          }
+        }
+        else
+        {
+          for (size_t i = 0; i < l_width * l_height; i++)
+          {
+            for (int c = 0; c < 3; c++)
+            {
+              out_buffer[3 * i + c] = float(buff[3 * i + c]) / 32767.f;
+            }
+          }
+        }
+
+        free(in_raw_buff);
+      }
+      break;
+
+      case 8:   // float
+      {
+        if (n_channels == 1)
+        {
+          in_raw_buff = calloc(n_elems, sizeof(float));
+          fread(in_raw_buff, sizeof(float), n_elems, fin);
+
+          const float *buff = (float *)in_raw_buff;
+
+          for (size_t i = 0; i < l_width * l_height; i++)
+          {
+            for (int c = 0; c < 3; c++)
+            {
+              out_buffer[3 * i + c] = buff[i];
+            }
+          }
+
+          free(in_raw_buff);
+        }
+        else
+        {
+          // Native type, we do not need to perform extra step
+          fread(out_buffer, sizeof(float), 3 * l_width * l_height, fin);
+        }
+      }
+      break;
+
+      case 9:   // double
+      {
+        in_raw_buff = calloc(n_elems, sizeof(double));
+        fread(in_raw_buff, sizeof(double), n_elems, fin);
+
+        const double *buff = (double *)in_raw_buff;
+
+        if (n_channels == 1)
+        {
+          for (size_t i = 0; i < l_width * l_height; i++)
+          {
+            for (int c = 0; c < 3; c++)
+            {
+              out_buffer[3 * i + c] = buff[i];
+            }
+          }
+        }
+        else
+        {
+          for (size_t i = 0; i < l_width * l_height; i++)
+          {
+            for (int c = 0; c < 3; c++)
+            {
+              out_buffer[3 * i + c] = buff[3 * i + c];
+            }
+          }
+        }
+
+        free(in_raw_buff);
+      }
+      break;
+
+      default:
+        fprintf(stderr, "Unsupported data type\n");
+        free(out_buffer);
+        return -1;
+    }
+
+    *pixels = out_buffer;
+    *width  = l_width;
+    *height = l_height;
 
     return 0;
   }
@@ -377,6 +705,11 @@ extern "C"
     if (strcmp(filename + len - 3, "exr") == 0 || strcmp(filename + len - 3, "EXR") == 0)
     {
       return read_exr(filename, pixels, width, height);
+    }
+
+    if (strcmp(filename + len - 3, "dat") == 0 || strcmp(filename + len - 3, "DAT") == 0)
+    {
+      return read_dat(filename, pixels, width, height);
     }
 
 #ifdef HAS_TIFF
@@ -428,7 +761,4 @@ extern "C"
       XYZ_to_RGB(tmp_color, &pixels[3 * i]);
     }
   }
-
-#ifdef __cplusplus
 }
-#endif
