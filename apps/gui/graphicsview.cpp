@@ -156,14 +156,14 @@ void GraphicsView::setZoomLevel(float zoom)
 void GraphicsView::zoomIn()
 {
   if (_model == nullptr || !_model->isImageLoaded()) return;
-  setZoomLevel(_zoomLevel * 1.2);
+  setZoomLevel(_zoomLevel * 1.1);
 }
 
 
 void GraphicsView::zoomOut()
 {
   if (_model == nullptr || !_model->isImageLoaded()) return;
-  setZoomLevel(_zoomLevel / 1.2);
+  setZoomLevel(_zoomLevel / 1.1);
 }
 
 
@@ -180,15 +180,13 @@ void GraphicsView::wheelEvent(QWheelEvent *event)
 
     if (delta.y() != 0)
     {
-      const double zoom_factor = 1.2 * float(std::abs(delta.y())) / 120.F;
-
       if (delta.y() > 0)
       {
-        setZoomLevel(_zoomLevel * zoom_factor);
+        zoomIn();
       }
       else
       {
-        setZoomLevel(_zoomLevel / zoom_factor);
+        zoomOut();
       }
     }
   }
