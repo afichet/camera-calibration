@@ -23,7 +23,8 @@ int main(int argc, char *argv[])
 
   int ret = read_image(filename_in, &image, &width, &height);
 
-  if (ret != 0) {
+  if (ret != 0)
+  {
     fprintf(stderr, "Could not open file: %s\n", filename_in);
     free(image);
     return ret;
@@ -31,7 +32,8 @@ int main(int argc, char *argv[])
 
   ret = write_image(filename_out, image, width, height);
 
-  if (ret != 0) {
+  if (ret != 0)
+  {
     fprintf(stderr, "Could not write file: %s\n", filename_out);
     free(image);
     return ret;
