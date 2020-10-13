@@ -44,6 +44,123 @@ extern "C"
 {
 #include <color-converter.h>
 
+  /**
+   * Demosaicing
+   * ===========
+   *
+   * We place the Bayer samples in the target images
+   * For instance, if the Bayer pattern is:
+   *
+   * ┌───┬───┐
+   * │ G │ B │
+   * ├───┼───┤
+   * │ R │ G │
+   * └───┴───┘
+   *
+   *        with the corresponding bayered image...
+   *
+   *                         ┌────────────────┬────────────────┐
+   *                         │ (x, y)         │ (x + 1, y)     │
+   *                         ├────────────────┼────────────────┤
+   *                         │ (x, y + 1)     │ (x + 1, y + 1) │
+   *                         └────────────────┴────────────────┘
+   *
+   * Each buffer is populated as follows:
+   *
+   *       ┌────────────────┬──────────────────┐
+   *       │ 0              │ 0                │
+   *   R = ├────────────────┼──────────────────┤
+   *       │ px(x, y + 1)   │ 0                │
+   *       └────────────────┴──────────────────┘
+   *
+   *       ┌────────────────┬──────────────────┐
+   *       │ px(x, y)       │ 0                │
+   *   G = ├────────────────┼──────────────────┤
+   *       │ 0              │ px(x + 1, y + 1) │
+   *       └────────────────┴──────────────────┘
+   *
+   *       ┌────────────────┬──────────────────┐
+   *       │ 0              │ px(x + 1, y)     │
+   *   B = ├────────────────┼──────────────────┤
+   *       │ 0              │ 0                │
+   *       └────────────────┴──────────────────┘
+   *
+   * Notice, G receives two values.
+   *
+   * Then, we perform a convolution on each channel to fill in the missing
+   * values.
+   *
+   * The final image (width, height, 3) is reconstructed by taking for each
+   * pixel the R, G, B arrays (each, (width, height)).
+   */
+  void basic_debayer(
+      const float *bayered_image,
+      float *      pixels_red,
+      float *      pixels_green,
+      float *      pixels_blue,
+      size_t       width,
+      size_t       height)
+  {
+    size_t n_elems = width * height;
+
+    float *r_buffer = new float[n_elems];
+    float *g_buffer = new float[n_elems];
+    float *b_buffer = new float[n_elems];
+
+    float *bayer[4] = {g_buffer, b_buffer, r_buffer, g_buffer};
+
+    memset(r_buffer, 0, n_elems * sizeof(float));
+    memset(g_buffer, 0, n_elems * sizeof(float));
+    memset(b_buffer, 0, n_elems * sizeof(float));
+
+    // Populate each color from the bayered image
+#pragma omp parallel for
+    for (int y = 0; y < int(height); y += 2)
+    {
+      for (size_t x = 0; x < width; x += 2)
+      {
+        // clang-format off
+        bayer[0][(y    ) * width + x    ] = bayered_image[(y    ) * width + x    ];
+        bayer[1][(y    ) * width + x + 1] = bayered_image[(y    ) * width + x + 1];
+        bayer[2][(y + 1) * width + x    ] = bayered_image[(y + 1) * width + x    ];
+        bayer[3][(y + 1) * width + x + 1] = bayered_image[(y + 1) * width + x + 1];
+        // clang-format on
+      }
+    }
+
+    delete[] bayered_image;
+
+    // Now, do the convolutions
+    // clang-format off
+    float r_matrix[9] = {
+      0.25f, 0.50f, 0.25f,
+      0.50f, 1.00f, 0.50f,
+      0.25f, 0.50f, 0.25f
+    };
+
+    float b_matrix[9] = {
+      0.25f, 0.50f, 0.25f,
+      0.50f, 1.00f, 0.50f,
+      0.25f, 0.50f, 0.25f
+    };
+
+    float g_matrix[9] = {
+      0.00f, 0.25f, 0.00f,
+      0.25f, 1.00f, 0.25f,
+      0.00f, 0.25f, 0.00f
+    };
+    // clang-format on
+
+    image_convolve3x3(r_matrix, r_buffer, pixels_red, width, height);
+    image_convolve3x3(g_matrix, g_buffer, pixels_green, width, height);
+    image_convolve3x3(b_matrix, b_buffer, pixels_blue, width, height);
+
+    delete[] r_buffer;
+    delete[] g_buffer;
+    delete[] b_buffer;
+  }
+
+
 #ifdef HAS_TIFF
 #  include <tiffio.h>
 
@@ -54,7 +171,7 @@ extern "C"
     TIFF *tif_in = TIFFOpen(filename, "r");
     if (tif_in == NULL)
     {
-      fprintf(stderr, "Cannot open image file\n");
+      std::cerr << "Cannot open image file " << filename << std::endl;
       return -1;
     }
 
@@ -68,9 +185,9 @@ extern "C"
     TIFFGetField(tif_in, TIFFTAG_SAMPLESPERPIXEL, &spp);
     TIFFGetField(tif_in, TIFFTAG_PLANARCONFIG, &config);
 
-    if (spp < 3 || config != PLANARCONFIG_CONTIG)
+    if (spp <= 0 || spp == 2 || config != PLANARCONFIG_CONTIG)
     {
-      fprintf(stderr, "Not enough channels in this image\n");
+      std::cerr << "This TIFF format is not supported" << std::endl;
       TIFFClose(tif_in);
       return -1;
     }
@@ -79,29 +196,62 @@ extern "C"
     buf_in             = _TIFFmalloc(TIFFScanlineSize(tif_in));
     float *framebuffer = (float *)calloc(3 * w * h, sizeof(float));
 
-    for (uint32 y = 0; y < h; y++)
+    if (spp == 1)
     {
-      TIFFReadScanline(tif_in, buf_in, y, 0);
-
-      for (uint32 x = 0; x < w; x++)
+      for (uint32 y = 0; y < h; y++)
       {
-        for (int c = 0; c < 3; c++)
+        TIFFReadScanline(tif_in, buf_in, y, 0);
+
+        for (uint32 x = 0; x < w; x++)
         {
-          switch (bps)
+          for (int c = 0; c < 3; c++)
           {
-            case 8:
-              // 8 bit per channel are assumed sRGB encoded.
-              // We linearise to RGB
-              framebuffer[3 * (y * w + x) + c] = from_sRGB(((uint8 *)buf_in)[spp * x + c] / 255.f);
-              break;
+            switch (bps)
+            {
+              case 8:
+                // 8 bit per channel are assumed sRGB encoded.
+                // We linearise to RGB
+                framebuffer[3 * (y * w + x) + c] = from_sRGB(((uint8 *)buf_in)[x] / 255.f);
+                break;
 
-            case 16:
-              framebuffer[3 * (y * w + x) + c] = ((uint16 *)buf_in)[spp * x + c] / 65535.f;
-              break;
+              case 16:
+                framebuffer[3 * (y * w + x) + c] = ((uint16 *)buf_in)[x] / 65535.f;
+                break;
 
-            case 32:
-              framebuffer[3 * (y * w + x) + c] = ((uint32 *)buf_in)[spp * x + c] / 4294967295.f;
-              break;
+              case 32:
+                framebuffer[3 * (y * w + x) + c] = ((uint32 *)buf_in)[x] / 4294967295.f;
+                break;
+            }
+          }
+        }
+      }
+    }
+    else
+    {
+      for (uint32 y = 0; y < h; y++)
+      {
+        TIFFReadScanline(tif_in, buf_in, y, 0);
+
+        for (uint32 x = 0; x < w; x++)
+        {
+          for (int c = 0; c < 3; c++)
+          {
+            switch (bps)
+            {
+              case 8:
+                // 8 bit per channel are assumed sRGB encoded.
+                // We linearise to RGB
+                framebuffer[3 * (y * w + x) + c] = from_sRGB(((uint8 *)buf_in)[spp * x + c] / 255.f);
+                break;
+
+              case 16:
+                framebuffer[3 * (y * w + x) + c] = ((uint16 *)buf_in)[spp * x + c] / 65535.f;
+                break;
+
+              case 32:
+                framebuffer[3 * (y * w + x) + c] = ((uint32 *)buf_in)[spp * x + c] / 4294967295.f;
+                break;
+            }
           }
         }
       }
@@ -130,7 +280,7 @@ extern "C"
     TIFF *tif_in = TIFFOpen(filename, "r");
     if (tif_in == NULL)
     {
-      fprintf(stderr, "Cannot open image file\n");
+      std::cerr << "Cannot open image file " << filename << std::endl;
       return -1;
     }
 
@@ -144,9 +294,9 @@ extern "C"
     TIFFGetField(tif_in, TIFFTAG_SAMPLESPERPIXEL, &spp);
     TIFFGetField(tif_in, TIFFTAG_PLANARCONFIG, &config);
 
-    if (spp < 3 || config != PLANARCONFIG_CONTIG)
+    if (spp <= 0 || spp == 2 || config != PLANARCONFIG_CONTIG)
     {
-      fprintf(stderr, "Not enough channels in this image\n");
+      std::cerr << "This TIFF format is not supported" << std::endl;
       TIFFClose(tif_in);
       return -1;
     }
@@ -157,33 +307,69 @@ extern "C"
     float *framebuffer_g = new float[w * h];
     float *framebuffer_b = new float[w * h];
 
-    for (uint32 y = 0; y < h; y++)
+    if (spp == 1)
     {
-      TIFFReadScanline(tif_in, buf_in, y, 0);
-
-      for (uint32 x = 0; x < w; x++)
+      for (uint32 y = 0; y < h; y++)
       {
-        switch (bps)
+        TIFFReadScanline(tif_in, buf_in, y, 0);
+
+        for (uint32 x = 0; x < w; x++)
         {
-          case 8:
-            // 8 bit per channel are assumed sRGB encoded.
-            // We linearise to RGB
-            framebuffer_r[y * w + x] = from_sRGB(((uint8 *)buf_in)[spp * x + 0] / 255.f);
-            framebuffer_g[y * w + x] = from_sRGB(((uint8 *)buf_in)[spp * x + 1] / 255.f);
-            framebuffer_b[y * w + x] = from_sRGB(((uint8 *)buf_in)[spp * x + 2] / 255.f);
-            break;
+          float v = 0;
+          switch (bps)
+          {
+            case 8:
+              // 8 bit per channel are assumed sRGB encoded.
+              // We linearise to RGB
+              v = from_sRGB(((uint8 *)buf_in)[x] / 255.f);
 
-          case 16:
-            framebuffer_r[y * w + x] = ((uint16 *)buf_in)[spp * x + 0] / 65535.f;
-            framebuffer_g[y * w + x] = ((uint16 *)buf_in)[spp * x + 1] / 65535.f;
-            framebuffer_b[y * w + x] = ((uint16 *)buf_in)[spp * x + 2] / 65535.f;
-            break;
+              break;
 
-          case 32:
-            framebuffer_r[y * w + x] = ((uint32 *)buf_in)[spp * x + 0] / 4294967295.f;
-            framebuffer_g[y * w + x] = ((uint32 *)buf_in)[spp * x + 1] / 4294967295.f;
-            framebuffer_b[y * w + x] = ((uint32 *)buf_in)[spp * x + 2] / 4294967295.f;
-            break;
+            case 16:
+              v = ((uint16 *)buf_in)[x] / 65535.f;
+              break;
+
+            case 32:
+              v = ((uint32 *)buf_in)[x] / 4294967295.f;
+              break;
+          }
+
+          framebuffer_r[y * w + x] = v;
+          framebuffer_g[y * w + x] = v;
+          framebuffer_b[y * w + x] = v;
+        }
+      }
+    }
+    else
+    {
+      for (uint32 y = 0; y < h; y++)
+      {
+        TIFFReadScanline(tif_in, buf_in, y, 0);
+
+        for (uint32 x = 0; x < w; x++)
+        {
+          switch (bps)
+          {
+            case 8:
+              // 8 bit per channel are assumed sRGB encoded.
+              // We linearise to RGB
+              framebuffer_r[y * w + x] = from_sRGB(((uint8 *)buf_in)[spp * x + 0] / 255.f);
+              framebuffer_g[y * w + x] = from_sRGB(((uint8 *)buf_in)[spp * x + 1] / 255.f);
+              framebuffer_b[y * w + x] = from_sRGB(((uint8 *)buf_in)[spp * x + 2] / 255.f);
+              break;
+
+            case 16:
+              framebuffer_r[y * w + x] = ((uint16 *)buf_in)[spp * x + 0] / 65535.f;
+              framebuffer_g[y * w + x] = ((uint16 *)buf_in)[spp * x + 1] / 65535.f;
+              framebuffer_b[y * w + x] = ((uint16 *)buf_in)[spp * x + 2] / 65535.f;
+              break;
+
+            case 32:
+              framebuffer_r[y * w + x] = ((uint32 *)buf_in)[spp * x + 0] / 4294967295.f;
+              framebuffer_g[y * w + x] = ((uint32 *)buf_in)[spp * x + 1] / 4294967295.f;
+              framebuffer_b[y * w + x] = ((uint32 *)buf_in)[spp * x + 2] / 4294967295.f;
+              break;
+          }
         }
       }
     }
@@ -837,15 +1023,6 @@ extern "C"
 
     size_t n_elems = l_width * l_height;
 
-    float *r_buffer = new float[n_elems];
-    float *g_buffer = new float[n_elems];
-    float *b_buffer = new float[n_elems];
-    float *bayer[4] = {g_buffer, b_buffer, r_buffer, g_buffer};
-
-    memset(r_buffer, 0, n_elems * sizeof(float));
-    memset(g_buffer, 0, n_elems * sizeof(float));
-    memset(b_buffer, 0, n_elems * sizeof(float));
-
     float *bayered_image = new float[n_elems];
 
     switch (data_type)
@@ -979,116 +1156,14 @@ extern "C"
 
       default:
         std::cerr << "Unsupported data type: " << data_type << std::endl;
-        delete[] r_buffer;
-        delete[] g_buffer;
-        delete[] b_buffer;
-
         return -1;
     }
 
-      /**
-       * Demosaicing
-       * ===========
-       *
-       * We place the Bayer samples in the target images
-       * For instance, if the Bayer pattern is:
-       *
-       * ┌───┬───┐
-       * │ G │ B │
-       * ├───┼───┤
-       * │ R │ G │
-       * └───┴───┘
-       *
-       *        with the corresponding bayered image...
-       *
-       *                         ┌────────────────┬────────────────┐
-       *                         │ (x, y)         │ (x + 1, y)     │
-       *                         ├────────────────┼────────────────┤
-       *                         │ (x, y + 1)     │ (x + 1, y + 1) │
-       *                         └────────────────┴────────────────┘
-       *
-       * Each buffer is populated as follows:
-       *
-       *       ┌────────────────┬──────────────────┐
-       *       │ 0              │ 0                │
-       *   R = ├────────────────┼──────────────────┤
-       *       │ px(x, y + 1)   │ 0                │
-       *       └────────────────┴──────────────────┘
-       *
-       *       ┌────────────────┬──────────────────┐
-       *       │ px(x, y)       │ 0                │
-       *   G = ├────────────────┼──────────────────┤
-       *       │ 0              │ px(x + 1, y + 1) │
-       *       └────────────────┴──────────────────┘
-       *
-       *       ┌────────────────┬──────────────────┐
-       *       │ 0              │ px(x + 1, y)     │
-       *   B = ├────────────────┼──────────────────┤
-       *       │ 0              │ 0                │
-       *       └────────────────┴──────────────────┘
-       *
-       * Notice, G receives two values.
-       *
-       * Then, we perform a convolution on each channel to fill in the missing
-       * values.
-       *
-       * The final image (width, height, 3) is reconstructed by taking for each
-       * pixel the R, G, B arrays (each, (width, height)).
-       */
+    *pixels_red   = new float[n_elems];
+    *pixels_green = new float[n_elems];
+    *pixels_blue  = new float[n_elems];
 
-      // Populate each color from the bayered image
-#pragma omp parallel for
-    for (int y = 0; y < int(l_height); y += 2)
-    {
-      for (size_t x = 0; x < l_width; x += 2)
-      {
-        // clang-format off
-        bayer[0][(y    ) * l_width + x    ] = bayered_image[(y    ) * l_width + x    ];
-        bayer[1][(y    ) * l_width + x + 1] = bayered_image[(y    ) * l_width + x + 1];
-        bayer[2][(y + 1) * l_width + x    ] = bayered_image[(y + 1) * l_width + x    ];
-        bayer[3][(y + 1) * l_width + x + 1] = bayered_image[(y + 1) * l_width + x + 1];
-        // clang-format on
-      }
-    }
-
-    delete[] bayered_image;
-
-    // Now, do the convolutions
-    // clang-format off
-    float r_matrix[9] = {
-      0.25f, 0.50f, 0.25f,
-      0.50f, 1.00f, 0.50f,
-      0.25f, 0.50f, 0.25f
-    };
-
-    float b_matrix[9] = {
-      0.25f, 0.50f, 0.25f,
-      0.50f, 1.00f, 0.50f,
-      0.25f, 0.50f, 0.25f
-    };
-
-    float g_matrix[9] = {
-      0.00f, 0.25f, 0.00f,
-      0.25f, 1.00f, 0.25f,
-      0.00f, 0.25f, 0.00f
-    };
-    // clang-format on
-
-    float *r_cv_buffer = new float[n_elems];
-    float *g_cv_buffer = new float[n_elems];
-    float *b_cv_buffer = new float[n_elems];
-
-    image_convolve3x3(r_matrix, r_buffer, r_cv_buffer, l_width, l_height);
-    image_convolve3x3(g_matrix, g_buffer, g_cv_buffer, l_width, l_height);
-    image_convolve3x3(b_matrix, b_buffer, b_cv_buffer, l_width, l_height);
-
-    delete[] r_buffer;
-    delete[] g_buffer;
-    delete[] b_buffer;
-
-    *pixels_red   = r_cv_buffer;
-    *pixels_green = g_cv_buffer;
-    *pixels_blue  = b_cv_buffer;
+    basic_debayer(bayered_image, *pixels_red, *pixels_green, *pixels_blue, l_width, l_height);
 
     *width  = l_width;
     *height = l_height;
@@ -1099,7 +1174,7 @@ extern "C"
 
   int read_image(const char *filename, float **pixels, size_t *width, size_t *height)
   {
-    size_t len = strlen(filename);
+    const size_t len = strlen(filename);
 
     // if (strcmp(filename + len - 3, "png") == 0 || strcmp(filename + len - 3, "PNG") == 0)  {
     //   return read_png(filename, pixels, width, height);
@@ -1137,7 +1212,7 @@ extern "C"
       size_t *    width,
       size_t *    height)
   {
-    size_t len = strlen(filename);
+    const size_t len = strlen(filename);
 
     if (strcmp(filename + len - 3, "exr") == 0 || strcmp(filename + len - 3, "EXR") == 0)
     {
@@ -1165,7 +1240,7 @@ extern "C"
 
   int write_image(const char *filename, const float *pixels, size_t width, size_t height)
   {
-    size_t len = strlen(filename);
+    const size_t len = strlen(filename);
 
     // if (strcmp(filename + len - 3, "png") == 0 || strcmp(filename + len - 3, "PNG") == 0)  {
     //   return write_png(filename, pixels, width, height);
@@ -1198,7 +1273,7 @@ extern "C"
       size_t       width,
       size_t       height)
   {
-    size_t len = strlen(filename);
+    const size_t len = strlen(filename);
 
     if (strcmp(filename + len - 3, "exr") == 0 || strcmp(filename + len - 3, "EXR") == 0)
     {

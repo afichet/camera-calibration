@@ -12,6 +12,14 @@ extern "C"
 {
 #endif   // __cplusplus
 
+  void basic_debayer(
+      const float *bayered_image,
+      float *      pixels_red,
+      float *      pixels_green,
+      float *      pixels_blue,
+      size_t       width,
+      size_t       height);
+
 #ifdef HAS_TIFF
   int read_tiff(const char *filename, float **pixels, size_t *width, size_t *height);
   int read_tiff_rgb(

@@ -37,6 +37,17 @@ int main(int argc, char *argv[])
     return ret;
   }
 
+  const size_t len = strlen(filename_in);
+
+  if (strcmp(filename_in + len - 3, "dat") != 0 && strcmp(filename_in + len - 3, "DAT") != 0)
+  {
+    // We need to debayer the image
+    float *bayered_image = (float *)calloc(width * height, sizeof(float));
+    memcpy(bayered_image, image_r, width * height * sizeof(float));
+    basic_debayer(bayered_image, image_r, image_g, image_b, width, height);
+  }
+
+
   ret = write_image_rgb(filename_out, image_r, image_g, image_b, width, height);
 
   if (ret != 0)
