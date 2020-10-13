@@ -1,10 +1,10 @@
 project(lever)
 
-SET(LINSOLVERS_RETAIN_MEMORY 1 CACHE BOOL "Should linear solvers retain working memory between calls? (non-reentrant!)")
-SET(LM_DBL_PREC 1 CACHE BOOL "Build double precision routines?")
-SET(LM_SNGL_PREC 1 CACHE BOOL "Build single precision routines?")
-#SET(NEED_F2C 1 CACHE BOOL "Do we need either f2c or F77/I77?")
-OPTION(BUILD_DEMO "Build demo program?" FALSE)
+set(LINSOLVERS_RETAIN_MEMORY 1 CACHE BOOL "Should linear solvers retain working memory between calls? (non-reentrant!)")
+set(LM_DBL_PREC 1 CACHE BOOL "Build double precision routines?")
+set(LM_SNGL_PREC 1 CACHE BOOL "Build single precision routines?")
+#set(NEED_F2C 1 CACHE BOOL "Do we need either f2c or F77/I77?")
+option(BUILD_DEMO "Build demo program?" FALSE)
 
 set(PUBLIC_HEADERS
   levmar.h
@@ -31,8 +31,8 @@ find_package(LAPACK)
 if(LAPACK_FOUND AND BLAS_FOUND)
   set(HAVE_LAPACK 1)
   set(HAVE_BLAS 1)
-  add_link_options( ${BLAS_LINKER_FLAGS})
-  target_link_libraries(levmar PUBLIC LAPACK::LAPACK ${BLAS_LIBRARIES}) #BLAS::BLAS
+  add_link_options( ${BLAS_LINKER_FLAGS} ${LAPACK_LINKER_FLAGS})
+  target_link_libraries(levmar PUBLIC ${BLAS_LIBRARIES} ${LAPACK_LIBRARIES}) #BLAS::BLAS LAPACK::LAPACK
 endif()
 
 find_package(PLASMA QUIET)
