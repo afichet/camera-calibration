@@ -225,7 +225,7 @@ void FittingDialog::on_illuminant_currentIndexChanged(int index)
   }
   else if (index == 2)
   {
-    QString filename = QFileDialog::getOpenFileName(this, tr("Open file"), "", tr("Spectrum (*.csv)"));
+    QString filename = QFileDialog::getOpenFileName(this, tr("Open file"), "", tr("Spectrum (*.csv *.spd)"));
 
     if (filename.size() != 0)
     {

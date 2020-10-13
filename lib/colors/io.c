@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <stddef.h>
+#include <string.h>
 
 #ifdef _MSC_VER
 #  define _CRT_SECURE_NO_WARNINGS
@@ -9,7 +10,12 @@
 
 int read_spd(const char *filename, int **wavelengths, float **values, size_t *size)
 {
-  FILE *fin = fopen(filename, "r");
+  const size_t len              = strlen(filename);
+  int          is_csv           = 0;
+  FILE *       fin              = fopen(filename, "r");
+  int *        buff_wavelengths = NULL;
+  float *      buff_values      = NULL;
+  *size                         = 0;
 
   if (fin == NULL)
   {
@@ -17,9 +23,15 @@ int read_spd(const char *filename, int **wavelengths, float **values, size_t *si
     return -1;
   }
 
-  int *  buff_wavelengths = NULL;
-  float *buff_values      = NULL;
-  *size                   = 0;
+  /*
+   * Check if this is a CSV:
+   *  - CSV are comma separated: <value>,<value>\n
+   *  - Otherwise, assume SPD file: <value>:<value>,\n
+   */
+  if (strcmp(filename + len - 3, "csv") == 0 || strcmp(filename + len - 3, "CSV") == 0)
+  {
+    is_csv = 1;
+  }
 
   while (!feof(fin))
   {
@@ -35,12 +47,22 @@ int read_spd(const char *filename, int **wavelengths, float **values, size_t *si
       fprintf(stderr, "Memory allocation error");
       free(buff_wavelengths);
       free(buff_values);
+      fclose(fin);
       return -1;
     }
 
     buff_values = buff_values_temp;
 
-    int r = fscanf(fin, "%d,%f\n", &buff_wavelengths[*size - 1], &buff_values[*size - 1]);
+    int r = 0;
+
+    if (is_csv)
+    {
+      r = fscanf(fin, "%d,%f\n", &buff_wavelengths[*size - 1], &buff_values[*size - 1]);
+    }
+    else
+    {
+      r = fscanf(fin, "%d:%f,\n", &buff_wavelengths[*size - 1], &buff_values[*size - 1]);
+    }
 
     if (r == 0)
     {
@@ -69,19 +91,18 @@ int read_cmfs(
     float **    values_z,
     size_t *    size)
 {
-  FILE *fin = fopen(filename, "r");
+  FILE * fin              = fopen(filename, "r");
+  int *  buff_wavelengths = NULL;
+  float *buff_values_x    = NULL;
+  float *buff_values_y    = NULL;
+  float *buff_values_z    = NULL;
+  *size                   = 0;
 
   if (fin == NULL)
   {
     fprintf(stderr, "Cannot open file %s", filename);
     return -1;
   }
-
-  int *  buff_wavelengths = NULL;
-  float *buff_values_x    = NULL;
-  float *buff_values_y    = NULL;
-  float *buff_values_z    = NULL;
-  *size                   = 0;
 
   while (!feof(fin))
   {
@@ -140,16 +161,15 @@ int read_cmfs(
 
 int load_xyz(const char *filename, float **xyz, size_t *size)
 {
-  FILE *fin = fopen(filename, "r");
+  FILE * fin             = fopen(filename, "r");
+  float *buff_values_xyz = NULL;
+  *size                  = 0;
 
   if (fin == NULL)
   {
     fprintf(stderr, "Cannot open file %s", filename);
     return -1;
   }
-
-  float *buff_values_xyz = NULL;
-  *size                  = 0;
 
   while (!feof(fin))
   {
