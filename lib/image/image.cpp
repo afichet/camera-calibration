@@ -47,6 +47,7 @@ extern "C"
 #ifdef HAS_TIFF
 #  include <tiffio.h>
 
+
   int read_tiff(const char *filename, float **pixels, size_t *width, size_t *height)
   {
     // Open image in
@@ -112,6 +113,89 @@ extern "C"
     *width  = w;
     *height = h;
     *pixels = framebuffer;
+
+    return 0;
+  }
+
+
+  int read_tiff_rgb(
+      const char *filename,
+      float **    pixels_red,
+      float **    pixels_green,
+      float **    pixels_blue,
+      size_t *    width,
+      size_t *    height)
+  {
+    // Open image in
+    TIFF *tif_in = TIFFOpen(filename, "r");
+    if (tif_in == NULL)
+    {
+      fprintf(stderr, "Cannot open image file\n");
+      return -1;
+    }
+
+    uint32 w, h;
+    uint16 bps, spp;
+    uint16 config;
+
+    TIFFGetField(tif_in, TIFFTAG_IMAGEWIDTH, &w);
+    TIFFGetField(tif_in, TIFFTAG_IMAGELENGTH, &h);
+    TIFFGetField(tif_in, TIFFTAG_BITSPERSAMPLE, &bps);
+    TIFFGetField(tif_in, TIFFTAG_SAMPLESPERPIXEL, &spp);
+    TIFFGetField(tif_in, TIFFTAG_PLANARCONFIG, &config);
+
+    if (spp < 3 || config != PLANARCONFIG_CONTIG)
+    {
+      fprintf(stderr, "Not enough channels in this image\n");
+      TIFFClose(tif_in);
+      return -1;
+    }
+
+    tdata_t buf_in;
+    buf_in               = _TIFFmalloc(TIFFScanlineSize(tif_in));
+    float *framebuffer_r = new float[w * h];
+    float *framebuffer_g = new float[w * h];
+    float *framebuffer_b = new float[w * h];
+
+    for (uint32 y = 0; y < h; y++)
+    {
+      TIFFReadScanline(tif_in, buf_in, y, 0);
+
+      for (uint32 x = 0; x < w; x++)
+      {
+        switch (bps)
+        {
+          case 8:
+            // 8 bit per channel are assumed sRGB encoded.
+            // We linearise to RGB
+            framebuffer_r[y * w + x] = from_sRGB(((uint8 *)buf_in)[spp * x + 0] / 255.f);
+            framebuffer_g[y * w + x] = from_sRGB(((uint8 *)buf_in)[spp * x + 1] / 255.f);
+            framebuffer_b[y * w + x] = from_sRGB(((uint8 *)buf_in)[spp * x + 2] / 255.f);
+            break;
+
+          case 16:
+            framebuffer_r[y * w + x] = ((uint16 *)buf_in)[spp * x + 0] / 65535.f;
+            framebuffer_g[y * w + x] = ((uint16 *)buf_in)[spp * x + 1] / 65535.f;
+            framebuffer_b[y * w + x] = ((uint16 *)buf_in)[spp * x + 2] / 65535.f;
+            break;
+
+          case 32:
+            framebuffer_r[y * w + x] = ((uint32 *)buf_in)[spp * x + 0] / 4294967295.f;
+            framebuffer_g[y * w + x] = ((uint32 *)buf_in)[spp * x + 1] / 4294967295.f;
+            framebuffer_b[y * w + x] = ((uint32 *)buf_in)[spp * x + 2] / 4294967295.f;
+            break;
+        }
+      }
+    }
+
+    _TIFFfree(buf_in);
+    TIFFClose(tif_in);
+
+    *width        = w;
+    *height       = h;
+    *pixels_red   = framebuffer_r;
+    *pixels_green = framebuffer_g;
+    *pixels_blue  = framebuffer_b;
 
     return 0;
   }
@@ -413,7 +497,6 @@ extern "C"
     // Free image data
     FreeEXRImage(&image);
 
-
     *width  = image.width;
     *height = image.height;
     *pixels = framebuffer;
@@ -421,6 +504,138 @@ extern "C"
     return status;
   }
 
+
+  int read_exr_rgb(
+      const char *filename,
+      float **    pixels_red,
+      float **    pixels_green,
+      float **    pixels_blue,
+      size_t *    width,
+      size_t *    height)
+  {
+    EXRVersion version;
+    int        status = ParseEXRVersionFromFile(&version, filename);
+
+    if (status != TINYEXR_SUCCESS)
+    {
+      fprintf(stderr, "Invalid EXR file %s\n", filename);
+      return -1;
+    }
+
+    if (version.multipart)
+    {
+      fprintf(stderr, "We do not support EXR multipart\n");
+      return -1;
+    }
+
+    EXRHeader header;
+    InitEXRHeader(&header);
+
+    const char *err = NULL;
+    status          = ParseEXRHeaderFromFile(&header, &version, filename, &err);
+
+    if (status != TINYEXR_SUCCESS)
+    {
+      if (err)
+      {
+        fprintf(stderr, "Cannot open EXR file %s\nError: %s\n", filename, err);
+        FreeEXRErrorMessage(err);
+      }
+      return -1;
+    }
+
+    EXRImage image;
+    InitEXRImage(&image);
+
+    status = LoadEXRImageFromFile(&image, &header, filename, &err);
+    if (status != TINYEXR_SUCCESS)
+    {
+      if (err)
+      {
+        fprintf(stderr, "Cannot open EXR file %s\nError: %s\n", filename, err);
+        FreeEXRErrorMessage(err);
+      }
+      FreeEXRImage(&image);
+      return -1;
+    }
+
+    if (image.images == NULL)
+    {
+      fprintf(stderr, "Load EXR error: Tiled format not supported\n");
+      FreeEXRImage(&image);
+      return -1;
+    }
+
+    int idxR = 0;
+    int idxG = 0;
+    int idxB = 0;
+
+    for (int c = 0; c < header.num_channels; c++)
+    {
+      if (strcmp(header.channels[c].name, "R") == 0)
+      {
+        idxR = c;
+      }
+      else if (strcmp(header.channels[c].name, "G") == 0)
+      {
+        idxG = c;
+      }
+      else if (strcmp(header.channels[c].name, "B") == 0)
+      {
+        idxB = c;
+      }
+    }
+
+    float *framebuffer_r = new float[image.width * image.height];
+    float *framebuffer_g = new float[image.width * image.height];
+    float *framebuffer_b = new float[image.width * image.height];
+
+    if (header.pixel_types[0] == TINYEXR_PIXELTYPE_FLOAT)
+    {
+      float *buffer_r = (float *)(image.images[idxR]);
+      float *buffer_g = (float *)(image.images[idxG]);
+      float *buffer_b = (float *)(image.images[idxB]);
+
+      memcpy(framebuffer_r, buffer_r, image.width * image.height * sizeof(float));
+      memcpy(framebuffer_g, buffer_g, image.width * image.height * sizeof(float));
+      memcpy(framebuffer_b, buffer_b, image.width * image.height * sizeof(float));
+    }
+    else if (header.pixel_types[0] == TINYEXR_PIXELTYPE_UINT)
+    {
+      unsigned int *buffer_r = (unsigned int *)(image.images[idxR]);
+      unsigned int *buffer_g = (unsigned int *)(image.images[idxG]);
+      unsigned int *buffer_b = (unsigned int *)(image.images[idxB]);
+
+#pragma omp parallel for schedule(static)
+      for (int i = 0; i < image.width * image.height; i++)
+      {
+        // set all channels to 0 in case exr file contains only one or two
+        // channels
+        framebuffer_r[i] = buffer_r[i] / std::numeric_limits<unsigned int>::max();
+        framebuffer_g[i] = buffer_g[i] / std::numeric_limits<unsigned int>::max();
+        framebuffer_b[i] = buffer_b[i] / std::numeric_limits<unsigned int>::max();
+      }
+    }
+    else
+    {
+      FreeEXRImage(&image);
+      delete[] framebuffer_r;
+      delete[] framebuffer_g;
+      delete[] framebuffer_b;
+    }
+
+    // Free image data
+    FreeEXRImage(&image);
+
+    *width  = image.width;
+    *height = image.height;
+
+    *pixels_red   = framebuffer_r;
+    *pixels_green = framebuffer_g;
+    *pixels_blue  = framebuffer_b;
+
+    return status;
+  }
 
   int write_exr(const char *filename, const float *pixels, size_t width, size_t height)
   {
@@ -505,8 +720,48 @@ extern "C"
   }
 
 
-
   int read_dat(const char *filename, float **pixels, size_t *width, size_t *height)
+  {
+    float *r_cv_buffer = NULL;
+    float *g_cv_buffer = NULL;
+    float *b_cv_buffer = NULL;
+
+    int ret = read_dat_rgb(filename, &r_cv_buffer, &g_cv_buffer, &b_cv_buffer, width, height);
+
+    if (ret != 0)
+    {
+      return ret;
+    }
+
+    // Recompose the image
+    const size_t size       = (*width) * (*height);
+    float *      out_buffer = new float[3 * size];
+
+#pragma omp parallel for schedule(static)
+    for (int i = 0; i < int(size); i++)
+    {
+      out_buffer[3 * i + 0] = r_cv_buffer[i];
+      out_buffer[3 * i + 1] = g_cv_buffer[i];
+      out_buffer[3 * i + 2] = b_cv_buffer[i];
+    }
+
+    delete[] r_cv_buffer;
+    delete[] g_cv_buffer;
+    delete[] b_cv_buffer;
+
+    *pixels = out_buffer;
+
+    return 0;
+  }
+
+
+  int read_dat_rgb(
+      const char *filename,
+      float **    pixels_red,
+      float **    pixels_green,
+      float **    pixels_blue,
+      size_t *    width,
+      size_t *    height)
   {
     FILE *fin = fopen(filename, "rb");
 
@@ -851,22 +1106,10 @@ extern "C"
     delete[] g_buffer;
     delete[] b_buffer;
 
-    // Recompose the image
-    float *out_buffer = new float[3 * n_elems];
+    *pixels_red   = r_cv_buffer;
+    *pixels_green = g_cv_buffer;
+    *pixels_blue  = b_cv_buffer;
 
-#pragma omp parallel for schedule(static)
-    for (int i = 0; i < int(n_elems); i++)
-    {
-      out_buffer[3 * i + 0] = r_cv_buffer[i];
-      out_buffer[3 * i + 1] = g_cv_buffer[i];
-      out_buffer[3 * i + 2] = b_cv_buffer[i];
-    }
-
-    delete[] r_cv_buffer;
-    delete[] g_cv_buffer;
-    delete[] b_cv_buffer;
-
-    *pixels = out_buffer;
     *width  = l_width;
     *height = l_height;
 
@@ -897,6 +1140,40 @@ extern "C"
         || strcmp(filename + len - 3, "tif") == 0 || strcmp(filename + len - 3, "tif") == 0)
     {
       return read_tiff(filename, pixels, width, height);
+    }
+#endif
+
+    fprintf(stderr, "This extension is not supported %s\n", filename);
+
+    return -1;
+  }
+
+
+  int read_image_rgb(
+      const char *filename,
+      float **    pixels_red,
+      float **    pixels_green,
+      float **    pixels_blue,
+      size_t *    width,
+      size_t *    height)
+  {
+    size_t len = strlen(filename);
+
+    if (strcmp(filename + len - 3, "exr") == 0 || strcmp(filename + len - 3, "EXR") == 0)
+    {
+      return read_exr_rgb(filename, pixels_red, pixels_green, pixels_blue, width, height);
+    }
+
+    if (strcmp(filename + len - 3, "dat") == 0 || strcmp(filename + len - 3, "DAT") == 0)
+    {
+      return read_dat_rgb(filename, pixels_red, pixels_green, pixels_blue, width, height);
+    }
+
+#ifdef HAS_TIFF
+    if (strcmp(filename + len - 4, "tiff") == 0 || strcmp(filename + len - 4, "tiff") == 0
+        || strcmp(filename + len - 3, "tif") == 0 || strcmp(filename + len - 3, "tif") == 0)
+    {
+      return read_tiff_rgb(filename, pixels_red, pixels_green, pixels_blue, width, height);
     }
 #endif
 
