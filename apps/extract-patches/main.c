@@ -45,6 +45,7 @@ int load_boxfile(const char *filename, int **areas, size_t *size)
     {
       fprintf(stderr, "Error while reading file %s\n", filename);
       fclose(fin);
+      free(buff_values);
       return -1;
     }
   }
@@ -83,15 +84,14 @@ int main(int argc, char *argv[])
   if (err != 0)
   {
     fprintf(stderr, "Cannot open area file %s\n", filename_areas);
-    return -1;
+    goto clean;
   }
 
   err = read_image(filename_image, &image, &width, &height);
   if (err != 0)
   {
     fprintf(stderr, "Cannot read input image file\n");
-    free(areas);
-    return -1;
+    goto clean;
   }
 
   float *patches = (float *)calloc(3 * n_areas, sizeof(float));
@@ -122,15 +122,16 @@ int main(int argc, char *argv[])
 
   err = save_xyz(filename_out, patches, n_areas);
 
-  free(image);
-  free(areas);
-  free(patches);
-
   if (err != 0)
   {
     fprintf(stderr, "Cannot save patches file\n");
-    return -1;
+    goto clean;
   }
 
-  return 0;
+ clean:
+  free(image);
+  free(areas);
+  free(patches);
+  
+  return err;
 }
