@@ -24,7 +24,7 @@
 
 void image_convolve3x3(float *matrix, float *array_in, float *array_out, size_t width, size_t height)
 {
-#pragma omp parallel for schedule(static)
+#pragma omp parallel for
   for (int y = 1; y < (int)height - 1; y++)
   {
     for (int x = 1; x < (int)width - 1; x++)
@@ -462,7 +462,7 @@ extern "C"
       float *buffer_g = (float *)(image.images[idxG]);
       float *buffer_b = (float *)(image.images[idxB]);
 
-#pragma omp parallel for schedule(static)
+#pragma omp parallel for
       for (int i = 0; i < image.width * image.height; i++)
       {
         // set all channels to 0 in case exr file contains only one or two
@@ -478,7 +478,7 @@ extern "C"
       unsigned int *buffer_g = (unsigned int *)(image.images[idxG]);
       unsigned int *buffer_b = (unsigned int *)(image.images[idxB]);
 
-#pragma omp parallel for schedule(static)
+#pragma omp parallel for
       for (int i = 0; i < image.width * image.height; i++)
       {
         // set all channels to 0 in case exr file contains only one or two
@@ -606,7 +606,7 @@ extern "C"
       unsigned int *buffer_g = (unsigned int *)(image.images[idxG]);
       unsigned int *buffer_b = (unsigned int *)(image.images[idxB]);
 
-#pragma omp parallel for schedule(static)
+#pragma omp parallel for
       for (int i = 0; i < image.width * image.height; i++)
       {
         // set all channels to 0 in case exr file contains only one or two
@@ -644,7 +644,7 @@ extern "C"
     float *green = new float[width * height];
     float *blue  = new float[width * height];
 
-#pragma omp parallel for schedule(static)
+#pragma omp parallel for
     for (size_t i = 0; i < width * height; i++)
     {
       red[i]   = pixels[3 * i + 0];
@@ -753,7 +753,7 @@ extern "C"
     const size_t size       = (*width) * (*height);
     float *      out_buffer = new float[3 * size];
 
-#pragma omp parallel for schedule(static)
+#pragma omp parallel for
     for (int i = 0; i < int(size); i++)
     {
       out_buffer[3 * i + 0] = r_cv_buffer[i];
@@ -846,55 +846,8 @@ extern "C"
     memset(g_buffer, 0, n_elems * sizeof(float));
     memset(b_buffer, 0, n_elems * sizeof(float));
 
-    /**
-     * Demosaicing
-     * ===========
-     *
-     * We place the Bayer samples in the target images
-     * For instance, if the Bayer pattern is:
-     *
-     * ┌───┬───┐
-     * │ G │ B │
-     * ├───┼───┤
-     * │ R │ G │
-     * └───┴───┘
-     *
-     *        with the corresponding bayered image...
-     *
-     *                         ┌────────────────┬────────────────┐
-     *                         │ (x, y)         │ (x + 1, y)     │
-     *                         ├────────────────┼────────────────┤
-     *                         │ (x, y + 1)     │ (x + 1, y + 1) │
-     *                         └────────────────┴────────────────┘
-     *
-     * Each buffer is populated as follows:
-     *
-     *       ┌────────────────┬──────────────────┐
-     *       │ 0              │ 0                │
-     *   R = ├────────────────┼──────────────────┤
-     *       │ px(x, y + 1)   │ 0                │
-     *       └────────────────┴──────────────────┘
-     *
-     *       ┌────────────────┬──────────────────┐
-     *       │ px(x, y)       │ 0                │
-     *   G = ├────────────────┼──────────────────┤
-     *       │ 0              │ px(x + 1, y + 1) │
-     *       └────────────────┴──────────────────┘
-     *
-     *       ┌────────────────┬──────────────────┐
-     *       │ 0              │ px(x + 1, y)     │
-     *   B = ├────────────────┼──────────────────┤
-     *       │ 0              │ 0                │
-     *       └────────────────┴──────────────────┘
-     *
-     * Notice, G receives two values.
-     *
-     * Then, we perform a convolution on each channel to fill in the missing
-     * values.
-     *
-     * The final image (width, height, 3) is reconstructed by taking for each
-     * pixel the R, G, B arrays (each, (width, height)).
-     */
+    float *bayered_image = new float[n_elems];
+
     switch (data_type)
     {
       case 2:   // unsigned char
@@ -902,20 +855,13 @@ extern "C"
         unsigned char *buff = new unsigned char[n_elems];
         fread(buff, sizeof(unsigned char), n_elems, fin);
 
-        // Populate each color from the bayered image
-#pragma omp parallel for schedule(static)
-        for (int y = 0; y < int(l_height / 2); y++)
+        // Copy cast
+#pragma omp parallel for
+        for (int i = 0; i < int(n_elems); i++)
         {
-          for (size_t x = 0; x < l_width / 2; x++)
-          {
-            // clang-format off
-            bayer[0][(2 * y    ) * l_width + 2 * x    ] = (float)buff[(2 * y    ) * l_width + 2 * x    ];
-            bayer[1][(2 * y    ) * l_width + 2 * x + 1] = (float)buff[(2 * y    ) * l_width + 2 * x + 1];
-            bayer[2][(2 * y + 1) * l_width + 2 * x    ] = (float)buff[(2 * y + 1) * l_width + 2 * x    ];
-            bayer[3][(2 * y + 1) * l_width + 2 * x + 1] = (float)buff[(2 * y + 1) * l_width + 2 * x + 1];
-            // clang-format on
-          }
+          bayered_image[i] = (float)buff[i];
         }
+
         delete[] buff;
       }
       break;
@@ -925,20 +871,13 @@ extern "C"
         char *buff = new char[n_elems];
         fread(buff, sizeof(char), n_elems, fin);
 
-        // Populate each color from the bayered image
-#pragma omp parallel for schedule(static)
-        for (int y = 0; y < int(l_height / 2); y++)
+        // Copy cast
+#pragma omp parallel for
+        for (int i = 0; i < int(n_elems); i++)
         {
-          for (size_t x = 0; x < l_width / 2; x++)
-          {
-            // clang-format off
-            bayer[0][(2 * y    ) * l_width + 2 * x    ] = (float)buff[(2 * y    ) * l_width + 2 * x    ];
-            bayer[1][(2 * y    ) * l_width + 2 * x + 1] = (float)buff[(2 * y    ) * l_width + 2 * x + 1];
-            bayer[2][(2 * y + 1) * l_width + 2 * x    ] = (float)buff[(2 * y + 1) * l_width + 2 * x    ];
-            bayer[3][(2 * y + 1) * l_width + 2 * x + 1] = (float)buff[(2 * y + 1) * l_width + 2 * x + 1];
-            // clang-format on
-          }
+          bayered_image[i] = (float)buff[i];
         }
+
         delete[] buff;
       }
       break;
@@ -947,20 +886,13 @@ extern "C"
         unsigned short *buff = new unsigned short[n_elems];
         fread(buff, sizeof(unsigned short), n_elems, fin);
 
-        // Populate each color from the bayered image
-#pragma omp parallel for schedule(static)
-        for (int y = 0; y < int(l_height / 2); y++)
+        // Copy cast
+#pragma omp parallel for
+        for (int i = 0; i < int(n_elems); i++)
         {
-          for (size_t x = 0; x < l_width / 2; x++)
-          {
-            // clang-format off
-            bayer[0][(2 * y    ) * l_width + 2 * x    ] = (float)buff[(2 * y    ) * l_width + 2 * x    ];
-            bayer[1][(2 * y    ) * l_width + 2 * x + 1] = (float)buff[(2 * y    ) * l_width + 2 * x + 1];
-            bayer[2][(2 * y + 1) * l_width + 2 * x    ] = (float)buff[(2 * y + 1) * l_width + 2 * x    ];
-            bayer[3][(2 * y + 1) * l_width + 2 * x + 1] = (float)buff[(2 * y + 1) * l_width + 2 * x + 1];
-            // clang-format on
-          }
+          bayered_image[i] = (float)buff[i];
         }
+
         delete[] buff;
       }
       break;
@@ -970,20 +902,13 @@ extern "C"
         short *buff = new short[n_elems];
         fread(buff, sizeof(short), n_elems, fin);
 
-        // Populate each color from the bayered image
-#pragma omp parallel for schedule(static)
-        for (int y = 0; y < int(l_height / 2); y++)
+        // Copy cast
+#pragma omp parallel for
+        for (int i = 0; i < int(n_elems); i++)
         {
-          for (size_t x = 0; x < l_width / 2; x++)
-          {
-            // clang-format off
-            bayer[0][(2 * y    ) * l_width + 2 * x    ] = (float)buff[(2 * y    ) * l_width + 2 * x    ];
-            bayer[1][(2 * y    ) * l_width + 2 * x + 1] = (float)buff[(2 * y    ) * l_width + 2 * x + 1];
-            bayer[2][(2 * y + 1) * l_width + 2 * x    ] = (float)buff[(2 * y + 1) * l_width + 2 * x    ];
-            bayer[3][(2 * y + 1) * l_width + 2 * x + 1] = (float)buff[(2 * y + 1) * l_width + 2 * x + 1];
-            // clang-format on
-          }
+          bayered_image[i] = (float)buff[i];
         }
+
         delete[] buff;
       }
       break;
@@ -993,20 +918,13 @@ extern "C"
         unsigned int *buff = new unsigned int[n_elems];
         fread(buff, sizeof(unsigned int), n_elems, fin);
 
-        // Populate each color from the bayered image
-#pragma omp parallel for schedule(static)
-        for (int y = 0; y < int(l_height / 2); y++)
+        // Copy cast
+#pragma omp parallel for
+        for (int i = 0; i < int(n_elems); i++)
         {
-          for (size_t x = 0; x < l_width / 2; x++)
-          {
-            // clang-format off
-            bayer[0][(2 * y    ) * l_width + 2 * x    ] = (float)buff[(2 * y    ) * l_width + 2 * x    ];
-            bayer[1][(2 * y    ) * l_width + 2 * x + 1] = (float)buff[(2 * y    ) * l_width + 2 * x + 1];
-            bayer[2][(2 * y + 1) * l_width + 2 * x    ] = (float)buff[(2 * y + 1) * l_width + 2 * x    ];
-            bayer[3][(2 * y + 1) * l_width + 2 * x + 1] = (float)buff[(2 * y + 1) * l_width + 2 * x + 1];
-            // clang-format on
-          }
+          bayered_image[i] = (float)buff[i];
         }
+
         delete[] buff;
       }
       break;
@@ -1016,20 +934,13 @@ extern "C"
         int *buff = new int[n_elems];
         fread(buff, sizeof(int), n_elems, fin);
 
-        // Populate each color from the bayered image
-#pragma omp parallel for schedule(static)
-        for (int y = 0; y < int(l_height / 2); y++)
+        // Copy cast
+#pragma omp parallel for
+        for (int i = 0; i < int(n_elems); i++)
         {
-          for (size_t x = 0; x < l_width / 2; x++)
-          {
-            // clang-format off
-            bayer[0][(2 * y    ) * l_width + 2 * x    ] = (float)buff[(2 * y    ) * l_width + 2 * x    ];
-            bayer[1][(2 * y    ) * l_width + 2 * x + 1] = (float)buff[(2 * y    ) * l_width + 2 * x + 1];
-            bayer[2][(2 * y + 1) * l_width + 2 * x    ] = (float)buff[(2 * y + 1) * l_width + 2 * x    ];
-            bayer[3][(2 * y + 1) * l_width + 2 * x + 1] = (float)buff[(2 * y + 1) * l_width + 2 * x + 1];
-            // clang-format on
-          }
+          bayered_image[i] = (float)buff[i];
         }
+
         delete[] buff;
       }
       break;
@@ -1039,20 +950,13 @@ extern "C"
         float *buff = new float[n_elems];
         fread(buff, sizeof(float), n_elems, fin);
 
-        // Populate each color from the bayered image
-#pragma omp parallel for schedule(static)
-        for (int y = 0; y < int(l_height / 2); y++)
+        // Copy cast
+#pragma omp parallel for
+        for (int i = 0; i < int(n_elems); i++)
         {
-          for (size_t x = 0; x < l_width / 2; x++)
-          {
-            // clang-format off
-            bayer[0][(2 * y    ) * l_width + 2 * x    ] = (float)buff[(2 * y    ) * l_width + 2 * x    ];
-            bayer[1][(2 * y    ) * l_width + 2 * x + 1] = (float)buff[(2 * y    ) * l_width + 2 * x + 1];
-            bayer[2][(2 * y + 1) * l_width + 2 * x    ] = (float)buff[(2 * y + 1) * l_width + 2 * x    ];
-            bayer[3][(2 * y + 1) * l_width + 2 * x + 1] = (float)buff[(2 * y + 1) * l_width + 2 * x + 1];
-            // clang-format on
-          }
+          bayered_image[i] = (float)buff[i];
         }
+
         delete[] buff;
       }
       break;
@@ -1062,20 +966,13 @@ extern "C"
         double *buff = new double[n_elems];
         fread(buff, sizeof(double), n_elems, fin);
 
-        // Populate each color from the bayered image
-#pragma omp parallel for schedule(static)
-        for (int y = 0; y < int(l_height / 2); y++)
+        // Copy cast
+#pragma omp parallel for
+        for (int i = 0; i < int(n_elems); i++)
         {
-          for (size_t x = 0; x < l_width / 2; x++)
-          {
-            // clang-format off
-            bayer[0][(2 * y    ) * l_width + 2 * x    ] = (float)buff[(2 * y    ) * l_width + 2 * x    ];
-            bayer[1][(2 * y    ) * l_width + 2 * x + 1] = (float)buff[(2 * y    ) * l_width + 2 * x + 1];
-            bayer[2][(2 * y + 1) * l_width + 2 * x    ] = (float)buff[(2 * y + 1) * l_width + 2 * x    ];
-            bayer[3][(2 * y + 1) * l_width + 2 * x + 1] = (float)buff[(2 * y + 1) * l_width + 2 * x + 1];
-            // clang-format on
-          }
+          bayered_image[i] = (float)buff[i];
         }
+
         delete[] buff;
       }
       break;
@@ -1088,6 +985,73 @@ extern "C"
 
         return -1;
     }
+
+      /**
+       * Demosaicing
+       * ===========
+       *
+       * We place the Bayer samples in the target images
+       * For instance, if the Bayer pattern is:
+       *
+       * ┌───┬───┐
+       * │ G │ B │
+       * ├───┼───┤
+       * │ R │ G │
+       * └───┴───┘
+       *
+       *        with the corresponding bayered image...
+       *
+       *                         ┌────────────────┬────────────────┐
+       *                         │ (x, y)         │ (x + 1, y)     │
+       *                         ├────────────────┼────────────────┤
+       *                         │ (x, y + 1)     │ (x + 1, y + 1) │
+       *                         └────────────────┴────────────────┘
+       *
+       * Each buffer is populated as follows:
+       *
+       *       ┌────────────────┬──────────────────┐
+       *       │ 0              │ 0                │
+       *   R = ├────────────────┼──────────────────┤
+       *       │ px(x, y + 1)   │ 0                │
+       *       └────────────────┴──────────────────┘
+       *
+       *       ┌────────────────┬──────────────────┐
+       *       │ px(x, y)       │ 0                │
+       *   G = ├────────────────┼──────────────────┤
+       *       │ 0              │ px(x + 1, y + 1) │
+       *       └────────────────┴──────────────────┘
+       *
+       *       ┌────────────────┬──────────────────┐
+       *       │ 0              │ px(x + 1, y)     │
+       *   B = ├────────────────┼──────────────────┤
+       *       │ 0              │ 0                │
+       *       └────────────────┴──────────────────┘
+       *
+       * Notice, G receives two values.
+       *
+       * Then, we perform a convolution on each channel to fill in the missing
+       * values.
+       *
+       * The final image (width, height, 3) is reconstructed by taking for each
+       * pixel the R, G, B arrays (each, (width, height)).
+       */
+
+      // Populate each color from the bayered image
+#pragma omp parallel for
+    for (int y = 0; y < int(l_height); y += 2)
+    {
+      for (size_t x = 0; x < l_width; x += 2)
+      {
+        // clang-format off
+        bayer[0][(y    ) * l_width + x    ] = bayered_image[(y    ) * l_width + x    ];
+        bayer[1][(y    ) * l_width + x + 1] = bayered_image[(y    ) * l_width + x + 1];
+        bayer[2][(y + 1) * l_width + x    ] = bayered_image[(y + 1) * l_width + x    ];
+        bayer[3][(y + 1) * l_width + x + 1] = bayered_image[(y + 1) * l_width + x + 1];
+        // clang-format on
+      }
+    }
+
+    delete[] bayered_image;
 
     // Now, do the convolutions
     // clang-format off
