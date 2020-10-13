@@ -31,7 +31,8 @@ find_package(LAPACK)
 if(LAPACK_FOUND AND BLAS_FOUND)
   set(HAVE_LAPACK 1)
   set(HAVE_BLAS 1)
-  target_link_libraries(levmar PUBLIC BLAS::BLAS LAPACK::LAPACK)
+  add_link_options( ${BLAS_LINKER_FLAGS})
+  target_link_libraries(levmar PUBLIC LAPACK::LAPACK ${BLAS_LIBRARIES}) #BLAS::BLAS
 endif()
 
 find_package(PLASMA QUIET)
