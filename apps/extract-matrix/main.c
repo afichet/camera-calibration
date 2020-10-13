@@ -79,6 +79,17 @@ int main(int argc, const char *argv[])
     return -1;
   }
 
+  // Ensure no value is above 1
+  // TODO: remove saturated values
+  float max = 0;
+  for (size_t i = 0; i < 3*size; i++) {
+    max = fmaxf(max, macbeth_patches_measured[i]);
+  }
+
+  for (size_t i = 0; i < 3*size; i++) {
+    macbeth_patches_measured[i] /= max;
+  }
+
   // Fit matrix to find the transformation between measured colorspace and
   // reference color space
   float      matrix[9] = {1.f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f, 0.f, 1.f};
