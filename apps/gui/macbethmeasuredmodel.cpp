@@ -18,12 +18,14 @@ void MacbethMeasuredModel::setPatchesValues(const std::vector<float> &values)
   memcpy(&_linearColors[0], &values[0], 3 * 24 * sizeof(float));
 
   float max = 0;
-  for (const auto& v: _linearColors) {
-      max = std::max(max, v);
+  for (const auto &v : _linearColors)
+  {
+    max = std::max(max, v);
   }
 
-  for (auto& v: _linearColors) {
-      v /= max;
+  for (auto &v : _linearColors)
+  {
+    v /= max;
   }
 
 

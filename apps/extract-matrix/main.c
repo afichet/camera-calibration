@@ -82,11 +82,13 @@ int main(int argc, const char *argv[])
   // Ensure no value is above 1
   // TODO: remove saturated values
   float max = 0;
-  for (size_t i = 0; i < 3*size; i++) {
+  for (size_t i = 0; i < 3 * size; i++)
+  {
     max = fmaxf(max, macbeth_patches_measured[i]);
   }
 
-  for (size_t i = 0; i < 3*size; i++) {
+  for (size_t i = 0; i < 3 * size; i++)
+  {
     macbeth_patches_measured[i] /= max;
   }
 

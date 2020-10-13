@@ -653,7 +653,7 @@ extern "C"
     }
 
     int status = write_exr_rgb(filename, red, green, blue, width, height);
-    
+
     delete[] red;
     delete[] green;
     delete[] blue;
@@ -708,13 +708,13 @@ extern "C"
         fprintf(stderr, "Cannot write image file %s\nError: %s\n", filename, err);
         FreeEXRErrorMessage(err);
       }
-      
-      delete[] header.channels; 
-      delete[] header.pixel_types;
-      delete[] header.requested_pixel_types; 
 
-      header.channels = NULL;
-      header.pixel_types = NULL;
+      delete[] header.channels;
+      delete[] header.pixel_types;
+      delete[] header.requested_pixel_types;
+
+      header.channels              = NULL;
+      header.pixel_types           = NULL;
       header.requested_pixel_types = NULL;
 
       FreeEXRHeader(&header);
@@ -722,14 +722,14 @@ extern "C"
       return status;
     }
 
-    delete[] header.channels; 
+    delete[] header.channels;
     delete[] header.pixel_types;
-    delete[] header.requested_pixel_types; 
+    delete[] header.requested_pixel_types;
 
-    header.channels = NULL;
-    header.pixel_types = NULL;
+    header.channels              = NULL;
+    header.pixel_types           = NULL;
     header.requested_pixel_types = NULL;
-     
+
     FreeEXRHeader(&header);
 
     return 0;

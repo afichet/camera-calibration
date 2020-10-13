@@ -128,10 +128,10 @@ int main(int argc, char *argv[])
     goto clean;
   }
 
- clean:
+clean:
   free(image);
   free(areas);
   free(patches);
-  
+
   return err;
 }
