@@ -1158,12 +1158,11 @@ extern "C"
         return -1;
     }
 
-    const size_t n_elems        = l_width * l_height * n_channels;
-    const size_t expected_bytes = n_elems * n_bytes_per_channel;
+    const size_t n_elems = l_width * l_height * n_channels;
     size_t       read_elems;
 
     // Now read the pixels from the file
-    void *read_buff = (void *)malloc(expected_bytes);
+    void *read_buff = (void *)malloc(n_bytes_per_channel * n_elems);
     read_elems      = fread(read_buff, n_bytes_per_channel, n_elems, fin);
     fclose(fin);
 
