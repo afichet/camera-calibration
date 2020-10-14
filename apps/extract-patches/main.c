@@ -80,6 +80,8 @@ int main(int argc, char *argv[])
   int *  areas = NULL;
   size_t n_areas;
 
+  float *patches = NULL;
+
   int err = load_boxfile(filename_areas, &areas, &n_areas);
   if (err != 0)
   {
@@ -94,7 +96,7 @@ int main(int argc, char *argv[])
     goto clean;
   }
 
-  float *patches = (float *)calloc(3 * n_areas, sizeof(float));
+  patches = (float *)calloc(3 * n_areas, sizeof(float));
 
   // Average value computation for each patch
   for (size_t a = 0; a < n_areas; a++)

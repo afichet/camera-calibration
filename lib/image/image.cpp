@@ -1100,10 +1100,19 @@ extern "C"
     char         data_type;
     unsigned int l_width, l_height, n_channels;
 
-    fread(&data_type, sizeof(char), 1, fin);
-    fread(&l_width, sizeof(unsigned int), 1, fin);
-    fread(&l_height, sizeof(unsigned int), 1, fin);
-    fread(&n_channels, sizeof(unsigned int), 1, fin);
+    int ret_read = 0;
+
+    ret_read += fread(&data_type, sizeof(char), 1, fin);
+    ret_read += fread(&l_width, sizeof(unsigned int), 1, fin);
+    ret_read += fread(&l_height, sizeof(unsigned int), 1, fin);
+    ret_read += fread(&n_channels, sizeof(unsigned int), 1, fin);
+
+    if (ret_read != sizeof(char) + 3 * sizeof(unsigned int))
+    {
+      std::cerr << "Incorrect formed header";
+      fclose(fin);
+      return -1;
+    }
 
     if (n_channels != 1)
     {
