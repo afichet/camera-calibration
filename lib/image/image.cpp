@@ -215,8 +215,6 @@ extern "C"
       }
     }
 
-    delete[] bayered_image;
-
     // Now, do the convolutions
     // clang-format off
     float r_matrix[9] = {
