@@ -45,6 +45,7 @@ int main(int argc, char *argv[])
     float *bayered_image = (float *)calloc(width * height, sizeof(float));
     memcpy(bayered_image, image_r, width * height * sizeof(float));
     basic_debayer(bayered_image, image_r, image_g, image_b, width, height);
+    free(bayered_image);
   }
 
 
