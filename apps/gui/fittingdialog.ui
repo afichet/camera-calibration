@@ -25,7 +25,7 @@
        <item>
         <widget class="QGroupBox" name="groupBox">
          <property name="title">
-          <string>Reference parameters</string>
+          <string>Reference &amp;parameters</string>
          </property>
          <layout class="QVBoxLayout" name="verticalLayout_4">
           <item>
@@ -92,7 +92,7 @@
        <item>
         <widget class="QGroupBox" name="groupBox_2">
          <property name="title">
-          <string>Display result</string>
+          <string>&amp;Display result</string>
          </property>
          <layout class="QVBoxLayout" name="verticalLayout_6">
           <item>
@@ -174,7 +174,7 @@
      <item>
       <widget class="QPushButton" name="cancel">
        <property name="text">
-        <string>Cancel</string>
+        <string>&amp;Cancel</string>
        </property>
       </widget>
      </item>
@@ -184,7 +184,7 @@
         <bool>false</bool>
        </property>
        <property name="text">
-        <string>Apply</string>
+        <string>&amp;Apply</string>
        </property>
       </widget>
      </item>

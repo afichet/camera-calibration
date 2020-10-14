@@ -52,7 +52,7 @@
      <x>0</x>
      <y>0</y>
      <width>977</width>
-     <height>22</height>
+     <height>20</height>
     </rect>
    </property>
    <widget class="QMenu" name="menu_File">
@@ -99,7 +99,7 @@
      <item>
       <widget class="QGroupBox" name="groupBox_2">
        <property name="title">
-        <string>Margins</string>
+        <string>&amp;Margins</string>
        </property>
        <layout class="QGridLayout" name="gridLayout_2">
         <item row="0" column="1">
@@ -151,7 +151,7 @@
         <bool>false</bool>
        </property>
        <property name="text">
-        <string>Show patch numbers</string>
+        <string>Show patch &amp;numbers</string>
        </property>
       </widget>
      </item>
@@ -456,7 +456,7 @@
         <bool>false</bool>
        </property>
        <property name="text">
-        <string>Fit...</string>
+        <string>Fi&amp;t...</string>
        </property>
       </widget>
      </item>
