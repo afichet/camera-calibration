@@ -9,7 +9,7 @@
 
 void convolve3x3(float *matrix, float *array_in, float *array_out, size_t width, size_t height)
 {
-#pragma omp parallel for schedule(static)
+  #pragma omp parallel for schedule(static)
   for (int y = 1; y < (int)height - 1; y++)
   {
     for (int x = 1; x < (int)width - 1; x++)
@@ -166,7 +166,7 @@ int main(int argc, char *argv[])
     // Populate each color from the bayered image
     const auto startBayer = std::chrono::high_resolution_clock::now();
 
-#pragma omp parallel for schedule(static)
+    #pragma omp parallel for schedule(static)
     for (int y = 0; y < (int)height / 2; y++)
     {
       for (size_t x = 0; x < width / 2; x++)

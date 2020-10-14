@@ -24,7 +24,7 @@
 
 void image_convolve3x3(float *matrix, float *array_in, float *array_out, size_t width, size_t height)
 {
-#pragma omp parallel for
+  #pragma omp parallel for
   for (int y = 1; y < (int)height - 1; y++)
   {
     for (int x = 1; x < (int)width - 1; x++)
@@ -40,44 +40,47 @@ void image_convolve3x3(float *matrix, float *array_in, float *array_out, size_t 
 
   // Doing the borders
 
-#pragma omp parallel for
+  #pragma omp parallel for
   for (int x = 1; x < (int)width - 1; x++)
   {
     int y = 0;
+
     // clang-format off
-      array_out[y * width + x] =
-        matrix[0] * array_in[(y + 1) * width + x - 1] + matrix[1] * array_in[(y + 1) * width + x] + matrix[2] * array_in[(y + 1) * width + x + 1] +
-        matrix[3] * array_in[(  y  ) * width + x - 1] + matrix[4] * array_in[(  y  ) * width + x] + matrix[5] * array_in[(  y  ) * width + x + 1] +
-        matrix[6] * array_in[(y + 1) * width + x - 1] + matrix[7] * array_in[(y + 1) * width + x] + matrix[8] * array_in[(y + 1) * width + x + 1];
+    array_out[y * width + x] =
+      matrix[0] * array_in[(y + 1) * width + x - 1] + matrix[1] * array_in[(y + 1) * width + x] + matrix[2] * array_in[(y + 1) * width + x + 1] +
+      matrix[3] * array_in[(  y  ) * width + x - 1] + matrix[4] * array_in[(  y  ) * width + x] + matrix[5] * array_in[(  y  ) * width + x + 1] +
+      matrix[6] * array_in[(y + 1) * width + x - 1] + matrix[7] * array_in[(y + 1) * width + x] + matrix[8] * array_in[(y + 1) * width + x + 1];
     // clang-format on
 
     y = height - 1;
+
     // clang-format off
-      array_out[y * width + x] =
-              matrix[0] * array_in[(y - 1) * width + x - 1] + matrix[1] * array_in[(y - 1) * width + x] + matrix[2] * array_in[(y - 1) * width + x + 1] +
-              matrix[3] * array_in[(  y  ) * width + x - 1] + matrix[4] * array_in[(  y  ) * width + x] + matrix[5] * array_in[(  y  ) * width + x + 1] +
-              matrix[6] * array_in[(y - 1) * width + x - 1] + matrix[7] * array_in[(y - 1) * width + x] + matrix[8] * array_in[(y - 1) * width + x + 1];
+    array_out[y * width + x] =
+      matrix[0] * array_in[(y - 1) * width + x - 1] + matrix[1] * array_in[(y - 1) * width + x] + matrix[2] * array_in[(y - 1) * width + x + 1] +
+      matrix[3] * array_in[(  y  ) * width + x - 1] + matrix[4] * array_in[(  y  ) * width + x] + matrix[5] * array_in[(  y  ) * width + x + 1] +
+      matrix[6] * array_in[(y - 1) * width + x - 1] + matrix[7] * array_in[(y - 1) * width + x] + matrix[8] * array_in[(y - 1) * width + x + 1];
     // clang-format on
   }
 
-#pragma omp parallel for
+  #pragma omp parallel for
   for (int y = 1; y < (int)height - 1; y++)
   {
     int x = 0;
+
     // clang-format off
-        array_out[y * width + x] =
-          matrix[0] * array_in[(y - 1) * width + x + 1] + matrix[1] * array_in[(y - 1) * width + x] + matrix[2] * array_in[(y - 1) * width + x + 1] +
-          matrix[3] * array_in[(  y  ) * width + x + 1] + matrix[4] * array_in[(  y  ) * width + x] + matrix[5] * array_in[(  y  ) * width + x + 1] +
-          matrix[6] * array_in[(y + 1) * width + x + 1] + matrix[7] * array_in[(y + 1) * width + x] + matrix[8] * array_in[(y + 1) * width + x + 1];
+    array_out[y * width + x] =
+      matrix[0] * array_in[(y - 1) * width + x + 1] + matrix[1] * array_in[(y - 1) * width + x] + matrix[2] * array_in[(y - 1) * width + x + 1] +
+      matrix[3] * array_in[(  y  ) * width + x + 1] + matrix[4] * array_in[(  y  ) * width + x] + matrix[5] * array_in[(  y  ) * width + x + 1] +
+      matrix[6] * array_in[(y + 1) * width + x + 1] + matrix[7] * array_in[(y + 1) * width + x] + matrix[8] * array_in[(y + 1) * width + x + 1];
     // clang-format on
 
     x = width - 1;
 
     // clang-format off
-        array_out[y * width + x] =
-                matrix[0] * array_in[(y - 1) * width + x - 1] + matrix[1] * array_in[(y - 1) * width + x] + matrix[2] * array_in[(y - 1) * width + x - 1] +
-                matrix[3] * array_in[(  y  ) * width + x - 1] + matrix[4] * array_in[(  y  ) * width + x] + matrix[5] * array_in[(  y  ) * width + x - 1] +
-                matrix[6] * array_in[(y + 1) * width + x - 1] + matrix[7] * array_in[(y + 1) * width + x] + matrix[8] * array_in[(y + 1) * width + x - 1];
+    array_out[y * width + x] =
+      matrix[0] * array_in[(y - 1) * width + x - 1] + matrix[1] * array_in[(y - 1) * width + x] + matrix[2] * array_in[(y - 1) * width + x - 1] +
+      matrix[3] * array_in[(  y  ) * width + x - 1] + matrix[4] * array_in[(  y  ) * width + x] + matrix[5] * array_in[(  y  ) * width + x - 1] +
+      matrix[6] * array_in[(y + 1) * width + x - 1] + matrix[7] * array_in[(y + 1) * width + x] + matrix[8] * array_in[(y + 1) * width + x - 1];
     // clang-format on
   }
 
@@ -89,40 +92,40 @@ void image_convolve3x3(float *matrix, float *array_in, float *array_out, size_t 
   y = 0;
 
   // clang-format off
-    array_out[y * width + x] =
-      matrix[0] * array_in[(y + 1) * width + x + 1] + matrix[1] * array_in[(y + 1) * width + x] + matrix[2] * array_in[(y + 1) * width + x + 1] +
-      matrix[3] * array_in[(  y  ) * width + x + 1] + matrix[4] * array_in[(  y  ) * width + x] + matrix[5] * array_in[(  y  ) * width + x + 1] +
-      matrix[6] * array_in[(y + 1) * width + x + 1] + matrix[7] * array_in[(y + 1) * width + x] + matrix[8] * array_in[(y + 1) * width + x + 1];
+  array_out[y * width + x] =
+    matrix[0] * array_in[(y + 1) * width + x + 1] + matrix[1] * array_in[(y + 1) * width + x] + matrix[2] * array_in[(y + 1) * width + x + 1] +
+    matrix[3] * array_in[(  y  ) * width + x + 1] + matrix[4] * array_in[(  y  ) * width + x] + matrix[5] * array_in[(  y  ) * width + x + 1] +
+    matrix[6] * array_in[(y + 1) * width + x + 1] + matrix[7] * array_in[(y + 1) * width + x] + matrix[8] * array_in[(y + 1) * width + x + 1];
   // clang-format on
 
   // x = 0
   y = height - 1;
 
   // clang-format off
-    array_out[y * width + x] =
-      matrix[0] * array_in[(y - 1) * width + x + 1] + matrix[1] * array_in[(y - 1) * width + x] + matrix[2] * array_in[(y - 1) * width + x + 1] +
-      matrix[3] * array_in[(  y  ) * width + x + 1] + matrix[4] * array_in[(  y  ) * width + x] + matrix[5] * array_in[(  y  ) * width + x + 1] +
-      matrix[6] * array_in[(y - 1) * width + x + 1] + matrix[7] * array_in[(y - 1) * width + x] + matrix[8] * array_in[(y - 1) * width + x + 1];
+  array_out[y * width + x] =
+    matrix[0] * array_in[(y - 1) * width + x + 1] + matrix[1] * array_in[(y - 1) * width + x] + matrix[2] * array_in[(y - 1) * width + x + 1] +
+    matrix[3] * array_in[(  y  ) * width + x + 1] + matrix[4] * array_in[(  y  ) * width + x] + matrix[5] * array_in[(  y  ) * width + x + 1] +
+    matrix[6] * array_in[(y - 1) * width + x + 1] + matrix[7] * array_in[(y - 1) * width + x] + matrix[8] * array_in[(y - 1) * width + x + 1];
   // clang-format on
 
   x = width - 1;
   // y = height - 1;
 
   // clang-format off
-    array_out[y * width + x] =
-      matrix[0] * array_in[(y - 1) * width + x - 1] + matrix[1] * array_in[(y - 1) * width + x] + matrix[2] * array_in[(y - 1) * width + x - 1] +
-      matrix[3] * array_in[(  y  ) * width + x - 1] + matrix[4] * array_in[(  y  ) * width + x] + matrix[5] * array_in[(  y  ) * width + x - 1] +
-      matrix[6] * array_in[(y - 1) * width + x - 1] + matrix[7] * array_in[(y - 1) * width + x] + matrix[8] * array_in[(y - 1) * width + x - 1];
+  array_out[y * width + x] =
+    matrix[0] * array_in[(y - 1) * width + x - 1] + matrix[1] * array_in[(y - 1) * width + x] + matrix[2] * array_in[(y - 1) * width + x - 1] +
+    matrix[3] * array_in[(  y  ) * width + x - 1] + matrix[4] * array_in[(  y  ) * width + x] + matrix[5] * array_in[(  y  ) * width + x - 1] +
+    matrix[6] * array_in[(y - 1) * width + x - 1] + matrix[7] * array_in[(y - 1) * width + x] + matrix[8] * array_in[(y - 1) * width + x - 1];
   // clang-format on
 
   // x = width - 1;
   y = 0;
 
   // clang-format off
-    array_out[y * width + x] =
-            matrix[0] * array_in[(y + 1) * width + x - 1] + matrix[1] * array_in[(y + 1) * width + x] + matrix[2] * array_in[(y + 1) * width + x - 1] +
-            matrix[3] * array_in[(  y  ) * width + x - 1] + matrix[4] * array_in[(  y  ) * width + x] + matrix[5] * array_in[(  y  ) * width + x - 1] +
-            matrix[6] * array_in[(y + 1) * width + x - 1] + matrix[7] * array_in[(y + 1) * width + x] + matrix[8] * array_in[(y + 1) * width + x - 1];
+  array_out[y * width + x] =
+    matrix[0] * array_in[(y + 1) * width + x - 1] + matrix[1] * array_in[(y + 1) * width + x] + matrix[2] * array_in[(y + 1) * width + x - 1] +
+    matrix[3] * array_in[(  y  ) * width + x - 1] + matrix[4] * array_in[(  y  ) * width + x] + matrix[5] * array_in[(  y  ) * width + x - 1] +
+    matrix[6] * array_in[(y + 1) * width + x - 1] + matrix[7] * array_in[(y + 1) * width + x] + matrix[8] * array_in[(y + 1) * width + x - 1];
   // clang-format on
 }
 
@@ -201,7 +204,7 @@ extern "C"
     memset(b_buffer, 0, n_elems * sizeof(float));
 
     // Populate each color from the bayered image
-#pragma omp parallel for
+    #pragma omp parallel for
     for (int y = 0; y < int(height); y += 2)
     {
       for (size_t x = 0; x < width; x += 2)
@@ -733,7 +736,7 @@ extern "C"
       float *buffer_g = (float *)(image.images[idxG]);
       float *buffer_b = (float *)(image.images[idxB]);
 
-#pragma omp parallel for
+      #pragma omp parallel for
       for (int i = 0; i < image.width * image.height; i++)
       {
         // set all channels to 0 in case exr file contains only one or two
@@ -749,7 +752,7 @@ extern "C"
       unsigned int *buffer_g = (unsigned int *)(image.images[idxG]);
       unsigned int *buffer_b = (unsigned int *)(image.images[idxB]);
 
-#pragma omp parallel for
+      #pragma omp parallel for
       for (int i = 0; i < image.width * image.height; i++)
       {
         // set all channels to 0 in case exr file contains only one or two
@@ -877,7 +880,7 @@ extern "C"
       unsigned int *buffer_g = (unsigned int *)(image.images[idxG]);
       unsigned int *buffer_b = (unsigned int *)(image.images[idxB]);
 
-#pragma omp parallel for
+      #pragma omp parallel for
       for (int i = 0; i < image.width * image.height; i++)
       {
         // set all channels to 0 in case exr file contains only one or two
@@ -915,7 +918,7 @@ extern "C"
     float *green = new float[width * height];
     float *blue  = new float[width * height];
 
-#pragma omp parallel for
+    #pragma omp parallel for
     for (size_t i = 0; i < width * height; i++)
     {
       red[i]   = pixels[3 * i + 0];
@@ -1024,7 +1027,7 @@ extern "C"
     const size_t size       = (*width) * (*height);
     float *      out_buffer = new float[3 * size];
 
-#pragma omp parallel for
+    #pragma omp parallel for
     for (int i = 0; i < int(size); i++)
     {
       out_buffer[3 * i + 0] = r_cv_buffer[i];
@@ -1093,6 +1096,7 @@ extern "C"
      * └───────┴────────────────┘
      */
 
+    // We read the header
     char         data_type;
     unsigned int l_width, l_height, n_channels;
 
@@ -1103,146 +1107,169 @@ extern "C"
 
     if (n_channels != 1)
     {
-      fprintf(stderr, "Unsupported number of channels: %d", n_channels);
+      std::cerr << "Unexpeted number of channels: " << n_channels;
+      fclose(fin);
+      return -1;
     }
 
-    size_t n_elems = l_width * l_height;
-
-    float *bayered_image = new float[n_elems];
+    // We determine the number of bytes to read based on the datatype
+    size_t n_bytes_per_channel;
 
     switch (data_type)
     {
+      case 1:   // bool
+        n_bytes_per_channel = sizeof(bool);
+        break;
+
       case 2:   // unsigned char
-      {
-        unsigned char *buff = new unsigned char[n_elems];
-        fread(buff, sizeof(unsigned char), n_elems, fin);
-
-        // Copy cast
-#pragma omp parallel for
-        for (int i = 0; i < int(n_elems); i++)
-        {
-          bayered_image[i] = (float)buff[i];
-        }
-
-        delete[] buff;
-      }
-      break;
+        n_bytes_per_channel = sizeof(unsigned char);
+        break;
 
       case 3:   // char
-      {
-        char *buff = new char[n_elems];
-        fread(buff, sizeof(char), n_elems, fin);
+        n_bytes_per_channel = sizeof(char);
+        break;
 
-        // Copy cast
-#pragma omp parallel for
-        for (int i = 0; i < int(n_elems); i++)
-        {
-          bayered_image[i] = (float)buff[i];
-        }
-
-        delete[] buff;
-      }
-      break;
       case 4:   // unsigned short
-      {
-        unsigned short *buff = new unsigned short[n_elems];
-        fread(buff, sizeof(unsigned short), n_elems, fin);
-
-        // Copy cast
-#pragma omp parallel for
-        for (int i = 0; i < int(n_elems); i++)
-        {
-          bayered_image[i] = (float)buff[i];
-        }
-
-        delete[] buff;
-      }
-      break;
+        n_bytes_per_channel = sizeof(unsigned short);
+        break;
 
       case 5:   // short
-      {
-        short *buff = new short[n_elems];
-        fread(buff, sizeof(short), n_elems, fin);
-
-        // Copy cast
-#pragma omp parallel for
-        for (int i = 0; i < int(n_elems); i++)
-        {
-          bayered_image[i] = (float)buff[i];
-        }
-
-        delete[] buff;
-      }
-      break;
+        n_bytes_per_channel = sizeof(short);
+        break;
 
       case 6:   // unsigned int
-      {
-        unsigned int *buff = new unsigned int[n_elems];
-        fread(buff, sizeof(unsigned int), n_elems, fin);
-
-        // Copy cast
-#pragma omp parallel for
-        for (int i = 0; i < int(n_elems); i++)
-        {
-          bayered_image[i] = (float)buff[i];
-        }
-
-        delete[] buff;
-      }
-      break;
+        n_bytes_per_channel = sizeof(unsigned int);
+        break;
 
       case 7:   // int
-      {
-        int *buff = new int[n_elems];
-        fread(buff, sizeof(int), n_elems, fin);
-
-        // Copy cast
-#pragma omp parallel for
-        for (int i = 0; i < int(n_elems); i++)
-        {
-          bayered_image[i] = (float)buff[i];
-        }
-
-        delete[] buff;
-      }
-      break;
+        n_bytes_per_channel = sizeof(int);
+        break;
 
       case 8:   // float
-      {
-        float *buff = new float[n_elems];
-        fread(buff, sizeof(float), n_elems, fin);
-
-        // Copy cast
-#pragma omp parallel for
-        for (int i = 0; i < int(n_elems); i++)
-        {
-          bayered_image[i] = (float)buff[i];
-        }
-
-        delete[] buff;
-      }
-      break;
+        n_bytes_per_channel = sizeof(float);
+        break;
 
       case 9:   // double
-      {
-        double *buff = new double[n_elems];
-        fread(buff, sizeof(double), n_elems, fin);
-
-        // Copy cast
-#pragma omp parallel for
-        for (int i = 0; i < int(n_elems); i++)
-        {
-          bayered_image[i] = (float)buff[i];
-        }
-
-        delete[] buff;
-      }
-      break;
+        n_bytes_per_channel = sizeof(double);
+        break;
 
       default:
         std::cerr << "Unsupported data type: " << data_type << std::endl;
         return -1;
     }
+
+    const size_t n_elems        = l_width * l_height * n_channels;
+    const size_t expected_bytes = n_elems * n_bytes_per_channel;
+    size_t       read_elems;
+
+    // Now read the pixels from the file
+    void *read_buff = (void *)malloc(expected_bytes);
+    read_elems      = fread(read_buff, n_bytes_per_channel, n_elems, fin);
+    fclose(fin);
+
+    if (read_elems != n_elems)
+    {
+      std::cerr << "The file is corrupted!" << std::endl
+                << " - expected pixels: " << n_elems << std::endl
+                << " - read pixels:     " << read_elems << std::endl;
+
+      free(read_buff);
+      return -1;
+    }
+
+    // Copy cast
+    float *bayered_image = new float[n_elems];
+
+    switch (data_type)
+    {
+      case 1:   // bool
+      {
+        bool *buff = reinterpret_cast<bool *>(read_buff);
+        #pragma omp parallel for
+        for (int i = 0; i < int(n_elems); i++)
+          bayered_image[i] = (float)buff[i];
+      }
+      break;
+
+      case 2:   // unsigned char
+      {
+        unsigned char *buff = reinterpret_cast<unsigned char *>(read_buff);
+        #pragma omp parallel for
+        for (int i = 0; i < int(n_elems); i++)
+          bayered_image[i] = (float)buff[i];
+      }
+      break;
+
+      case 3:   // char
+      {
+        char *buff = reinterpret_cast<char *>(read_buff);
+        #pragma omp parallel for
+        for (int i = 0; i < int(n_elems); i++)
+          bayered_image[i] = (float)buff[i];
+      }
+      break;
+      case 4:   // unsigned short
+      {
+        unsigned short *buff = reinterpret_cast<unsigned short *>(read_buff);
+        #pragma omp parallel for
+        for (int i = 0; i < int(n_elems); i++)
+          bayered_image[i] = (float)buff[i];
+      }
+      break;
+
+      case 5:   // short
+      {
+        short *buff = reinterpret_cast<short *>(read_buff);
+        #pragma omp parallel for
+        for (int i = 0; i < int(n_elems); i++)
+          bayered_image[i] = (float)buff[i];
+      }
+      break;
+
+      case 6:   // unsigned int
+      {
+        unsigned int *buff = reinterpret_cast<unsigned int *>(read_buff);
+        #pragma omp parallel for
+        for (int i = 0; i < int(n_elems); i++)
+          bayered_image[i] = (float)buff[i];
+      }
+      break;
+
+      case 7:   // int
+      {
+        int *buff = reinterpret_cast<int *>(read_buff);
+        #pragma omp parallel for
+        for (int i = 0; i < int(n_elems); i++)
+          bayered_image[i] = (float)buff[i];
+      }
+      break;
+
+      case 8:   // float
+      {
+        float *buff = reinterpret_cast<float *>(read_buff);
+        #pragma omp parallel for
+        for (int i = 0; i < int(n_elems); i++)
+          bayered_image[i] = (float)buff[i];
+      }
+      break;
+
+      case 9:   // double
+      {
+        double *buff = reinterpret_cast<double *>(read_buff);
+        #pragma omp parallel for
+        for (int i = 0; i < int(n_elems); i++)
+          bayered_image[i] = (float)buff[i];
+      }
+      break;
+
+      default:
+        // This should not happen since this is already checked.
+        std::cerr << "Unsupported data type: " << data_type << std::endl;
+        free(read_buff);
+        return -1;
+    }
+
+    free(read_buff);
 
     *pixels_red   = new float[n_elems];
     *pixels_green = new float[n_elems];

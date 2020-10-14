@@ -48,7 +48,7 @@ void ImageModel::getAveragedPatches(std::vector<float> &values)
 
   for (int y = 0; y < _image.height(); y++)
   {
-#pragma omp parallel for
+    #pragma omp parallel for
     for (int x = 0; x < _image.width(); x++)
     {
       const QPointF currentPixel(x, y);
@@ -71,7 +71,7 @@ void ImageModel::getAveragedPatches(std::vector<float> &values)
   }
 
   values.resize(3 * _macbethPatches.size());
-#pragma omp parallel for
+  #pragma omp parallel for
   for (int p = 0; p < _macbethPatches.size(); p++)
   {
     for (int c = 0; c < 3; c++)
@@ -135,7 +135,7 @@ void ImageModel::openImage(const QString &filename)
       for (size_t y = 0; y < height; y++)
       {
         uchar *scanline = _image.scanLine(y);
-#pragma omp parallel for
+        #pragma omp parallel for
         for (int x = 0; x < int(width); x++)
         {
           const int px_idx = 3 * (y * width + x);
@@ -157,7 +157,7 @@ void ImageModel::openImage(const QString &filename)
       for (size_t y = 0; y < height; y++)
       {
         uchar *scanline = _image.scanLine(y);
-#pragma omp parallel for
+        #pragma omp parallel for
         for (int x = 0; x < int(width); x++)
         {
           const int px_idx = 3 * (y * width + x);
@@ -346,7 +346,7 @@ void ImageModel::recalculateCorrection(double exposure)
         if (_processWatcher->isCanceled()) return;
         uchar *scanline = _image.scanLine(y);
 
-#pragma omp parallel for
+        #pragma omp parallel for
         for (int x = 0; x < _image.width(); x++)
         {
           const int px_idx = 3 * (y * _image.width() + x);
@@ -371,7 +371,7 @@ void ImageModel::recalculateCorrection(double exposure)
         if (_processWatcher->isCanceled()) return;
         uchar *scanline = _image.scanLine(y);
 
-#pragma omp parallel for
+        #pragma omp parallel for
         for (int x = 0; x < _image.width(); x++)
         {
           const int px_idx = 3 * (y * _image.width() + x);

@@ -72,7 +72,7 @@ void MacbethReferenceModel::updateColors()
 {
   const size_t n_macbeth_wavelengths = sizeof(macbeth_wavelengths) / sizeof(int);
 
-#pragma omp parallel for
+  #pragma omp parallel for
   for (int i = 0; i < 24; i++)
   {
     spectrum_reflective_to_XYZ(
