@@ -42,7 +42,8 @@ public slots:
   void setMatrix(const std::array<float, 9> matrix);
   void setMatrixActive(bool active);
 
-  void savePatches(const QString &filename);
+  void savePatchesCoordinates(const QString &filename);
+  void savePatchesColors(const QString &filename);
   void saveMatrix(const QString &filename);
 
 signals:

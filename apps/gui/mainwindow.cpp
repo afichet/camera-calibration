@@ -90,14 +90,23 @@ void MainWindow::on_action_Open_triggered()
   }
 }
 
-
-void MainWindow::on_action_Save_areas_triggered()
+void MainWindow::on_actionExport_coordinates_triggered()
 {
-  QString filename = QFileDialog::getSaveFileName(this, tr("Save patches"), "", tr("CSV (*.csv)"));
+  QString filename = QFileDialog::getSaveFileName(this, tr("Save patches coordinates"), "", tr("CSV (*.csv)"));
 
   if (filename.size() != 0)
   {
-    _model.savePatches(filename);
+    _model.savePatchesCoordinates(filename);
+  }
+}
+
+void MainWindow::on_action_Save_areas_triggered()
+{
+  QString filename = QFileDialog::getSaveFileName(this, tr("Save patches colors"), "", tr("CSV (*.csv)"));
+
+  if (filename.size() != 0)
+  {
+    _model.savePatchesColors(filename);
   }
 }
 
@@ -142,6 +151,7 @@ void MainWindow::onImageLoaded(int, int)
   ui->sliderInnerMarginY->setEnabled(true);
   ui->showPatchNumbers->setEnabled(true);
   ui->buttonFit->setEnabled(true);
+  ui->actionExport_coordinates->setEnabled(true);
   ui->action_Save_areas->setEnabled(true);
 
   if (_model.isMatrixLoaded())

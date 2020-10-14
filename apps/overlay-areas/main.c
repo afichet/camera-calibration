@@ -5,7 +5,19 @@
 #include <color-converter.h>
 #include <image.h>
 
-int load_boxfile(const char *filename, int **areas, size_t *size)
+typedef struct
+{
+  float x, y;
+} Point;
+
+
+typedef struct
+{
+  Point a, b, c, d;
+} Box;
+
+
+int load_boxfile(const char *filename, Box **areas, size_t *size)
 {
   FILE *fin = fopen(filename, "r");
 
@@ -15,43 +27,72 @@ int load_boxfile(const char *filename, int **areas, size_t *size)
     return -1;
   }
 
-  int *buff_values = NULL;
-  *size            = 0;
+  Box *read_boxes = NULL;
+  *size           = 0;
 
   while (!feof(fin))
   {
     (*size)++;
-    int *buff_values_temp = (int *)realloc(buff_values, 4 * (*size) * sizeof(int));
+    Box *read_boxes_temp = (Box *)realloc(read_boxes, (*size) * sizeof(Box));
 
-    if (buff_values_temp == NULL)
+    if (read_boxes_temp == NULL)
     {
       fprintf(stderr, "Memory allocation error\n");
       fclose(fin);
-      free(buff_values);
+      free(read_boxes);
       return -1;
     }
 
-    buff_values = buff_values_temp;
+    read_boxes = read_boxes_temp;
 
     int r = fscanf(
         fin,
-        "%d,%d,%d,%d\n",
-        &buff_values[4 * (*size - 1)],
-        &buff_values[4 * (*size - 1) + 1],
-        &buff_values[4 * (*size - 1) + 2],
-        &buff_values[4 * (*size - 1) + 3]);
+        "%f,%f;%f,%f;%f,%f;%f,%f;\n",
+        &(read_boxes[*size - 1].a.x),
+        &(read_boxes[*size - 1].a.y),
+        &(read_boxes[*size - 1].b.x),
+        &(read_boxes[*size - 1].b.y),
+        &(read_boxes[*size - 1].c.x),
+        &(read_boxes[*size - 1].c.y),
+        &(read_boxes[*size - 1].d.x),
+        &(read_boxes[*size - 1].d.y));
 
     if (r == 0)
     {
       fprintf(stderr, "Error while reading file %s\n", filename);
       fclose(fin);
+      free(read_boxes);
       return -1;
     }
   }
 
   fclose(fin);
 
-  *areas = buff_values;
+  *areas = read_boxes;
+
+  return 0;
+}
+
+
+int isInTriangle(const Point *p, const Point *p0, const Point *p1, const Point *p2)
+{
+  const float as_x = p->x - p0->x;
+  const float as_y = p->y - p0->y;
+  const float s_ab = (p1->x - p0->x) * as_y - (p1->y - p0->y) * as_x > 0;
+
+  if (((p2->x - p0->x) * as_y - (p2->y - p0->y) * as_x > 0) == s_ab) return 0;
+  if (((p2->x - p1->x) * (p->y - p1->y) - (p2->y - p1->y) * (p->x - p1->x) > 0) != s_ab) return 0;
+
+  return 1;
+}
+
+
+int isInBox(const Point *p, const Box *b)
+{
+  if (isInTriangle(p, &b->a, &b->b, &b->c) != 0 || isInTriangle(p, &b->a, &b->c, &b->d) != 0)
+  {
+    return 1;
+  }
 
   return 0;
 }
@@ -75,7 +116,8 @@ int main(int argc, char *argv[])
 
   float *image = NULL;
   size_t width, height;
-  int *  areas = NULL;
+
+  Box *  areas = NULL;
   size_t n_areas;
 
   // Open image in
@@ -98,15 +140,22 @@ int main(int argc, char *argv[])
   }
 
   // Overlay
-  for (size_t a = 0; a < n_areas; a++)
+  for (size_t y = 0; y < height; y++)
   {
-    for (int y = areas[4 * a + 1]; y < areas[4 * a + 3]; y++)
+    for (size_t x = 0; x < width; x++)
     {
-      for (int x = areas[4 * a]; x < areas[4 * a + 2]; x++)
+      const Point currentPixel = {(float)x, (float)y};
+
+      for (size_t patch = 0; patch < n_areas; patch++)
       {
-        for (int c = 1; c < 3; c++)
+        if (isInBox(&currentPixel, &areas[patch]) != 0)
         {
-          image[3 * (y * width + x) + c] *= .5f;
+          for (int c = 0; c < 3; c++)
+          {
+            image[3 * (y * width + x) + c] *= .5f;
+          }
+
+          break;
         }
       }
     }

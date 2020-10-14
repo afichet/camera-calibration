@@ -282,8 +282,7 @@ void ImageModel::setMatrixActive(bool active)
   emit matrixActivationStateChanged(_isMatrixActive);
 }
 
-
-void ImageModel::savePatches(const QString &filename)
+void ImageModel::savePatchesCoordinates(const QString &filename)
 {
   if (!isImageLoaded()) return;
 
@@ -295,7 +294,40 @@ void ImageModel::savePatches(const QString &filename)
 
   QFuture<void> imageLoading = QtConcurrent::run([=]() {
     emit processProgress(0);
-    emit loadingMessage(tr("Saving patches..."));
+    emit loadingMessage(tr("Saving patches coordinates..."));
+
+    std::ofstream outputFile(filename.toStdString());
+
+    for (const QPolygonF &patch : _macbethPatches)
+    {
+      for (const QPointF &p : patch)
+      {
+        outputFile << p.x() << ", " << p.y() << "; ";
+      }
+      outputFile << std::endl;
+    }
+
+    emit processProgress(100);
+    emit loadingMessage("");
+  });
+
+  _processWatcher->setFuture(imageLoading);
+}
+
+
+void ImageModel::savePatchesColors(const QString &filename)
+{
+  if (!isImageLoaded()) return;
+
+  if (_processWatcher->isRunning())
+  {
+    emit _processWatcher->cancel();
+    _processWatcher->waitForFinished();
+  }
+
+  QFuture<void> imageLoading = QtConcurrent::run([=]() {
+    emit processProgress(0);
+    emit loadingMessage(tr("Saving patches colors..."));
 
     std::vector<float> final_values;
 

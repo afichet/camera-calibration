@@ -60,6 +60,7 @@
      <string>&amp;File</string>
     </property>
     <addaction name="action_Open"/>
+    <addaction name="actionExport_coordinates"/>
     <addaction name="action_Save_areas"/>
     <addaction name="actionSave_correction_matrix"/>
     <addaction name="separator"/>
@@ -565,6 +566,14 @@
    </property>
    <property name="shortcut">
     <string>Ctrl+-</string>
+   </property>
+  </action>
+  <action name="actionExport_coordinates">
+   <property name="enabled">
+    <bool>false</bool>
+   </property>
+   <property name="text">
+    <string>Export &amp;coordinates</string>
    </property>
   </action>
  </widget>

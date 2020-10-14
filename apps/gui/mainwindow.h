@@ -29,6 +29,7 @@ private:
 
 private slots:
   void on_action_Open_triggered();
+  void on_actionExport_coordinates_triggered();
   void on_action_Save_areas_triggered();
   void on_actionSave_correction_matrix_triggered();
 
@@ -52,6 +53,7 @@ private slots:
   void on_m22_textChanged(const QString &arg1);
 
   void on_buttonFit_clicked();
+
 
 private:
   Ui::MainWindow *ui;
