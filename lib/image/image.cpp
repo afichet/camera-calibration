@@ -1255,6 +1255,8 @@ extern "C"
     *width  = l_width;
     *height = l_height;
 
+    delete[] bayered_image;
+
     return 0;
   }
 
