@@ -1107,7 +1107,7 @@ extern "C"
     ret_read += fread(&l_height, sizeof(unsigned int), 1, fin);
     ret_read += fread(&n_channels, sizeof(unsigned int), 1, fin);
 
-    if (ret_read != sizeof(char) + 4 * sizeof(unsigned int))
+    if (ret_read != sizeof(char) + 3 * sizeof(unsigned int))
     {
       std::cerr << "Incorrect formed header" << std::endl;
       fclose(fin);
