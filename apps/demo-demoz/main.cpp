@@ -84,15 +84,24 @@ int main(int argc, char *argv[])
 
   char         data_type;
   unsigned int width, height, n_channels;
+  size_t       header_size = 0;
 
-  fread(&data_type, sizeof(char), 1, fin);
-  fread(&width, sizeof(unsigned int), 1, fin);
-  fread(&height, sizeof(unsigned int), 1, fin);
-  fread(&n_channels, sizeof(unsigned int), 1, fin);
+  header_size += fread(&data_type, sizeof(char), 1, fin);
+  header_size += fread(&width, sizeof(unsigned int), 1, fin);
+  header_size += fread(&height, sizeof(unsigned int), 1, fin);
+  header_size += fread(&n_channels, sizeof(unsigned int), 1, fin);
+
+  if (header_size != 4)
+  {
+    std::cerr << "Invalid formed file, could not decode the header" << std::endl;
+    fclose(fin);
+    return -1;
+  }
 
   if (n_channels != 1)
   {
     std::cerr << "Unsupported number of channels: " << n_channels << std::endl;
+    fclose(fin);
     return -1;
   }
 
@@ -160,8 +169,22 @@ int main(int argc, char *argv[])
 
   if (data_type == 4)   // unsigned short
   {
-    unsigned short *buff = new unsigned short[n_elems];
-    fread(buff, sizeof(unsigned short), n_elems, fin);
+    unsigned short *buff      = new unsigned short[n_elems];
+    const size_t    nb_pxread = fread(buff, sizeof(unsigned short), n_elems, fin);
+    fclose(fin);
+
+    if (nb_pxread != n_elems)
+    {
+      std::cerr << "Invalid file, missing pixels:" << std::endl
+                << "  - Expected: " << n_elems << std::endl
+                << "  - Got:      " << nb_pxread << std::endl;
+
+      delete[] buff;
+      delete[] r_buffer;
+      delete[] g_buffer;
+      delete[] b_buffer;
+      return -1;
+    }
 
     // Populate each color from the bayered image
     const auto startBayer = std::chrono::high_resolution_clock::now();
