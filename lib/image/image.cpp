@@ -1279,9 +1279,9 @@ extern "C"
 
     free(read_buff);
 
-    *pixels_red   = new float[n_elems];
-    *pixels_green = new float[n_elems];
-    *pixels_blue  = new float[n_elems];
+    *pixels_red   = (float *)malloc(sizeof(float) * n_elems);
+    *pixels_green = (float *)malloc(sizeof(float) * n_elems);
+    *pixels_blue  = (float *)malloc(sizeof(float) * n_elems);
 
     basic_debayer(bayered_image, *pixels_red, *pixels_green, *pixels_blue, l_width, l_height);
 
