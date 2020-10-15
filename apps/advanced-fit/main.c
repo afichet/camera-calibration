@@ -274,7 +274,12 @@ int main(int argc, char *argv[])
     goto error;
   }
 
-  err = load_patches_files(filename_patches_measured_list, &n_exposures, n_patches, &macbeth_patches_measured, &selected_patches);
+  err = load_patches_files(
+      filename_patches_measured_list,
+      &n_exposures,
+      n_patches,
+      &macbeth_patches_measured,
+      &selected_patches);
   if (err != 0)
   {
     fprintf(stderr, "Could not load measured patches files\n");
