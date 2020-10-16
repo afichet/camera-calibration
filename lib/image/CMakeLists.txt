@@ -1,11 +1,17 @@
 find_package(TIFF)
 
 set(PUBLIC_HEADERS
-    image.h
+    include/image.h
+    include/imagergb.h
+    include/imageraw.h
+    include/imageprocessing.h
     )
 
 add_library(image STATIC
     image.cpp
+    imagergb.cpp
+    imageraw.cpp
+    imageprocessing.cpp
     )
 
 if (TIFF_FOUND)
