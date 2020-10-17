@@ -183,7 +183,7 @@ extern "C"
     {
       err = read_dat(path_filename_img, &bayered_pixels, width, height, metadata.bitDepth);
     }
-#ifdef HAVE_TIFF
+#ifdef HAS_TIFF
     else if (
         strcmp(metadata.filename_image + len_filename_img - 3, "tif") == 0
         || strcmp(metadata.filename_image + len_filename_img - 3, "TIF") == 0
@@ -192,7 +192,7 @@ extern "C"
     {
       float *pg = NULL;
       float *pb = NULL;
-      err       = read_tif_rgb(path_filename_img, &bayered_pixels, &pg, &pb, width, height);
+      err       = read_tiff_rgb(path_filename_img, &bayered_pixels, &pg, &pb, width, height);
       free(pg);
       free(pb);
     }
