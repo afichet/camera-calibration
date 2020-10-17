@@ -14,7 +14,8 @@ extern "C"
       float *      pixels_green,
       float *      pixels_blue,
       size_t       width,
-      size_t       height);
+      size_t       height,
+      const char * bayer_pattern);
 
   void correct_image(float *pixels, size_t width, size_t height, float *matrix);
 

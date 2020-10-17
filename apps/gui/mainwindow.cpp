@@ -82,7 +82,7 @@ void MainWindow::dragEnterEvent(QDragEnterEvent *ev)
 void MainWindow::on_action_Open_triggered()
 {
   QString filename
-      = QFileDialog::getOpenFileName(this, tr("Open file"), "", tr("Image (*.tiff *.tif *.exr *.dat *.csv)"));
+      = QFileDialog::getOpenFileName(this, tr("Open file"), "", tr("Image (*.tiff *.tif *.exr *.txt *.csv)"));
 
   if (filename.size() != 0)
   {

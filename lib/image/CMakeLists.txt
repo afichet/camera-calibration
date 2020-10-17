@@ -41,7 +41,7 @@ if (OpenMP_FOUND OR OpenMP_CXX_FOUND)
 endif()
 
 
-target_link_libraries(image PUBLIC colors lodepng)
+target_link_libraries(image PUBLIC colors tinyxml2)
 
 #install(TARGETS image
 #    ARCHIVE DESTINATION ${CMAKE_ARCHIVE_OUTPUT_DIRECTORY}

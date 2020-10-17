@@ -1,19 +1,108 @@
 #include <imageraw.h>
 #include <imageprocessing.h>
+#include <imagergb.h>
 
 #include <cstdio>
 #include <cstdlib>
 #include <iostream>
 
+#include <tinyxml2.h>
+
 extern "C"
 {
-  int read_dat(const char *filename, float **pixels, size_t *width, size_t *height)
+  int read_raw_metadata(const char *filename, RAWMetadata *metadata)
+  {
+    tinyxml2::XMLDocument doc;
+    tinyxml2::XMLError    err = doc.LoadFile(filename);
+
+    if (err != tinyxml2::XML_SUCCESS)
+    {
+      return err;
+    }
+
+    tinyxml2::XMLElement *cameraImage = doc.FirstChildElement("CameraImage");
+
+    if (cameraImage == NULL)
+    {
+      std::cerr << "Could not read metadata from " << filename << std::endl;
+      return -1;
+    }
+
+    tinyxml2::XMLElement *lighting    = cameraImage->FirstChildElement("Lighting");
+    tinyxml2::XMLElement *cameraState = cameraImage->FirstChildElement("CameraInternalState");
+
+    if (lighting == NULL || cameraState == NULL)
+    {
+      std::cerr << "Could not read metadata from " << filename << std::endl;
+      return -1;
+    }
+
+    tinyxml2::XMLElement *exposureTime  = cameraState->FirstChildElement("exposureTime");
+    tinyxml2::XMLElement *aperture      = cameraState->FirstChildElement("aperture");
+    tinyxml2::XMLElement *gain          = cameraState->FirstChildElement("gain");
+    tinyxml2::XMLElement *bitDepth      = cameraState->FirstChildElement("bitDepth");
+    tinyxml2::XMLElement *bayerPattern  = cameraState->FirstChildElement("bayerPattern");
+    tinyxml2::XMLElement *filepath_img  = cameraImage->FirstChildElement("filepath_img");
+    tinyxml2::XMLElement *filepath_info = cameraImage->FirstChildElement("filepath_info");
+
+    if (aperture == NULL || exposureTime == NULL || gain == NULL || bitDepth == NULL || bayerPattern == NULL
+        || filepath_img == NULL || filepath_info == NULL)
+    {
+      std::cerr << "Could not read metadata from " << filename << std::endl;
+      return -1;
+    }
+
+    tinyxml2::XMLElement *LED     = lighting->FirstChildElement("LED");
+    tinyxml2::XMLElement *LED_idx = NULL;
+
+    if (LED != NULL)
+    {
+      LED_idx = LED->FirstChildElement("idx");
+    }
+
+    if (LED_idx != NULL)
+    {
+      metadata->ledIdx = std::stoi(LED_idx->GetText());
+    }
+    else
+    {
+      metadata->ledIdx = -1;
+    }
+
+    metadata->exposureTime = std::stof(exposureTime->GetText());
+    metadata->aperture     = std::stof(aperture->GetText());
+    metadata->gain         = std::stof(gain->GetText());
+    metadata->bitDepth     = std::stoi(bitDepth->GetText());
+
+    const char *bayer = bayerPattern->GetText();
+    if (strlen(bayer) != 4)
+    {
+      std::cerr << "Incorrect bayer pattern" << std::endl;
+      return -1;
+    }
+
+    const char *img_name  = filepath_img->GetText();
+    const char *info_name = filepath_info->GetText();
+
+    metadata->bayerPattern = (char *)calloc(5, sizeof(char));
+    memcpy(metadata->bayerPattern, bayer, 4 * sizeof(char));
+    metadata->bayerPattern[4] = '\0';
+
+    metadata->filename_image = (char *)calloc(strlen(img_name) + 1, sizeof(char));
+    metadata->filename_info  = (char *)calloc(strlen(info_name) + 1, sizeof(char));
+    strcpy(metadata->filename_image, img_name);
+    strcpy(metadata->filename_info, info_name);
+
+    return 0;
+  }
+
+  int read_raw(const char *filename, float **pixels, size_t *width, size_t *height)
   {
     float *r_cv_buffer = NULL;
     float *g_cv_buffer = NULL;
     float *b_cv_buffer = NULL;
 
-    int ret = read_dat_rgb(filename, &r_cv_buffer, &g_cv_buffer, &b_cv_buffer, width, height);
+    int ret = read_raw_rgb(filename, &r_cv_buffer, &g_cv_buffer, &b_cv_buffer, width, height);
 
     if (ret != 0)
     {
@@ -41,13 +130,105 @@ extern "C"
     return 0;
   }
 
-  int read_dat_rgb(
+  int read_raw_rgb(
       const char *filename,
       float **    pixels_red,
       float **    pixels_green,
       float **    pixels_blue,
       size_t *    width,
       size_t *    height)
+  {
+    RAWMetadata metadata;
+    int         err = read_raw_metadata(filename, &metadata);
+
+    if (err != 0)
+    {
+      free(metadata.bayerPattern);
+      free(metadata.filename_image);
+      free(metadata.filename_info);
+
+      return err;
+    }
+
+    // Now, we need location of the image data
+    const size_t len_filename_info = strlen(metadata.filename_info);
+    const size_t len_filename_img  = strlen(metadata.filename_image);
+    const size_t len_path          = strlen(filename);
+    const size_t len_basepath      = len_path - len_filename_info;
+    const size_t len_path_img      = len_basepath + len_filename_img;
+    char *       path_filename_img = (char *)calloc(len_path_img + 1, sizeof(char));
+
+    // Add the basedir
+    strncpy(path_filename_img, filename, len_basepath);
+    // Append the image file name
+    strcpy(&path_filename_img[len_basepath], metadata.filename_image);
+
+    // Now, we have to use the relevant function depending on the file type
+    // This is similar to the read_image_* functions except we have to renormalize
+    // data for DAT files
+    float *bayered_pixels = NULL;
+
+    if (strcmp(metadata.filename_image + len_filename_img - 3, "exr") == 0
+        || strcmp(metadata.filename_image + len_filename_img - 3, "EXR") == 0)
+    {
+      float *pg = NULL;
+      float *pb = NULL;
+      err       = read_exr_rgb(path_filename_img, &bayered_pixels, &pg, &pb, width, height);
+      free(pg);
+      free(pb);
+    }
+    else if (
+        strcmp(metadata.filename_image + len_filename_img - 3, "dat") == 0
+        || strcmp(metadata.filename_image + len_filename_img - 3, "DAT") == 0)
+    {
+      err = read_dat(path_filename_img, &bayered_pixels, width, height, metadata.bitDepth);
+    }
+#ifdef HAVE_TIFF
+    else if (
+        strcmp(metadata.filename_image + len_filename_img - 3, "tif") == 0
+        || strcmp(metadata.filename_image + len_filename_img - 3, "TIF") == 0
+        || strcmp(metadata.filename_image + len_filename_img - 4, "tiff") == 0
+        || strcmp(metadata.filename_image + len_filename_img - 4, "TIFF") == 0)
+    {
+      float *pg = NULL;
+      float *pb = NULL;
+      err       = read_tif_rgb(path_filename_img, &bayered_pixels, &pg, &pb, width, height);
+      free(pg);
+      free(pb);
+    }
+#endif
+    else
+    {
+      err = -1;
+    }
+
+    if (err != 0)
+    {
+      std::cerr << "Could not decode the image data." << std::endl;
+      free(bayered_pixels);
+      return err;
+    }
+
+    const size_t image_size = (*width) * (*height);
+
+    *pixels_red   = (float *)calloc(image_size, sizeof(float));
+    *pixels_green = (float *)calloc(image_size, sizeof(float));
+    *pixels_blue  = (float *)calloc(image_size, sizeof(float));
+
+    basic_debayer(bayered_pixels, *pixels_red, *pixels_green, *pixels_blue, *width, *height, metadata.bayerPattern);
+    free(bayered_pixels);
+
+    free(metadata.bayerPattern);
+    free(metadata.filename_image);
+    free(metadata.filename_info);
+    free(path_filename_img);
+
+    return 0;
+  }
+
+
+
+  int read_dat(const char *filename, float **bayered_pixels, size_t *width, size_t *height, size_t bit_depth)
   {
     FILE *fin = fopen(filename, "rb");
 
@@ -183,6 +364,7 @@ extern "C"
 
     // Copy cast
     float *bayered_image = new float[n_elems];
+    float  renorm        = float(1 << bit_depth) - 1.f;
 
     switch (data_type)
     {
@@ -191,7 +373,7 @@ extern "C"
         bool *buff = reinterpret_cast<bool *>(read_buff);
         #pragma omp parallel for
         for (int i = 0; i < int(n_elems); i++)
-          bayered_image[i] = (float)buff[i];
+          bayered_image[i] = (float)buff[i] / renorm;
       }
       break;
 
@@ -200,7 +382,7 @@ extern "C"
         unsigned char *buff = reinterpret_cast<unsigned char *>(read_buff);
         #pragma omp parallel for
         for (int i = 0; i < int(n_elems); i++)
-          bayered_image[i] = (float)buff[i];
+          bayered_image[i] = (float)buff[i] / renorm;
       }
       break;
 
@@ -209,7 +391,7 @@ extern "C"
         char *buff = reinterpret_cast<char *>(read_buff);
         #pragma omp parallel for
         for (int i = 0; i < int(n_elems); i++)
-          bayered_image[i] = (float)buff[i];
+          bayered_image[i] = (float)buff[i] / renorm;
       }
       break;
       case 4:   // unsigned short
@@ -217,7 +399,7 @@ extern "C"
         unsigned short *buff = reinterpret_cast<unsigned short *>(read_buff);
         #pragma omp parallel for
         for (int i = 0; i < int(n_elems); i++)
-          bayered_image[i] = (float)buff[i];
+          bayered_image[i] = (float)buff[i] / renorm;
       }
       break;
 
@@ -226,7 +408,7 @@ extern "C"
         short *buff = reinterpret_cast<short *>(read_buff);
         #pragma omp parallel for
         for (int i = 0; i < int(n_elems); i++)
-          bayered_image[i] = (float)buff[i];
+          bayered_image[i] = (float)buff[i] / renorm;
       }
       break;
 
@@ -235,7 +417,7 @@ extern "C"
         unsigned int *buff = reinterpret_cast<unsigned int *>(read_buff);
         #pragma omp parallel for
         for (int i = 0; i < int(n_elems); i++)
-          bayered_image[i] = (float)buff[i];
+          bayered_image[i] = (float)buff[i] / renorm;
       }
       break;
 
@@ -244,7 +426,7 @@ extern "C"
         int *buff = reinterpret_cast<int *>(read_buff);
         #pragma omp parallel for
         for (int i = 0; i < int(n_elems); i++)
-          bayered_image[i] = (float)buff[i];
+          bayered_image[i] = (float)buff[i] / renorm;
       }
       break;
 
@@ -253,7 +435,7 @@ extern "C"
         float *buff = reinterpret_cast<float *>(read_buff);
         #pragma omp parallel for
         for (int i = 0; i < int(n_elems); i++)
-          bayered_image[i] = (float)buff[i];
+          bayered_image[i] = (float)buff[i] / renorm;
       }
       break;
 
@@ -262,7 +444,7 @@ extern "C"
         double *buff = reinterpret_cast<double *>(read_buff);
         #pragma omp parallel for
         for (int i = 0; i < int(n_elems); i++)
-          bayered_image[i] = (float)buff[i];
+          bayered_image[i] = (float)buff[i] / renorm;
       }
       break;
 
@@ -275,16 +457,9 @@ extern "C"
 
     free(read_buff);
 
-    *pixels_red   = (float *)malloc(sizeof(float) * n_elems);
-    *pixels_green = (float *)malloc(sizeof(float) * n_elems);
-    *pixels_blue  = (float *)malloc(sizeof(float) * n_elems);
-
-    basic_debayer(bayered_image, *pixels_red, *pixels_green, *pixels_blue, l_width, l_height);
-
-    *width  = l_width;
-    *height = l_height;
-
-    delete[] bayered_image;
+    *width          = l_width;
+    *height         = l_height;
+    *bayered_pixels = bayered_image;
 
     return 0;
   }

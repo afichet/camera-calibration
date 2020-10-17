@@ -26,6 +26,7 @@ int main(int argc, char *argv[])
 
   int ret = read_image_rgb(filename_in, &image_r, &image_g, &image_b, &width, &height);
 
+  // return 0;
   if (ret != 0)
   {
     fprintf(stderr, "Could not open file: %s\n", filename_in);
@@ -36,18 +37,6 @@ int main(int argc, char *argv[])
 
     return ret;
   }
-
-  const size_t len = strlen(filename_in);
-
-  if (strcmp(filename_in + len - 3, "dat") != 0 && strcmp(filename_in + len - 3, "DAT") != 0)
-  {
-    // We need to debayer the image
-    float *bayered_image = (float *)calloc(width * height, sizeof(float));
-    memcpy(bayered_image, image_r, width * height * sizeof(float));
-    basic_debayer(bayered_image, image_r, image_g, image_b, width, height);
-    free(bayered_image);
-  }
-
 
   ret = write_image_rgb(filename_out, image_r, image_g, image_b, width, height);
 

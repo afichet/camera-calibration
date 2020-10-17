@@ -86,7 +86,7 @@ void ImageModel::getAveragedPatches(std::vector<float> &values)
 void ImageModel::openFile(const QString &filename)
 {
   if (filename.endsWith(".tiff", Qt::CaseInsensitive) || filename.endsWith(".tif", Qt::CaseInsensitive)
-      || filename.endsWith(".exr", Qt::CaseInsensitive) || filename.endsWith(".dat", Qt::CaseInsensitive))
+      || filename.endsWith(".exr", Qt::CaseInsensitive) || filename.endsWith(".txt", Qt::CaseInsensitive))
   {
     openImage(filename);
   }

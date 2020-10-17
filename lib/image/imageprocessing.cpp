@@ -1,6 +1,7 @@
 #include <imageprocessing.h>
 #include <color-converter.h>
 
+#include <iostream>
 #include <cstring>
 
 void image_convolve3x3(float *matrix, float *array_in, float *array_out, size_t width, size_t height)
@@ -167,15 +168,34 @@ extern "C"
       float *      pixels_green,
       float *      pixels_blue,
       size_t       width,
-      size_t       height)
+      size_t       height,
+      const char * bayer_pattern)
   {
     size_t n_elems = width * height;
 
     float *r_buffer = new float[n_elems];
     float *g_buffer = new float[n_elems];
     float *b_buffer = new float[n_elems];
+    float *bayer[4];
 
-    float *bayer[4] = {g_buffer, b_buffer, r_buffer, g_buffer};
+    for (int i = 0; i < 4; i++)
+    {
+      switch (bayer_pattern[i])
+      {
+        case 'R':
+          bayer[i] = r_buffer;
+          break;
+        case 'G':
+          bayer[i] = g_buffer;
+          break;
+        case 'B':
+          bayer[i] = b_buffer;
+          break;
+        default:
+          std::cerr << "Unknown channel in the Bayer pattern descriptor." << std::endl;
+          return;
+      }
+    }
 
     memset(r_buffer, 0, n_elems * sizeof(float));
     memset(g_buffer, 0, n_elems * sizeof(float));
