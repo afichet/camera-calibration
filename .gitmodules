@@ -1,3 +1,6 @@
 [submodule "external/tinyexr"]
 	path = external/tinyexr
 	url = https://github.com/syoyo/tinyexr.git
+[submodule "external/tinyxml2"]
+	path = external/tinyxml2
+	url = https://github.com/leethomason/tinyxml2.git
