@@ -10,8 +10,13 @@ public:
   explicit MacbethMeasuredModel(QObject *parent = nullptr);
 
   void setPatchesValues(const std::vector<float> &values);
+  void setMinThreshold(double value);
+  void setMaxThreshold(double value);
+  void updateSelectedPatches();
 
   const std::array<float, 9> &getCorrectionMatrix() const { return _correctionMatrix; }
+
+  size_t getNSelectedPatches() const { return _nSelectedPatches; }
 
   bool isMatrixActive() const { return _isMatrixActive; }
 
@@ -29,6 +34,9 @@ protected:
 private:
   std::array<float, 9> _correctionMatrix;
   bool                 _isMatrixActive;
+  size_t               _nSelectedPatches;
+  float                _minThreshold;
+  float                _maxThreshold;
 };
 
 #endif   // MACBETHMEASUREDMODEL_H

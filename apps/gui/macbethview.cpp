@@ -64,6 +64,13 @@ void MacbethView::onMacbethChanged(const std::array<QColor, 24> &colors)
       const float y_top  = float(y + 1) * margin_height + y * patch_height;
 
       scene()->addRect(QRectF(x_left, y_top, patch_width, patch_height), QPen(), QBrush(colors[n_cols * y + x]));
+
+      if (!_model->getSelectedPatches()[y * n_cols + x])
+      {
+        scene()->addLine(x_left, y_top, x_left + patch_width, y_top + patch_height, QPen(Qt::red, 3));
+        scene()->addLine(x_left + patch_width, y_top, x_left, y_top + patch_height, QPen(Qt::red, 3));
+        scene()->addRect(QRectF(x_left, y_top, patch_width, patch_height), QPen(Qt::red, 3));
+      }
     }
   }
 

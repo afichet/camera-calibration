@@ -5,7 +5,12 @@ extern "C"
 #include <color-converter.h>
 }
 
-MacbethMeasuredModel::MacbethMeasuredModel(QObject *parent): MacbethModel(parent), _isMatrixActive(true) {}
+MacbethMeasuredModel::MacbethMeasuredModel(QObject *parent)
+  : MacbethModel(parent)
+  , _isMatrixActive(true)
+  , _minThreshold(0.05)
+  , _maxThreshold(0.95)
+{}
 
 
 void MacbethMeasuredModel::setPatchesValues(const std::vector<float> &values)
@@ -28,9 +33,47 @@ void MacbethMeasuredModel::setPatchesValues(const std::vector<float> &values)
     v /= max;
   }
 
-
-
+  updateSelectedPatches();
   updateColors();
+}
+
+void MacbethMeasuredModel::setMinThreshold(double value)
+{
+  _minThreshold = value;
+  updateSelectedPatches();
+  emit macbethChanged(_tonemappedColors);
+}
+
+void MacbethMeasuredModel::setMaxThreshold(double value)
+{
+  _maxThreshold = value;
+  updateSelectedPatches();
+  emit macbethChanged(_tonemappedColors);
+}
+
+void MacbethMeasuredModel::updateSelectedPatches()
+{
+  for (size_t i = 0; i < _selectedPatches.size(); i++)
+  {
+    for (int c = 0; c < 3; c++)
+    {
+      if (_linearColors[3 * i + c] < _minThreshold || _linearColors[3 * i + c] > _maxThreshold)
+      {
+        _selectedPatches[i] = false;
+      }
+      else
+      {
+        _selectedPatches[i] = true;
+      }
+    }
+  }
+
+  _nSelectedPatches = 0;
+
+  for (size_t i = 0; i < _selectedPatches.size(); i++)
+  {
+    if (_selectedPatches[i]) ++_nSelectedPatches;
+  }
 }
 
 

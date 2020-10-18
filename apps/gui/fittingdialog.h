@@ -22,6 +22,7 @@ class FittingDialog: public QDialog
     size_t       n_patches;
     const float *reference_patches;
     const float *measured_patches;
+    const bool * selected_patches;
   } fit_params;
 
   typedef struct
@@ -60,6 +61,10 @@ private slots:
   void on_colorMatchingFunctions_currentIndexChanged(int index);
 
   void on_illuminant_currentIndexChanged(int index);
+
+  void on_minThreshold_valueChanged(double arg1);
+
+  void on_maxThreshold_valueChanged(double arg1);
 
 private:
   Ui::FittingDialog *ui;

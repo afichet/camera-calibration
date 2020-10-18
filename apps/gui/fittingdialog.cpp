@@ -66,31 +66,42 @@ void FittingDialog::measure(
   float lab_ref[3];
   float lab_mea[3];
 
+  int measurement_idx = 0;
   // For each patch, we try to minimize the Delta_E_2000 between reference and measurement
   for (size_t patch_idx = 0; patch_idx < info->n_patches; patch_idx++)
   {
-    const float *tristim_ref = &(info->reference_patches[3 * patch_idx]);
-    const float *tristim_mea = &(info->measured_patches[3 * patch_idx]);
+    if (info->selected_patches[patch_idx])
+    {
+      const float *tristim_ref = &(info->reference_patches[3 * patch_idx]);
+      const float *tristim_mea = &(info->measured_patches[3 * patch_idx]);
 
-    // Apply the correction matrix which is optimized by levmar
-    matmul(pParameters, tristim_mea, tristim_mea_corrected);
+      // Apply the correction matrix which is optimized by levmar
+      matmul(pParameters, tristim_mea, tristim_mea_corrected);
 
-    // Transform colorspaces to Lab*
-    XYZ_to_Lab(tristim_ref, lab_ref);
-    XYZ_to_Lab(tristim_mea_corrected, lab_mea);
+      // Transform colorspaces to Lab*
+      XYZ_to_Lab(tristim_ref, lab_ref);
+      XYZ_to_Lab(tristim_mea_corrected, lab_mea);
 
-    // The error is the Delta_E_2000 between reference and corrected Lab* values
-    pMeasurements[patch_idx] = deltaE_2000(lab_ref, lab_mea);
+      // The error is the Delta_E_2000 between reference and corrected Lab* values
+      pMeasurements[measurement_idx++] = deltaE_2000(lab_ref, lab_mea);
+    }
   }
 }
 
 void FittingDialog::fit()
 {
-  const size_t size   = 6 * 4;
-  _fitMatrix          = {1.f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f, 0.f, 1.f};
-  fit_params u_params = {size, &_reference.getLinearColors()[0], &_measured.getLinearColors()[0]};
-  slevmar_dif(FittingDialog::measure, &_fitMatrix[0], NULL, 9, size, 1000, NULL, NULL, NULL, NULL, &u_params);
+    ui->applyMatrix->setEnabled(false);
+    ui->apply->setEnabled(false);
+
+  const size_t size = _measured.getNSelectedPatches();
+  _fitMatrix        = {1.f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f, 0.f, 1.f};
+  fit_params u_params
+      = {size, &_reference.getLinearColors()[0], &_measured.getLinearColors()[0], &_measured.getSelectedPatches()[0]};
+  slevmar_dif(FittingDialog::measure, &_fitMatrix[0], NULL, 9, size, 5000, NULL, NULL, NULL, NULL, &u_params);
   _measured.setMatrix(_fitMatrix);
+
+  ui->applyMatrix->setEnabled(true);
+  ui->apply->setEnabled(true);
 }
 
 void FittingDialog::initModels()
@@ -99,13 +110,15 @@ void FittingDialog::initModels()
     std::vector<float> measuredValues;
     _image->getAveragedPatches(measuredValues);
     _measured.setPatchesValues(measuredValues);
-    fit();
-    ui->applyMatrix->setEnabled(true);
     ui->illuminant->setEnabled(true);
     ui->colorMatchingFunctions->setEnabled(true);
-    ui->apply->setEnabled(true);
+    fit();
   });
 
+  if (_processWatcher->isRunning())
+  {
+    _processWatcher->waitForFinished();
+  }
   _processWatcher->setFuture(imageLoading);
 }
 
@@ -209,7 +222,16 @@ void FittingDialog::on_colorMatchingFunctions_currentIndexChanged(int index)
         _userCMFs[index - 3].x.size());
   }
 
-  fit();
+  QFuture<void> fitting = QtConcurrent::run([=]() {
+    fit();
+  });
+
+  if (_processWatcher->isRunning())
+  {
+    _processWatcher->waitForFinished();
+  }
+  _processWatcher->setFuture(fitting);
+
 }
 
 
@@ -272,5 +294,42 @@ void FittingDialog::on_illuminant_currentIndexChanged(int index)
         _userIlluminants[index - 3].illuminantSPD.size());
   }
 
-  fit();
+
+  QFuture<void> fitting = QtConcurrent::run([=]() {
+    fit();
+  });
+
+  if (_processWatcher->isRunning())
+  {
+    _processWatcher->waitForFinished();
+  }
+  _processWatcher->setFuture(fitting);
+}
+
+void FittingDialog::on_minThreshold_valueChanged(double arg1)
+{
+  QFuture<void> fitting = QtConcurrent::run([=]() {
+      _measured.setMinThreshold(arg1);
+    fit();
+  });
+
+  if (_processWatcher->isRunning())
+  {
+    _processWatcher->waitForFinished();
+  }
+  _processWatcher->setFuture(fitting);
+}
+
+void FittingDialog::on_maxThreshold_valueChanged(double arg1)
+{
+  QFuture<void> fitting = QtConcurrent::run([=]() {
+      _measured.setMaxThreshold(arg1);
+    fit();
+  });
+
+  if (_processWatcher->isRunning())
+  {
+    _processWatcher->waitForFinished();
+  }
+  _processWatcher->setFuture(fitting);
 }

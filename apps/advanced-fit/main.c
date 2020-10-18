@@ -49,7 +49,6 @@ void measure(float *pParameters, float *pMeasurements, int n_parameters, int n_m
   const float *optimized_matrix = &pParameters[0];
 
   // Next ones are exposition correction
-  const float *optimized_exposure = &pParameters[9];
   size_t       measurement_idx    = 0;
 
   // For each patch, we try to minimize the Delta_E_2000 between reference and measurement
@@ -64,15 +63,11 @@ void measure(float *pParameters, float *pMeasurements, int n_parameters, int n_m
       {
         const float *tristim_mea = &(info->measured_patches[3 * (offset + exposure_idx)]);
 
-        // Apply the exposure compoensation
-        float tristim_mea_exposed[3];
-        for (int c = 0; c < 3; c++)
-        {
-          tristim_mea_exposed[c] = tristim_mea[c] * optimized_exposure[3 * exposure_idx + c];
-        }
-
         // Apply the correction matrix which is optimized by levmar
-        matmul(optimized_matrix, tristim_mea_exposed, tristim_mea_corrected);
+        //matmul(optimized_matrix, tristim_mea_exposed, tristim_mea_corrected);
+        tristim_mea_corrected[0] = optimized_matrix[3 * exposure_idx + 6] * tristim_mea[0] + optimized_matrix[0] * tristim_mea[1] + optimized_matrix[1] * tristim_mea[2];
+        tristim_mea_corrected[1] = optimized_matrix[2] * tristim_mea[0] + optimized_matrix[3 * exposure_idx + 7] * tristim_mea[1] + optimized_matrix[3] * tristim_mea[2];
+        tristim_mea_corrected[2] = optimized_matrix[4] * tristim_mea[0] + optimized_matrix[5] * tristim_mea[1] + optimized_matrix[3 * exposure_idx + 8] * tristim_mea[2];
 
         // Transform colorspaces to Lab*
         XYZ_to_Lab(tristim_ref, lab_ref);
@@ -148,8 +143,8 @@ int load_list_file(const char *filename, char ***listfile, size_t *n_elem)
 int load_patches_files(const char *filename, size_t *n_files, size_t n_patches, float **values, int **selected_patches)
 {
   // TODO hard coded for now
-  const float min_accepted = 0.1f * 1024.f;
-  const float max_accepted = 0.9f * 1024.f;
+  const float min_accepted = 0.01f;
+  const float max_accepted = 0.95f;
 
   // Get the list of files
 
@@ -300,56 +295,62 @@ int main(int argc, char *argv[])
       {
         for (int c = 0; c < 3; c++)
         {
-          max = fmaxf(max, macbeth_patches_measured[3 * (idx_patch * n_exposures + idx_expo) + c]);
+          // max = fmaxf(max, macbeth_patches_measured[3 * (idx_patch * n_exposures + idx_expo) + c]);
 
           ++n_measurements;
         }
       }
     }
 
-    for (int c = 0; c < 3; c++)
-    {
-      mul_values[3 * idx_expo + c] = max;
-    }
+    //   for (int c = 0; c < 3; c++)
+    //   {
+    //     mul_values[3 * idx_expo + c] = max;
+    //   }
 
-    for (size_t idx_patch = 0; idx_patch < n_patches; idx_patch++)
-    {
-      for (int c = 0; c < 3; c++)
-      {
-        macbeth_patches_measured[3 * (idx_patch * n_exposures + idx_expo) + c] /= max;
-      }
-    }
+    //   for (size_t idx_patch = 0; idx_patch < n_patches; idx_patch++)
+    //   {
+    //     for (int c = 0; c < 3; c++)
+    //     {
+    //       macbeth_patches_measured[3 * (idx_patch * n_exposures + idx_expo) + c] /= max;
+    //     }
+    //   }
   }
 
   fit_params u_params
       = {n_patches, n_exposures, macbeth_patches_reference_xyz, macbeth_patches_measured, selected_patches};
 
-  size_t n_params = 9 + 3 * n_exposures;
+  size_t n_params = 6 + 3 * n_exposures;
   optim_params    = (float *)calloc(n_params, sizeof(float));
 
   // Initialize the matrix
-  optim_params[0] = 1.f;
+  // optim_params[0] = 1.f;
+  optim_params[0] = 0.f;
   optim_params[1] = 0.f;
+
   optim_params[2] = 0.f;
-
+  // optim_params[] = 1.f;
   optim_params[3] = 0.f;
-  optim_params[4] = 1.f;
-  optim_params[5] = 0.f;
 
-  optim_params[6] = 0.f;
-  optim_params[7] = 0.f;
-  optim_params[8] = 1.f;
+  optim_params[4] = 0.f;
+  optim_params[5] = 0.f;
+  // optim_params[8] = 1.f;
 
   // Initialize exposure compensation values
-  for (size_t i = 9; i < n_params; i++)
+  for (size_t i = 6; i < n_params; i++)
   {
     optim_params[i] = 1.f;
   }
 
   slevmar_dif(measure, optim_params, NULL, n_params, n_measurements, 1000, NULL, NULL, NULL, NULL, &u_params);
 
+  float output_matrix[9] =
+   {
+    optim_params[6], optim_params[0], optim_params[1],
+    optim_params[2], optim_params[7], optim_params[3],
+    optim_params[4], optim_params[5], optim_params[8]
+   };
   // Save the matrix
-  err = save_xyz(filename_output_matrix, optim_params, 3);
+  err = save_xyz(filename_output_matrix, output_matrix, 3);
 
   if (err != 0)
   {
@@ -357,12 +358,12 @@ int main(int argc, char *argv[])
   }
 
   // Save the exposure comp
-  for (size_t i = 9; i < n_params; i++)
+  for (size_t i = 6; i < n_params; i++)
   {
-    optim_params[i] *= mul_values[(i - 9)];
+    // optim_params[i] *= mul_values[(i - 6)];
   }
 
-  err = save_xyz(filename_output_exposure, &optim_params[9], n_exposures);
+  err = save_xyz(filename_output_exposure, &optim_params[6], n_exposures);
 
   if (err != 0)
   {
