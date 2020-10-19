@@ -80,6 +80,7 @@ private:
 
   std::vector<illuminant_data> _userIlluminants;
   std::vector<cmf_data>        _userCMFs;
+  QMutex                       _mutex;
 };
 
 #endif   // FITTINGDIALOG_H

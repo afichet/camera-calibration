@@ -108,17 +108,15 @@ void FittingDialog::initModels()
 {
   QFuture<void> imageLoading = QtConcurrent::run([=]() {
     std::vector<float> measuredValues;
+    _mutex.lock();
     _image->getAveragedPatches(measuredValues);
     _measured.setPatchesValues(measuredValues);
     ui->illuminant->setEnabled(true);
     ui->colorMatchingFunctions->setEnabled(true);
     fit();
+    _mutex.unlock();
   });
 
-  if (_processWatcher->isRunning())
-  {
-    _processWatcher->waitForFinished();
-  }
   _processWatcher->setFuture(imageLoading);
 }
 
@@ -131,6 +129,8 @@ void FittingDialog::on_applyMatrix_toggled(bool checked)
 
 void FittingDialog::on_colorMatchingFunctions_currentIndexChanged(int index)
 {
+  _mutex.lock();
+
   if (index == 0)
   {
     _reference.setCMFs(
@@ -222,20 +222,15 @@ void FittingDialog::on_colorMatchingFunctions_currentIndexChanged(int index)
         _userCMFs[index - 3].x.size());
   }
 
-  QFuture<void> fitting = QtConcurrent::run([=]() {
-    fit();
-  });
-
-  if (_processWatcher->isRunning())
-  {
-    _processWatcher->waitForFinished();
-  }
-  _processWatcher->setFuture(fitting);
+  fit();
+  _mutex.unlock();
 }
 
 
 void FittingDialog::on_illuminant_currentIndexChanged(int index)
 {
+  _mutex.lock();
+
   if (index == 0)
   {
     _reference.setIlluminant(D_65_SPD, D_65_FIRST_WAVELENGTH, D_65_ARRAY_SIZE);
@@ -294,41 +289,22 @@ void FittingDialog::on_illuminant_currentIndexChanged(int index)
   }
 
 
-  QFuture<void> fitting = QtConcurrent::run([=]() {
-    fit();
-  });
-
-  if (_processWatcher->isRunning())
-  {
-    _processWatcher->waitForFinished();
-  }
-  _processWatcher->setFuture(fitting);
+  fit();
+  _mutex.unlock();
 }
 
 void FittingDialog::on_minThreshold_valueChanged(double arg1)
 {
-  QFuture<void> fitting = QtConcurrent::run([=]() {
-    _measured.setMinThreshold(arg1);
-    fit();
-  });
-
-  if (_processWatcher->isRunning())
-  {
-    _processWatcher->waitForFinished();
-  }
-  _processWatcher->setFuture(fitting);
+  _mutex.lock();
+  _measured.setMinThreshold(arg1);
+  fit();
+  _mutex.unlock();
 }
 
 void FittingDialog::on_maxThreshold_valueChanged(double arg1)
 {
-  QFuture<void> fitting = QtConcurrent::run([=]() {
-    _measured.setMaxThreshold(arg1);
-    fit();
-  });
-
-  if (_processWatcher->isRunning())
-  {
-    _processWatcher->waitForFinished();
-  }
-  _processWatcher->setFuture(fitting);
+  _mutex.lock();
+  _measured.setMaxThreshold(arg1);
+  fit();
+  _mutex.unlock();
 }
