@@ -49,7 +49,7 @@ void measure(float *pParameters, float *pMeasurements, int n_parameters, int n_m
   const float *optimized_matrix = &pParameters[0];
 
   // Next ones are exposition correction
-  size_t       measurement_idx    = 0;
+  size_t measurement_idx = 0;
 
   // For each patch, we try to minimize the Delta_E_2000 between reference and measurement
   for (size_t patch_idx = 0; patch_idx < info->n_patches; patch_idx++)
@@ -65,9 +65,13 @@ void measure(float *pParameters, float *pMeasurements, int n_parameters, int n_m
 
         // Apply the correction matrix which is optimized by levmar
         //matmul(optimized_matrix, tristim_mea_exposed, tristim_mea_corrected);
-        tristim_mea_corrected[0] = optimized_matrix[3 * exposure_idx + 6] * tristim_mea[0] + optimized_matrix[0] * tristim_mea[1] + optimized_matrix[1] * tristim_mea[2];
-        tristim_mea_corrected[1] = optimized_matrix[2] * tristim_mea[0] + optimized_matrix[3 * exposure_idx + 7] * tristim_mea[1] + optimized_matrix[3] * tristim_mea[2];
-        tristim_mea_corrected[2] = optimized_matrix[4] * tristim_mea[0] + optimized_matrix[5] * tristim_mea[1] + optimized_matrix[3 * exposure_idx + 8] * tristim_mea[2];
+        tristim_mea_corrected[0] = optimized_matrix[3 * exposure_idx + 6] * tristim_mea[0]
+                                   + optimized_matrix[0] * tristim_mea[1] + optimized_matrix[1] * tristim_mea[2];
+        tristim_mea_corrected[1] = optimized_matrix[2] * tristim_mea[0]
+                                   + optimized_matrix[3 * exposure_idx + 7] * tristim_mea[1]
+                                   + optimized_matrix[3] * tristim_mea[2];
+        tristim_mea_corrected[2] = optimized_matrix[4] * tristim_mea[0] + optimized_matrix[5] * tristim_mea[1]
+                                   + optimized_matrix[3 * exposure_idx + 8] * tristim_mea[2];
 
         // Transform colorspaces to Lab*
         XYZ_to_Lab(tristim_ref, lab_ref);
@@ -341,14 +345,51 @@ int main(int argc, char *argv[])
     optim_params[i] = 1.f;
   }
 
-  slevmar_dif(measure, optim_params, NULL, n_params, n_measurements, 1000, NULL, NULL, NULL, NULL, &u_params);
+  float fit_info[9];
 
-  float output_matrix[9] =
-   {
+  slevmar_dif(measure, optim_params, NULL, n_params, n_measurements, 1000, NULL, fit_info, NULL, NULL, &u_params);
+
+  printf("||e||_2 at initial p:             %f\n", fit_info[0]);
+  printf("||e||_2 at etimated p:            %f\n", fit_info[1]);
+  printf("||J^T e||_inf at etimated p:      %f\n", fit_info[2]);
+  printf("||Dp||_2 at etimated p:           %f\n", fit_info[3]);
+  printf("\\mu/max[J^T J]_ii at etimated p: %f\n", fit_info[4]);
+
+  printf("Reason for terminating: ");
+  switch ((int)fit_info[6])
+  {
+    case 1:
+      printf("stopped by small gradient J^T e\n");
+      break;
+    case 2:
+      printf("stopped by small Dp\n");
+      break;
+    case 3:
+      printf("stopped by itmax\n");
+      break;
+    case 4:
+      printf("singular matrix. Restart from current p with increased mu\n");
+      break;
+    case 5:
+      printf("no further error reduction is possible. Restart with increased mu\n");
+      break;
+    case 6:
+      printf("stopped by invalid (i.e. NaN or Inf) \"func\" values; a user error\n");
+      break;
+  }
+
+  printf("Function evaluations: %d\n", (int)fit_info[7]);
+  printf("Jacobian evaluations: %d\n", (int)fit_info[8]);
+  printf("Linear systems solved: %d\n", (int)fit_info[9]);
+
+  // clang-format off
+  float output_matrix[9] = {
     optim_params[6], optim_params[0], optim_params[1],
     optim_params[2], optim_params[7], optim_params[3],
     optim_params[4], optim_params[5], optim_params[8]
-   };
+  };
+  // clang-format on
+
   // Save the matrix
   err = save_xyz(filename_output_matrix, output_matrix, 3);
 
