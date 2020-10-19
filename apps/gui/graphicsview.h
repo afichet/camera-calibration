@@ -18,6 +18,7 @@ public slots:
   void onImageLoaded(int width, int height);
   void onImageChanged();
   void onMacbethChartChanged();
+  void setShowMacbeth(bool show);
   void setShowPatchNumbers(bool show);
   void setZoomLevel(float zoom);
   void zoomIn();
@@ -46,6 +47,7 @@ private:
 
   QPoint _startDrag;
 
+  bool _showMacbeth;
   bool _showPatchNumbers;
 
   float _zoomLevel;

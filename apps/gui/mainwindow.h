@@ -33,6 +33,7 @@ private slots:
   void on_action_Save_areas_triggered();
   void on_actionSave_correction_matrix_triggered();
 
+  void on_showMacbeth_toggled(bool checked);
   void on_sliderInnerMarginX_valueChanged(int value);
   void on_sliderInnerMarginY_valueChanged(int value);
   void on_exposureValue_valueChanged(double value);
@@ -53,7 +54,6 @@ private slots:
   void on_m22_textChanged(const QString &arg1);
 
   void on_buttonFit_clicked();
-
 
 private:
   Ui::MainWindow *ui;

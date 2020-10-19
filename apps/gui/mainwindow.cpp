@@ -122,6 +122,14 @@ void MainWindow::on_actionSave_correction_matrix_triggered()
 }
 
 
+void MainWindow::on_showMacbeth_toggled(bool checked)
+{
+  ui->sliderInnerMarginX->setEnabled(checked);
+  ui->sliderInnerMarginY->setEnabled(checked);
+  ui->showPatchNumbers->setEnabled(checked);
+}
+
+
 void MainWindow::on_sliderInnerMarginX_valueChanged(int value)
 {
   float p = (float)(value - ui->sliderInnerMarginX->minimum())
@@ -146,10 +154,17 @@ void MainWindow::on_exposureValue_valueChanged(double value)
 
 void MainWindow::onImageLoaded(int, int)
 {
+  ui->showMacbeth->setEnabled(true);
+
+  if (ui->showMacbeth->isChecked())
+  {
+    ui->sliderInnerMarginX->setEnabled(true);
+    ui->sliderInnerMarginY->setEnabled(true);
+    ui->showPatchNumbers->setEnabled(true);
+  }
+
   ui->exposureValue->setEnabled(true);
-  ui->sliderInnerMarginX->setEnabled(true);
-  ui->sliderInnerMarginY->setEnabled(true);
-  ui->showPatchNumbers->setEnabled(true);
+
   ui->buttonFit->setEnabled(true);
   ui->actionExport_coordinates->setEnabled(true);
   ui->action_Save_areas->setEnabled(true);
@@ -161,6 +176,7 @@ void MainWindow::onImageLoaded(int, int)
 
   ui->actionZoom_in->setEnabled(true);
   ui->actionZoom_out->setEnabled(true);
+  setWindowTitle("Colourotron - " + _model.getLoadedImagePath());
 }
 
 
