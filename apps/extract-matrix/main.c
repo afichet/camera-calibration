@@ -96,8 +96,46 @@ int main(int argc, const char *argv[])
   // reference color space
   float      matrix[9] = {1.f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f, 0.f, 1.f};
   fit_params u_params  = {size, macbeth_patches_reference_xyz, macbeth_patches_measured};
+  //  float fit_opts[4] = {
 
-  slevmar_dif(measure, matrix, NULL, 9, size, 1000, NULL, NULL, NULL, NULL, &u_params);
+  //  };
+
+  float fit_info[LM_INFO_SZ];
+
+  slevmar_dif(measure, matrix, NULL, 9, size, 1000, NULL, fit_info, NULL, NULL, &u_params);
+
+  printf("||e||_2 at initial p:             %f\n", fit_info[0]);
+  printf("||e||_2 at etimated p:            %f\n", fit_info[1]);
+  printf("||J^T e||_inf at etimated p:      %f\n", fit_info[2]);
+  printf("||Dp||_2 at etimated p:           %f\n", fit_info[3]);
+  printf("\\mu/max[J^T J]_ii at etimated p: %f\n", fit_info[4]);
+
+  printf("Reason for terminating: ");
+  switch ((int)fit_info[6])
+  {
+    case 1:
+      printf("stopped by small gradient J^T e\n");
+      break;
+    case 2:
+      printf("stopped by small Dp\n");
+      break;
+    case 3:
+      printf("stopped by itmax\n");
+      break;
+    case 4:
+      printf("singular matrix. Restart from current p with increased mu\n");
+      break;
+    case 5:
+      printf("no further error reduction is possible. Restart with increased mu\n");
+      break;
+    case 6:
+      printf("stopped by invalid (i.e. NaN or Inf) \"func\" values; a user error\n");
+      break;
+  }
+
+  printf("Function evaluations: %d\n", (int)fit_info[7]);
+  printf("Jacobian evaluations: %d\n", (int)fit_info[8]);
+  printf("Linear systems solved: %d\n", (int)fit_info[9]);
 
   // Save fit result
   err = save_xyz(filename_output_matrix, matrix, 3);

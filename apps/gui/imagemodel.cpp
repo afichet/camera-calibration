@@ -42,6 +42,7 @@ ImageModel::~ImageModel()
   delete[] _pixelBuffer;
 }
 
+
 void ImageModel::getAveragedPatches(std::vector<float> &values)
 {
   std::vector<float> patches_values(4 * _macbethPatches.size(), 0.f);
@@ -80,7 +81,6 @@ void ImageModel::getAveragedPatches(std::vector<float> &values)
     }
   }
 }
-
 
 
 void ImageModel::openFile(const QString &filename)
@@ -181,6 +181,7 @@ void ImageModel::openImage(const QString &filename)
     emit exposureChanged(_exposure);
 
     recalculateMacbethPatches();
+    _imagePath     = filename;
     _isImageLoaded = true;
     emit processProgress(100);
     emit loadingMessage("");
@@ -281,6 +282,7 @@ void ImageModel::setMatrixActive(bool active)
   recalculateCorrection(_exposure);
   emit matrixActivationStateChanged(_isMatrixActive);
 }
+
 
 void ImageModel::savePatchesCoordinates(const QString &filename)
 {

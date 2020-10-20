@@ -17,6 +17,7 @@ GraphicsView::GraphicsView(QWidget *parent)
   , _imageItem(nullptr)
   , _inSelection(false)
   , _selection(nullptr)
+  , _showMacbeth(true)
   , _showPatchNumbers(false)
   , _zoomLevel(1.f)
   , _autoscale(true)
@@ -82,61 +83,70 @@ void GraphicsView::onMacbethChartChanged()
 
   _chartItems.clear();
 
-  const QPolygonF &         macbethOutline = _model->getMacbethOutline();
-  const QVector<QPolygonF> &macbethPatches = _model->getMacbethPatches();
-
-  QPen pen(Qt::green);
-  pen.setWidth(2. * ratio);
-
-  _chartItems << scene()->addPolygon(macbethOutline, pen);
-
-  pen.setWidth(1. * ratio);
-
-  for (const QPolygonF &patch : macbethPatches)
+  if (_showMacbeth)
   {
-    _chartItems << scene()->addPolygon(patch, pen);
-  }
+    const QPolygonF &         macbethOutline = _model->getMacbethOutline();
+    const QVector<QPolygonF> &macbethPatches = _model->getMacbethPatches();
 
-  if (_showPatchNumbers)
-  {
-    const QVector<QPointF> &patchCenters = _model->getMacbethPatchesCenters();
+    QPen pen(Qt::green);
+    pen.setWidth(2. * ratio);
 
-    for (int i = 0; i < patchCenters.size(); i++)
+    _chartItems << scene()->addPolygon(macbethOutline, pen);
+
+    pen.setWidth(1. * ratio);
+
+    for (const QPolygonF &patch : macbethPatches)
     {
-      QGraphicsTextItem *text = scene()->addText(QString::number(i + 1));
-      text->setDefaultTextColor(Qt::red);
-      text->setPos(patchCenters[i]);
-      text->setScale(ratio);
-      _chartItems << text;
-    }
-  }
-
-  if (_selection != nullptr)
-  {
-    scene()->removeItem(_selection);
-    delete _selection;
-    _selection = nullptr;
-  }
-
-  float r = 10. * ratio;
-
-  for (int i = 0; i < macbethOutline.size(); i++)
-  {
-    if (_inSelection && i == _selectedIdx)
-    {
-      r = 20. * ratio;
-      pen.setColor(Qt::yellow);
-      pen.setWidth(4. * ratio);
-    }
-    else
-    {
-      r = 10. * ratio;
-      pen.setColor(Qt::red);
-      pen.setWidth(4. * ratio);
+      _chartItems << scene()->addPolygon(patch, pen);
     }
 
-    _chartItems << scene()->addEllipse(macbethOutline[i].x() - r / 2.f, macbethOutline[i].y() - r / 2.f, r, r, pen);
+    if (_showPatchNumbers)
+    {
+      const QVector<QPointF> &patchCenters = _model->getMacbethPatchesCenters();
+
+      for (int i = 0; i < patchCenters.size(); i++)
+      {
+        QGraphicsTextItem *text = scene()->addText(QString::number(i + 1));
+        text->setDefaultTextColor(Qt::red);
+        text->setPos(patchCenters[i]);
+        text->setScale(ratio);
+        _chartItems << text;
+      }
+    }
+
+    if (_selection != nullptr)
+    {
+      scene()->removeItem(_selection);
+      delete _selection;
+      _selection = nullptr;
+    }
+
+    float r = 10. * ratio;
+
+    for (int i = 0; i < macbethOutline.size(); i++)
+    {
+      if (_inSelection && i == _selectedIdx)
+      {
+        r = 20. * ratio;
+        pen.setColor(Qt::yellow);
+        pen.setWidth(4. * ratio);
+      }
+      else
+      {
+        r = 10. * ratio;
+        pen.setColor(Qt::red);
+        pen.setWidth(4. * ratio);
+      }
+
+      _chartItems << scene()->addEllipse(macbethOutline[i].x() - r / 2.f, macbethOutline[i].y() - r / 2.f, r, r, pen);
+    }
   }
+}
+
+void GraphicsView::setShowMacbeth(bool show)
+{
+  _showMacbeth = show;
+  emit onMacbethChartChanged();
 }
 
 
@@ -211,7 +221,7 @@ void GraphicsView::mousePressEvent(QMouseEvent *event)
 {
   if (_model == nullptr || !_model->isImageLoaded()) return;
 
-  if (event->button() == Qt::LeftButton)
+  if (event->button() == Qt::LeftButton && _showMacbeth)
   {
     _inSelection = true;
 

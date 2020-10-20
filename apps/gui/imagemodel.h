@@ -16,6 +16,7 @@ public:
   virtual ~ImageModel();
 
   const QImage &            getLoadedImage() const { return _image; }
+  const QString &           getLoadedImagePath() const { return _imagePath; }
   const QPolygonF &         getMacbethOutline() const { return _macbethOutline; }
   const QVector<QPolygonF> &getMacbethPatches() const { return _macbethPatches; }
   const QVector<QPointF> &  getMacbethPatchesCenters() const { return _macbethPatchesCenters; }
@@ -68,10 +69,11 @@ private:
   std::vector<float>   _pixelCorrected;
   std::array<float, 9> _correctionMatrix;
 
-  QImage _image;
-  bool   _isImageLoaded;
-  bool   _isMatrixLoaded;
-  bool   _isMatrixActive;
+  QImage  _image;
+  QString _imagePath;
+  bool    _isImageLoaded;
+  bool    _isMatrixLoaded;
+  bool    _isMatrixActive;
 
   float _innerMarginX, _innerMarginY;
 
