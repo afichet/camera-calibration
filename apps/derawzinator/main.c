@@ -26,7 +26,6 @@ int main(int argc, char *argv[])
 
   int ret = read_image_rgb(filename_in, &image_r, &image_g, &image_b, &width, &height);
 
-  // return 0;
   if (ret != 0)
   {
     fprintf(stderr, "Could not open file: %s\n", filename_in);
@@ -36,6 +35,18 @@ int main(int argc, char *argv[])
     free(image_b);
 
     return ret;
+  }
+
+  const size_t len = strlen(filename_in);
+
+  if (strcmp(filename_in + len - 4, "tiff") == 0 || strcmp(filename_in + len - 4, "tiff") == 0
+      || strcmp(filename_in + len - 3, "tif") == 0 || strcmp(filename_in + len - 3, "tif") == 0
+      || strcmp(filename_in + len - 3, "exr") == 0 || strcmp(filename_in + len - 3, "EXR") == 0)
+  {
+    float *bayered_pixels = (float *)calloc(width * height, sizeof(float));
+    memcpy(bayered_pixels, image_r, width * height * sizeof(float));
+    basic_debayer(bayered_pixels, image_r, image_g, image_b, width, height, "GBRG");
+    free(bayered_pixels);
   }
 
   ret = write_image_rgb(filename_out, image_r, image_g, image_b, width, height);
