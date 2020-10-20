@@ -356,7 +356,7 @@ int main(int argc, char *argv[])
   printf("\\mu/max[J^T J]_ii at etimated p: %f\n", fit_info[4]);
 
   printf("Reason for terminating: ");
-  switch ((int)fit_info[6])
+  switch ((int)fit_info[5])
   {
     case 1:
       printf("stopped by small gradient J^T e\n");
@@ -378,9 +378,9 @@ int main(int argc, char *argv[])
       break;
   }
 
-  printf("Function evaluations: %d\n", (int)fit_info[7]);
-  printf("Jacobian evaluations: %d\n", (int)fit_info[8]);
-  printf("Linear systems solved: %d\n", (int)fit_info[9]);
+  printf("Function evaluations: %d\n", (int)fit_info[6]);
+  printf("Jacobian evaluations: %d\n", (int)fit_info[7]);
+  printf("Linear systems solved: %d\n", (int)fit_info[8]);
 
   // clang-format off
   float output_matrix[9] = {
