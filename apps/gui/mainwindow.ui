@@ -52,7 +52,7 @@
      <x>0</x>
      <y>0</y>
      <width>977</width>
-     <height>27</height>
+     <height>20</height>
     </rect>
    </property>
    <widget class="QMenu" name="menu_File">
@@ -195,7 +195,7 @@
    <property name="minimumSize">
     <size>
      <width>200</width>
-     <height>73</height>
+     <height>93</height>
     </size>
    </property>
    <property name="windowIcon">
@@ -231,6 +231,38 @@
        <property name="text">
         <string>Exposure</string>
        </property>
+      </widget>
+     </item>
+     <item row="1" column="0">
+      <widget class="QLabel" name="label">
+       <property name="text">
+        <string>Demoisaicing</string>
+       </property>
+      </widget>
+     </item>
+     <item row="1" column="1">
+      <widget class="QComboBox" name="demosaicingMode">
+       <property name="enabled">
+        <bool>false</bool>
+       </property>
+       <property name="currentIndex">
+        <number>1</number>
+       </property>
+       <item>
+        <property name="text">
+         <string>None</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>Basic</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>Amaze</string>
+        </property>
+       </item>
       </widget>
      </item>
     </layout>
@@ -615,7 +647,7 @@
    <hints>
     <hint type="sourcelabel">
      <x>27</x>
-     <y>261</y>
+     <y>225</y>
     </hint>
     <hint type="destinationlabel">
      <x>564</x>
@@ -650,8 +682,8 @@
      <y>603</y>
     </hint>
     <hint type="destinationlabel">
-     <x>127</x>
-     <y>496</y>
+     <x>126</x>
+     <y>498</y>
     </hint>
    </hints>
   </connection>
@@ -666,8 +698,8 @@
      <y>603</y>
     </hint>
     <hint type="destinationlabel">
-     <x>189</x>
-     <y>496</y>
+     <x>188</x>
+     <y>498</y>
     </hint>
    </hints>
   </connection>
@@ -698,8 +730,8 @@
      <y>603</y>
     </hint>
     <hint type="destinationlabel">
-     <x>189</x>
-     <y>532</y>
+     <x>188</x>
+     <y>536</y>
     </hint>
    </hints>
   </connection>
@@ -730,8 +762,8 @@
      <y>603</y>
     </hint>
     <hint type="destinationlabel">
-     <x>189</x>
-     <y>568</y>
+     <x>188</x>
+     <y>574</y>
     </hint>
    </hints>
   </connection>
@@ -746,8 +778,8 @@
      <y>603</y>
     </hint>
     <hint type="destinationlabel">
-     <x>127</x>
-     <y>568</y>
+     <x>126</x>
+     <y>574</y>
     </hint>
    </hints>
   </connection>
@@ -762,8 +794,8 @@
      <y>603</y>
     </hint>
     <hint type="destinationlabel">
-     <x>127</x>
-     <y>532</y>
+     <x>126</x>
+     <y>536</y>
     </hint>
    </hints>
   </connection>
@@ -823,7 +855,7 @@
    <hints>
     <hint type="sourcelabel">
      <x>41</x>
-     <y>105</y>
+     <y>104</y>
     </hint>
     <hint type="destinationlabel">
      <x>397</x>

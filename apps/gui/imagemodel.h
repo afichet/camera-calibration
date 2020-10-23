@@ -6,6 +6,7 @@
 #include <QVector>
 #include <QFutureWatcher>
 #include <array>
+#include <demosaicing.h>
 
 class ImageModel: public QObject
 {
@@ -28,6 +29,7 @@ public:
   bool isImageLoaded() const { return _isImageLoaded; }
   bool isMatrixLoaded() const { return _isMatrixLoaded; }
   bool isMatrixActive() const { return _isMatrixActive; }
+  bool isRawImage() const { return _isRawImage; }
 
 public slots:
   void openFile(const QString &filename);
@@ -40,6 +42,7 @@ public slots:
   void setOutlinePosition(int index, QPointF position);
 
   void setExposure(double value);
+  void setDemosaicingMethod(const QString &method);
   void setMatrix(const std::array<float, 9> matrix);
   void setMatrixActive(bool active);
 
@@ -65,6 +68,7 @@ protected:
   void recalculateMacbethPatches();
 
 private:
+  float *              _mosaicedPixelBuffer;
   float *              _pixelBuffer;
   std::vector<float>   _pixelCorrected;
   std::array<float, 9> _correctionMatrix;
@@ -74,6 +78,7 @@ private:
   bool    _isImageLoaded;
   bool    _isMatrixLoaded;
   bool    _isMatrixActive;
+  bool    _isRawImage;
 
   float _innerMarginX, _innerMarginY;
 
@@ -81,9 +86,13 @@ private:
   QVector<QPolygonF> _macbethPatches;
   QVector<QPointF>   _macbethPatchesCenters;
 
-  double _exposure;
+  double            _exposure;
+  RAWDemosaicMethod _demosaicingMethod;
+  unsigned int      _filters;
 
-  QFutureWatcher<void> *_processWatcher;
+  QFutureWatcher<void> *_imageLoadingWatcher;
+  QFutureWatcher<void> *_imageDemosaicingWatcher;
+  QFutureWatcher<void> *_imageEditingWatcher;
 };
 
 #endif   // IMAGEMODEL_H

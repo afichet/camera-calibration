@@ -169,10 +169,8 @@ void MainWindow::onImageLoaded(int, int)
   ui->actionExport_coordinates->setEnabled(true);
   ui->action_Save_areas->setEnabled(true);
 
-  if (_model.isMatrixLoaded())
-  {
-    ui->activeMatrix->setEnabled(true);
-  }
+  ui->activeMatrix->setEnabled(_model.isMatrixLoaded());
+  ui->demosaicingMode->setEnabled(_model.isRawImage());
 
   ui->actionZoom_in->setEnabled(true);
   ui->actionZoom_out->setEnabled(true);
@@ -281,4 +279,10 @@ void MainWindow::on_buttonFit_clicked()
   {
     _model.setMatrix(f->getFitMatrix());
   }
+}
+
+
+void MainWindow::on_demosaicingMode_currentIndexChanged(const QString &arg1)
+{
+  _model.setDemosaicingMethod(arg1);
 }

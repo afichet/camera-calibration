@@ -22,7 +22,7 @@ extern "C"
   } RAWMetadata;
 
   int read_raw_metadata(const char *filename, RAWMetadata *metadata);
-  int read_raw_file(const char *filename, float **bayered_pixels, size_t *width, size_t *height, int *filter);
+  int read_raw_file(const char *filename, float **bayered_pixels, size_t *width, size_t *height, unsigned int *filters);
   int read_dat(const char *filename, float **bayered_pixels, size_t *width, size_t *height, size_t bit_depth);
 
   int read_raw(const char *filename, float **pixels, size_t *width, size_t *height, RAWDemosaicMethod method);

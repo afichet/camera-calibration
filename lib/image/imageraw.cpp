@@ -96,7 +96,7 @@ extern "C"
     return 0;
   }
 
-  int read_raw_file(const char *filename, float **bayered_pixels, size_t *width, size_t *height, int *filter)
+  int read_raw_file(const char *filename, float **bayered_pixels, size_t *width, size_t *height, unsigned int *filters)
   {
     RAWMetadata metadata;
     int         err = read_raw_metadata(filename, &metadata);
@@ -169,19 +169,19 @@ extern "C"
 
     if (strcmp(metadata.bayerPattern, "BGGR") == 0)
     {
-      *filter = 0x16161616;
+      *filters = 0x16161616;
     }
     else if (strcmp(metadata.bayerPattern, "GRBG") == 0)
     {
-      *filter = 0x61616161;
+      *filters = 0x61616161;
     }
     else if (strcmp(metadata.bayerPattern, "GBRG") == 0)
     {
-      *filter = 0x49494949;
+      *filters = 0x49494949;
     }
     else if (strcmp(metadata.bayerPattern, "RGGB") == 0)
     {
-      *filter = 0x94949494;
+      *filters = 0x94949494;
     }
 
     free(metadata.bayerPattern);
@@ -433,10 +433,10 @@ extern "C"
 
   int read_raw(const char *filename, float **pixels, size_t *width, size_t *height, RAWDemosaicMethod method)
   {
-    float *bayered_pixels = NULL;
-    int    filter         = 0;
+    float *      bayered_pixels = NULL;
+    unsigned int filters        = 0;
 
-    int ret = read_raw_file(filename, &bayered_pixels, width, height, &filter);
+    int ret = read_raw_file(filename, &bayered_pixels, width, height, &filters);
 
     if (ret != 0)
     {
@@ -447,7 +447,7 @@ extern "C"
 
     *pixels = (float *)calloc(3 * image_size, sizeof(float));
 
-    demosaic(bayered_pixels, *pixels, *width, *height, filter, method);
+    demosaic(bayered_pixels, *pixels, *width, *height, filters, method);
 
     free(bayered_pixels);
 
@@ -464,10 +464,10 @@ extern "C"
       size_t *          height,
       RAWDemosaicMethod method)
   {
-    float *bayered_pixels = NULL;
-    int    filter         = 0;
+    float *      bayered_pixels = NULL;
+    unsigned int filters        = 0;
 
-    int ret = read_raw_file(filename, &bayered_pixels, width, height, &filter);
+    int ret = read_raw_file(filename, &bayered_pixels, width, height, &filters);
 
     if (ret != 0)
     {
@@ -480,7 +480,7 @@ extern "C"
     *pixels_green = (float *)calloc(image_size, sizeof(float));
     *pixels_blue  = (float *)calloc(image_size, sizeof(float));
 
-    demosaic_rgb(bayered_pixels, *pixels_red, *pixels_green, *pixels_blue, *width, *height, filter, method);
+    demosaic_rgb(bayered_pixels, *pixels_red, *pixels_green, *pixels_blue, *width, *height, filters, method);
 
     free(bayered_pixels);
 

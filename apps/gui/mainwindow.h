@@ -55,6 +55,8 @@ private slots:
 
   void on_buttonFit_clicked();
 
+  void on_demosaicingMode_currentIndexChanged(const QString &arg1);
+
 private:
   Ui::MainWindow *ui;
   ImageModel      _model;

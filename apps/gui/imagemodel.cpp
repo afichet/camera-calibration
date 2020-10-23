@@ -21,15 +21,21 @@ extern "C"
 
 ImageModel::ImageModel()
   : QObject()
+  , _mosaicedPixelBuffer(nullptr)
   , _pixelBuffer(nullptr)
   , _correctionMatrix({1.f, 0.f, 0.f, 0.f, 1.f, 0.f, 0.f, 0.f, 1.f})
   , _isImageLoaded(false)
   , _isMatrixLoaded(false)
   , _isMatrixActive(false)
+  , _isRawImage(false)
   , _innerMarginX(0.01)
   , _innerMarginY(0.01)
   , _exposure(0)
-  , _processWatcher(new QFutureWatcher<void>(this))
+  , _demosaicingMethod(RAWDemosaicMethod::BASIC)
+  , _filters(0x49494949)
+  , _imageLoadingWatcher(new QFutureWatcher<void>(this))
+  , _imageDemosaicingWatcher(new QFutureWatcher<void>(this))
+  , _imageEditingWatcher(new QFutureWatcher<void>(this))
 {
   _macbethOutline << QPointF(0, 0) << QPointF(100, 0) << QPointF(100, 100) << QPointF(0, 100);
 
@@ -39,7 +45,8 @@ ImageModel::ImageModel()
 
 ImageModel::~ImageModel()
 {
-  delete[] _pixelBuffer;
+  free(_mosaicedPixelBuffer);
+  free(_pixelBuffer);
 }
 
 
@@ -72,6 +79,7 @@ void ImageModel::getAveragedPatches(std::vector<float> &values)
   }
 
   values.resize(3 * _macbethPatches.size());
+
   #pragma omp parallel for
   for (int p = 0; p < _macbethPatches.size(); p++)
   {
@@ -99,14 +107,24 @@ void ImageModel::openFile(const QString &filename)
 
 void ImageModel::openImage(const QString &filename)
 {
-  delete[] _pixelBuffer;
-  _pixelBuffer   = nullptr;
-  _isImageLoaded = false;
+  free(_mosaicedPixelBuffer);
+  free(_pixelBuffer);
 
-  if (_processWatcher->isRunning())
+  _mosaicedPixelBuffer = nullptr;
+  _pixelBuffer         = nullptr;
+  _isImageLoaded       = false;
+  _isRawImage          = false;
+
+  if (_imageEditingWatcher->isRunning())
   {
-    emit _processWatcher->cancel();
-    _processWatcher->waitForFinished();
+    emit _imageEditingWatcher->cancel();
+    _imageEditingWatcher->waitForFinished();
+  }
+
+  if (_imageLoadingWatcher->isRunning())
+  {
+    emit _imageLoadingWatcher->cancel();
+    _imageLoadingWatcher->waitForFinished();
   }
 
   QFuture<void> imageLoading = QtConcurrent::run([=]() {
@@ -114,80 +132,57 @@ void ImageModel::openImage(const QString &filename)
     emit   loadingMessage(tr("Loading image..."));
     size_t width, height;
 
-    int success = read_image(filename.toStdString().c_str(), &_pixelBuffer, &width, &height);
+    int success = 0;
 
-    if (success != 0)
+    if (filename.endsWith(".txt", Qt::CaseInsensitive))
     {
-      emit loadFailed(tr("Cannot open image file"));
-      emit loadingMessage("");
-      delete[] _pixelBuffer;
-      _pixelBuffer = nullptr;
-      return;
-    }
-
-    emit processProgress(50);
-
-    _pixelCorrected.resize(3 * width * height);
-    _image = QImage(width, height, QImage::Format_RGB888);
-
-    if (_isMatrixActive)
-    {
-      for (size_t y = 0; y < height; y++)
+      // We are opening a RAW file
+      success = read_raw_file(filename.toStdString().c_str(), &_mosaicedPixelBuffer, &width, &height, &_filters);
+      if (success != 0)
       {
-        uchar *scanline = _image.scanLine(y);
-        #pragma omp parallel for
-        for (int x = 0; x < int(width); x++)
-        {
-          const int px_idx = 3 * (y * width + x);
-
-          float tmp_color[3];
-          matmul(&_correctionMatrix[0], &_pixelBuffer[px_idx], tmp_color);
-          XYZ_to_RGB(tmp_color, &_pixelCorrected[px_idx]);
-
-          for (size_t i = 0; i < 3; i++)
-          {
-            scanline[3 * x + i] = 255 * to_sRGB(_pixelCorrected[px_idx + i]);
-          }
-        }
-        emit processProgress(50 + int(50.f * (float(y) / float(height - 1))));
+        emit loadFailed(tr("Cannot open image file"));
+        emit loadingMessage("");
+        delete[] _pixelBuffer;
+        _pixelBuffer = nullptr;
+        return;
       }
+      _isRawImage  = true;
+      _pixelBuffer = (float *)calloc(3 * width * height, sizeof(float));
+      demosaic(_mosaicedPixelBuffer, _pixelBuffer, width, height, _filters, _demosaicingMethod);
     }
     else
     {
-      for (size_t y = 0; y < height; y++)
-      {
-        uchar *scanline = _image.scanLine(y);
-        #pragma omp parallel for
-        for (int x = 0; x < int(width); x++)
-        {
-          const int px_idx = 3 * (y * width + x);
+      success = read_image(filename.toStdString().c_str(), &_pixelBuffer, &width, &height);
 
-          for (size_t i = 0; i < 3; i++)
-          {
-            scanline[3 * x + i] = 255 * to_sRGB(_pixelBuffer[px_idx + i]);
-          }
-        }
-        emit processProgress(50 + int(50.f * (float(y) / float(height - 1))));
+      if (success != 0)
+      {
+        emit loadFailed(tr("Cannot open image file"));
+        emit loadingMessage("");
+        delete[] _pixelBuffer;
+        _pixelBuffer = nullptr;
+        return;
       }
     }
 
-    emit imageChanged();
-    emit imageLoaded(width, height);
+    _exposure = 0.f;
+    _pixelCorrected.resize(3 * width * height);
+    _image         = QImage(width, height, QImage::Format_RGB888);
+    _isImageLoaded = true;
+    _imagePath     = filename;
     _macbethOutline.clear();
     _macbethOutline << QPointF(0, 0) << QPointF(_image.width(), 0) << QPointF(_image.width(), _image.height())
                     << QPointF(0, _image.height());
 
-    _exposure = 0.f;
-    emit exposureChanged(_exposure);
-
-    recalculateMacbethPatches();
-    _imagePath     = filename;
-    _isImageLoaded = true;
     emit processProgress(100);
     emit loadingMessage("");
+    emit exposureChanged(_exposure);
+    emit imageLoaded(width, height);
+
+    recalculateMacbethPatches();
   });
 
-  _processWatcher->setFuture(imageLoading);
+  _imageLoadingWatcher->setFuture(imageLoading);
+  recalculateCorrection(0);
 }
 
 
@@ -261,6 +256,56 @@ void ImageModel::setExposure(double value)
 }
 
 
+void ImageModel::setDemosaicingMethod(const QString &method)
+{
+  if (_imageLoadingWatcher->isRunning())
+  {
+    _imageLoadingWatcher->waitForFinished();
+  }
+
+  if (_imageDemosaicingWatcher->isRunning())
+  {
+    _imageDemosaicingWatcher->waitForFinished();
+  }
+
+  if (!isImageLoaded()) return;
+
+  if (_imageEditingWatcher->isRunning())
+  {
+    emit _imageEditingWatcher->cancel();
+    _imageEditingWatcher->waitForFinished();
+  }
+
+  if (method == "None")
+  {
+    _demosaicingMethod = RAWDemosaicMethod::NONE;
+  }
+  else if (method == "Basic")
+  {
+    _demosaicingMethod = RAWDemosaicMethod::BASIC;
+  }
+  else if (method == "Amaze")
+  {
+    _demosaicingMethod = RAWDemosaicMethod::AMAZE;
+  }
+
+  if (_imageEditingWatcher->isRunning())
+  {
+    _imageEditingWatcher->waitForFinished();
+  }
+
+  if (_isRawImage)
+  {
+    QFuture<void> demosaicing = QtConcurrent::run([=]() {
+      demosaic(_mosaicedPixelBuffer, _pixelBuffer, _image.width(), _image.height(), _filters, _demosaicingMethod);
+    });
+
+    _imageDemosaicingWatcher->setFuture(demosaicing);
+    recalculateCorrection(_exposure);
+  }
+}
+
+
 void ImageModel::setMatrix(const std::array<float, 9> matrix)
 {
   if (_correctionMatrix == matrix) return;
@@ -288,10 +333,9 @@ void ImageModel::savePatchesCoordinates(const QString &filename)
 {
   if (!isImageLoaded()) return;
 
-  if (_processWatcher->isRunning())
+  if (_imageLoadingWatcher->isRunning())
   {
-    emit _processWatcher->cancel();
-    _processWatcher->waitForFinished();
+    _imageLoadingWatcher->waitForFinished();
   }
 
   QFuture<void> imageLoading = QtConcurrent::run([=]() {
@@ -313,19 +357,18 @@ void ImageModel::savePatchesCoordinates(const QString &filename)
     emit loadingMessage("");
   });
 
-  _processWatcher->setFuture(imageLoading);
+  _imageLoadingWatcher->setFuture(imageLoading);
 }
 
 
 void ImageModel::savePatchesColors(const QString &filename)
 {
-  if (!isImageLoaded()) return;
-
-  if (_processWatcher->isRunning())
+  if (_imageLoadingWatcher->isRunning())
   {
-    emit _processWatcher->cancel();
-    _processWatcher->waitForFinished();
+    _imageLoadingWatcher->waitForFinished();
   }
+
+  if (!isImageLoaded()) return;
 
   QFuture<void> imageLoading = QtConcurrent::run([=]() {
     emit processProgress(0);
@@ -347,7 +390,7 @@ void ImageModel::savePatchesColors(const QString &filename)
     emit loadingMessage("");
   });
 
-  _processWatcher->setFuture(imageLoading);
+  _imageLoadingWatcher->setFuture(imageLoading);
 }
 
 
@@ -359,15 +402,26 @@ void ImageModel::saveMatrix(const QString &filename)
 
 void ImageModel::recalculateCorrection(double exposure)
 {
-  if (!isImageLoaded()) return;
-
-  if (_processWatcher->isRunning())
+  if (_imageLoadingWatcher->isRunning())
   {
-    emit _processWatcher->cancel();
-    _processWatcher->waitForFinished();
+    _imageLoadingWatcher->waitForFinished();
   }
 
-  QFuture<void> imageLoading = QtConcurrent::run([=]() {
+  if (!isImageLoaded()) return;
+
+  if (_imageDemosaicingWatcher->isRunning())
+  {
+    emit _imageDemosaicingWatcher->cancel();
+    _imageDemosaicingWatcher->waitForFinished();
+  }
+
+  if (_imageEditingWatcher->isRunning())
+  {
+    emit _imageEditingWatcher->cancel();
+    _imageEditingWatcher->waitForFinished();
+  }
+
+  QFuture<void> imageEditting = QtConcurrent::run([=]() {
     emit processProgress(0);
     emit loadingMessage(tr("Exposure correction..."));
 
@@ -377,7 +431,7 @@ void ImageModel::recalculateCorrection(double exposure)
     {
       for (int y = 0; y < _image.height(); y++)
       {
-        if (_processWatcher->isCanceled()) return;
+        if (_imageLoadingWatcher->isCanceled()) return;
         uchar *scanline = _image.scanLine(y);
 
         #pragma omp parallel for
@@ -402,7 +456,7 @@ void ImageModel::recalculateCorrection(double exposure)
     {
       for (int y = 0; y < _image.height(); y++)
       {
-        if (_processWatcher->isCanceled()) return;
+        if (_imageLoadingWatcher->isCanceled()) return;
         uchar *scanline = _image.scanLine(y);
 
         #pragma omp parallel for
@@ -425,7 +479,7 @@ void ImageModel::recalculateCorrection(double exposure)
     emit loadingMessage("");
   });
 
-  _processWatcher->setFuture(imageLoading);
+  _imageEditingWatcher->setFuture(imageEditting);
 }
 
 
