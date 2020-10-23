@@ -182,7 +182,7 @@ void ImageModel::openImage(const QString &filename)
   });
 
   _imageLoadingWatcher->setFuture(imageLoading);
-  recalculateCorrection(0, true);
+  recalculateCorrection(0);
 }
 
 
@@ -249,7 +249,7 @@ void ImageModel::setOutlinePosition(int index, QPointF position)
 
 void ImageModel::setExposure(double value)
 {
-  recalculateCorrection(value, false);
+  recalculateCorrection(value);
 }
 
 
@@ -297,7 +297,7 @@ void ImageModel::setDemosaicingMethod(const QString &method)
     });
 
     _imageDemosaicingWatcher->setFuture(demosaicing);
-    recalculateCorrection(_exposure, true);
+    recalculateCorrection(_exposure);
   }
 }
 
@@ -309,7 +309,7 @@ void ImageModel::setMatrix(const std::array<float, 9> matrix)
   _isMatrixLoaded   = true;
   _correctionMatrix = matrix;
 
-  if (_isMatrixActive) recalculateCorrection(_exposure, true);
+  if (_isMatrixActive) recalculateCorrection(_exposure);
   emit matrixLoaded(_correctionMatrix);
   setMatrixActive(true);
 }
@@ -320,7 +320,7 @@ void ImageModel::setMatrixActive(bool active)
   if (_isMatrixActive == active) return;
 
   _isMatrixActive = active;
-  recalculateCorrection(_exposure, true);
+  recalculateCorrection(_exposure);
   emit matrixActivationStateChanged(_isMatrixActive);
 }
 
@@ -396,18 +396,16 @@ void ImageModel::saveMatrix(const QString &filename)
 }
 
 
-void ImageModel::recalculateCorrection(double exposure, bool forcedUpdate)
+void ImageModel::recalculateCorrection(double exposure)
 {
-  if (!forcedUpdate && exposure == _exposure) return;
+  _exposure = exposure;
+  emit exposureChanged(_exposure);
 
   if (_imageEditingWatcher->isRunning())
   {
     emit _imageEditingWatcher->cancel();
     _imageEditingWatcher->waitForFinished();
   }
-
-  _exposure = exposure;
-  emit exposureChanged(_exposure);
 
   if (_imageLoadingWatcher->isRunning())
   {

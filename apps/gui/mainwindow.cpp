@@ -148,7 +148,9 @@ void MainWindow::on_sliderInnerMarginY_valueChanged(int value)
 
 void MainWindow::on_exposureValue_valueChanged(double value)
 {
+  disconnect(&_model, SIGNAL(exposureChanged(double)), ui->exposureValue, SLOT(setValue(double)));
   _model.setExposure(value);
+  connect(&_model, SIGNAL(exposureChanged(double)), ui->exposureValue, SLOT(setValue(double)));
 }
 
 

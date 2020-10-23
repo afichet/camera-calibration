@@ -62,7 +62,7 @@ signals:
   void matrixActivationStateChanged(bool state);
 
 protected:
-  void recalculateCorrection(double exposure, bool forcedUpdate);
+  void recalculateCorrection(double exposure);
   void recalculateMacbethPatches();
 
 private:
