@@ -11,7 +11,8 @@ extern "C"
   typedef enum
   {
     BASIC,
-    AMAZE
+    AMAZE,
+    NONE
   } RAWDemosaicMethod;
 
   void demosaic_rgb(
@@ -21,7 +22,7 @@ extern "C"
       float *           pixels_blue,
       size_t            width,
       size_t            height,
-      unsigned int      bayer_pattern,
+      unsigned int      filters,
       RAWDemosaicMethod method);
 
   void demosaic(
@@ -29,8 +30,20 @@ extern "C"
       float *           debayered_image,
       size_t            width,
       size_t            height,
-      unsigned int      bayer_pattern,
+      unsigned int      filters,
       RAWDemosaicMethod method);
+
+  void no_demosaic_rgb(
+      const float *bayered_image,
+      float *      pixels_red,
+      float *      pixels_green,
+      float *      pixels_blue,
+      size_t       width,
+      size_t       height,
+      unsigned int filters);
+
+  void
+  no_demosaic(const float *bayered_image, float *debayered_image, size_t width, size_t height, unsigned int filters);
 
   void basic_demosaic_rgb(
       const float *bayered_image,
@@ -39,14 +52,10 @@ extern "C"
       float *      pixels_blue,
       size_t       width,
       size_t       height,
-      unsigned int bayer_pattern);
+      unsigned int filters);
 
-  void basic_demosaic(
-      const float *bayered_image,
-      float *      debayered_image,
-      size_t       width,
-      size_t       height,
-      unsigned int bayer_pattern);
+  void
+  basic_demosaic(const float *bayered_image, float *debayered_image, size_t width, size_t height, unsigned int filters);
 
   void amaze_demosaic_rgb(
       const float *      bayered_image,

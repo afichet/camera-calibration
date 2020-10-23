@@ -16,17 +16,21 @@ extern "C"
       float *           pixels_blue,
       size_t            width,
       size_t            height,
-      unsigned int      bayer_pattern,
+      unsigned int      filters,
       RAWDemosaicMethod method)
   {
     switch (method)
     {
       case BASIC:
-        basic_demosaic_rgb(bayered_image, pixels_red, pixels_green, pixels_blue, width, height, bayer_pattern);
+        basic_demosaic_rgb(bayered_image, pixels_red, pixels_green, pixels_blue, width, height, filters);
         break;
 
       case AMAZE:
-        amaze_demosaic_rgb(bayered_image, pixels_red, pixels_green, pixels_blue, width, height, bayer_pattern);
+        amaze_demosaic_rgb(bayered_image, pixels_red, pixels_green, pixels_blue, width, height, filters);
+        break;
+
+      case NONE:
+        no_demosaic_rgb(bayered_image, pixels_red, pixels_green, pixels_blue, width, height, filters);
         break;
     }
   }
@@ -36,19 +40,110 @@ extern "C"
       float *           debayered_image,
       size_t            width,
       size_t            height,
-      unsigned int      bayer_pattern,
+      unsigned int      filters,
       RAWDemosaicMethod method)
   {
     switch (method)
     {
       case BASIC:
-        basic_demosaic(bayered_image, debayered_image, width, height, bayer_pattern);
+        basic_demosaic(bayered_image, debayered_image, width, height, filters);
         break;
 
       case AMAZE:
-        amaze_demosaic(bayered_image, debayered_image, width, height, bayer_pattern);
+        amaze_demosaic(bayered_image, debayered_image, width, height, filters);
+        break;
+
+      case NONE:
+        no_demosaic(bayered_image, debayered_image, width, height, filters);
         break;
     }
+  }
+
+
+  void no_demosaic_rgb(
+      const float *bayered_image,
+      float *      pixels_red,
+      float *      pixels_green,
+      float *      pixels_blue,
+      size_t       width,
+      size_t       height,
+      unsigned int filters)
+  {
+    float *bayer[4];
+
+    memset(pixels_red, 0, width * height * sizeof(float));
+    memset(pixels_green, 0, width * height * sizeof(float));
+    memset(pixels_blue, 0, width * height * sizeof(float));
+
+    switch (filters)
+    {
+      case 0x16161616:   // BGGR
+        bayer[0] = pixels_blue;
+        bayer[1] = pixels_green;
+        bayer[2] = pixels_green;
+        bayer[3] = pixels_red;
+        break;
+      case 0x61616161:   // GRBG
+        bayer[0] = pixels_green;
+        bayer[1] = pixels_red;
+        bayer[2] = pixels_blue;
+        bayer[3] = pixels_green;
+        break;
+      case 0x49494949:   // GBRG
+        bayer[0] = pixels_green;
+        bayer[1] = pixels_blue;
+        bayer[2] = pixels_red;
+        bayer[3] = pixels_green;
+        break;
+      case 0x94949494:   // RGGB
+        bayer[0] = pixels_red;
+        bayer[1] = pixels_green;
+        bayer[2] = pixels_green;
+        bayer[3] = pixels_blue;
+        break;
+      default:
+        return;
+    }
+
+    // Populate each color from the bayered image
+    #pragma omp parallel for
+    for (int y = 0; y < int(height); y += 2)
+    {
+      for (size_t x = 0; x < width; x += 2)
+      {
+        // clang-format off
+        bayer[0][(y    ) * width + x    ] = bayered_image[(y    ) * width + x    ];
+        bayer[1][(y    ) * width + x + 1] = bayered_image[(y    ) * width + x + 1];
+        bayer[2][(y + 1) * width + x    ] = bayered_image[(y + 1) * width + x    ];
+        bayer[3][(y + 1) * width + x + 1] = bayered_image[(y + 1) * width + x + 1];
+        // clang-format on
+      }
+    }
+  }
+
+
+  void
+  no_demosaic(const float *bayered_image, float *debayered_image, size_t width, size_t height, unsigned int filters)
+  {
+    float *debayered_r_temp = new float[width * height];
+    float *debayered_g_temp = new float[width * height];
+    float *debayered_b_temp = new float[width * height];
+
+    no_demosaic_rgb(bayered_image, debayered_r_temp, debayered_g_temp, debayered_b_temp, width, height, filters);
+
+    for (size_t row = 0; row < height; row++)
+    {
+      for (size_t col = 0; col < width; col++)
+      {
+        debayered_image[3 * (row * width + col) + 0] = debayered_r_temp[row * width + col];
+        debayered_image[3 * (row * width + col) + 1] = debayered_g_temp[row * width + col];
+        debayered_image[3 * (row * width + col) + 2] = debayered_b_temp[row * width + col];
+      }
+    }
+
+    delete[] debayered_r_temp;
+    delete[] debayered_g_temp;
+    delete[] debayered_b_temp;
   }
 
   /**
@@ -107,72 +202,17 @@ extern "C"
       float *      pixels_blue,
       size_t       width,
       size_t       height,
-      unsigned int bayer_pattern)
+      unsigned int filters)
   {
     size_t n_elems = width * height;
 
     float *r_buffer = new float[n_elems];
     float *g_buffer = new float[n_elems];
     float *b_buffer = new float[n_elems];
-    float *bayer[4];
 
-    char *pattern;
-
-    switch (bayer_pattern)
-    {
-      case 0x16161616:
-        pattern = "BGGR";
-        break;
-      case 0x61616161:
-        pattern = "GRBG";
-        break;
-      case 0x49494949:
-        pattern = "GBRG";
-        break;
-      case 0x94949494:
-        pattern = "RGGB";
-        break;
-      default:
-        return;
-    }
-
-    for (int i = 0; i < 4; i++)
-    {
-      switch (pattern[i])
-      {
-        case 'R':
-          bayer[i] = r_buffer;
-          break;
-        case 'G':
-          bayer[i] = g_buffer;
-          break;
-        case 'B':
-          bayer[i] = b_buffer;
-          break;
-        default:
-          std::cerr << "Unknown channel in the Bayer pattern descriptor." << std::endl;
-          return;
-      }
-    }
-
-    memset(r_buffer, 0, n_elems * sizeof(float));
-    memset(g_buffer, 0, n_elems * sizeof(float));
-    memset(b_buffer, 0, n_elems * sizeof(float));
-
-    // Populate each color from the bayered image
-    #pragma omp parallel for
-    for (int y = 0; y < int(height); y += 2)
-    {
-      for (size_t x = 0; x < width; x += 2)
-      {
-        // clang-format off
-        bayer[0][(y    ) * width + x    ] = bayered_image[(y    ) * width + x    ];
-        bayer[1][(y    ) * width + x + 1] = bayered_image[(y    ) * width + x + 1];
-        bayer[2][(y + 1) * width + x    ] = bayered_image[(y + 1) * width + x    ];
-        bayer[3][(y + 1) * width + x + 1] = bayered_image[(y + 1) * width + x + 1];
-        // clang-format on
-      }
-    }
+    // Just create larger version of the original image with holes
+    // at positions where there is no photosites
+    no_demosaic_rgb(bayered_image, r_buffer, g_buffer, b_buffer, width, height, filters);
 
     // Now, do the convolutions
     // clang-format off
@@ -203,7 +243,6 @@ extern "C"
     delete[] g_buffer;
     delete[] b_buffer;
   }
-
 
 
   void
