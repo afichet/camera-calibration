@@ -182,7 +182,7 @@ void ImageModel::openImage(const QString &filename)
   });
 
   _imageLoadingWatcher->setFuture(imageLoading);
-  recalculateCorrection(0);
+  recalculateCorrection(0, true);
 }
 
 
@@ -249,10 +249,7 @@ void ImageModel::setOutlinePosition(int index, QPointF position)
 
 void ImageModel::setExposure(double value)
 {
-  if (!isImageLoaded()) return;
-  if (_exposure == value) return;
-
-  recalculateCorrection(value);
+  recalculateCorrection(value, false);
 }
 
 
@@ -300,7 +297,7 @@ void ImageModel::setDemosaicingMethod(const QString &method)
     });
 
     _imageDemosaicingWatcher->setFuture(demosaicing);
-    recalculateCorrection(_exposure);
+    recalculateCorrection(_exposure, true);
   }
 }
 
@@ -312,7 +309,7 @@ void ImageModel::setMatrix(const std::array<float, 9> matrix)
   _isMatrixLoaded   = true;
   _correctionMatrix = matrix;
 
-  if (_isMatrixActive) recalculateCorrection(_exposure);
+  if (_isMatrixActive) recalculateCorrection(_exposure, true);
   emit matrixLoaded(_correctionMatrix);
   setMatrixActive(true);
 }
@@ -323,7 +320,7 @@ void ImageModel::setMatrixActive(bool active)
   if (_isMatrixActive == active) return;
 
   _isMatrixActive = active;
-  recalculateCorrection(_exposure);
+  recalculateCorrection(_exposure, true);
   emit matrixActivationStateChanged(_isMatrixActive);
 }
 
@@ -399,8 +396,19 @@ void ImageModel::saveMatrix(const QString &filename)
 }
 
 
-void ImageModel::recalculateCorrection(double exposure)
+void ImageModel::recalculateCorrection(double exposure, bool forcedUpdate)
 {
+  if (!forcedUpdate && exposure == _exposure) return;
+
+  if (_imageEditingWatcher->isRunning())
+  {
+    emit _imageEditingWatcher->cancel();
+    _imageEditingWatcher->waitForFinished();
+  }
+
+  _exposure = exposure;
+  emit exposureChanged(_exposure);
+
   if (_imageLoadingWatcher->isRunning())
   {
     _imageLoadingWatcher->waitForFinished();
@@ -411,12 +419,6 @@ void ImageModel::recalculateCorrection(double exposure)
   if (_imageDemosaicingWatcher->isRunning())
   {
     _imageDemosaicingWatcher->waitForFinished();
-  }
-
-  if (_imageEditingWatcher->isRunning())
-  {
-    emit _imageEditingWatcher->cancel();
-    _imageEditingWatcher->waitForFinished();
   }
 
   QFuture<void> imageEditting = QtConcurrent::run([=]() {
@@ -470,9 +472,8 @@ void ImageModel::recalculateCorrection(double exposure)
         emit processProgress(int(100.f * float(y) / float(_image.height() - 1)));
       }
     }
-    _exposure = exposure;
 
-    emit exposureChanged(_exposure);
+
     emit imageChanged();
     emit loadingMessage("");
   });
