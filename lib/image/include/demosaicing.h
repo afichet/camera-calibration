@@ -1,0 +1,73 @@
+#ifndef DEMOSAICING_H_
+#define DEMOSAICING_H_
+
+#include <stddef.h>
+
+#ifdef __cplusplus
+extern "C"
+{
+#endif   // __cplusplus
+
+  typedef enum
+  {
+    BASIC,
+    AMAZE
+  } RAWDemosaicMethod;
+
+  void demosaic_rgb(
+      const float *     bayered_image,
+      float *           pixels_red,
+      float *           pixels_green,
+      float *           pixels_blue,
+      size_t            width,
+      size_t            height,
+      unsigned int      bayer_pattern,
+      RAWDemosaicMethod method);
+
+  void demosaic(
+      const float *     bayered_image,
+      float *           debayered_image,
+      size_t            width,
+      size_t            height,
+      unsigned int      bayer_pattern,
+      RAWDemosaicMethod method);
+
+  void basic_demosaic_rgb(
+      const float *bayered_image,
+      float *      pixels_red,
+      float *      pixels_green,
+      float *      pixels_blue,
+      size_t       width,
+      size_t       height,
+      unsigned int bayer_pattern);
+
+  void basic_demosaic(
+      const float *bayered_image,
+      float *      debayered_image,
+      size_t       width,
+      size_t       height,
+      unsigned int bayer_pattern);
+
+  void amaze_demosaic_rgb(
+      const float *      bayered_image,
+      float *            pixels_red,
+      float *            pixels_green,
+      float *            pixels_blue,
+      size_t             width,
+      size_t             height,
+      const unsigned int filters);
+
+  void amaze_demosaic(
+      const float *      bayered_image,
+      float *            debayered_image,
+      size_t             width,
+      size_t             height,
+      const unsigned int filters);
+
+
+#ifdef __cplusplus
+}
+#endif   // __cplusplus
+
+
+#endif   // DEMOSAICING_H_

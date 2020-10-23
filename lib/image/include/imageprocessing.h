@@ -8,14 +8,7 @@ extern "C"
 {
 #endif   // __cplusplus
 
-  void basic_debayer(
-      const float *bayered_image,
-      float *      pixels_red,
-      float *      pixels_green,
-      float *      pixels_blue,
-      size_t       width,
-      size_t       height,
-      unsigned int bayer_pattern);
+  void image_convolve3x3(float *matrix, float *array_in, float *array_out, size_t width, size_t height);
 
   void correct_image(float *pixels, size_t width, size_t height, float *matrix);
 

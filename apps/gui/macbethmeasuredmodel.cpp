@@ -90,7 +90,7 @@ void MacbethMeasuredModel::updateColors()
 {
   if (_isMatrixActive)
   {
-#pragma omp parallel for
+    #pragma omp parallel for
     for (int i = 0; i < 24; i++)
     {
       float tmp_color_XYZ[3], tmp_color_RGB[3];
@@ -105,7 +105,7 @@ void MacbethMeasuredModel::updateColors()
   }
   else
   {
-#pragma omp parallel for
+    #pragma omp parallel for
     for (int i = 0; i < 24; i++)
     {
       _tonemappedColors[i] = QColor(

@@ -3,7 +3,7 @@
 #include <string.h>
 
 #include <image.h>
-#include <demosaicamaze.h>
+#include <demosaicing.h>
 
 int main(int argc, char *argv[])
 {
@@ -23,8 +23,8 @@ int main(int argc, char *argv[])
   float *image_g = NULL;
   float *image_b = NULL;
 
-  size_t           width, height;
-  RAWDebayerMethod method = AMAZE;
+  size_t            width, height;
+  RAWDemosaicMethod method = AMAZE;
 
   int ret = read_image_rgb(filename_in, &image_r, &image_g, &image_b, &width, &height);
 
@@ -46,35 +46,9 @@ int main(int argc, char *argv[])
       || strcmp(filename_in + len - 3, "exr") == 0 || strcmp(filename_in + len - 3, "EXR") == 0)
   {
     float *bayered_pixels = (float *)calloc(width * height, sizeof(float));
-    float *debayered = NULL;
 
     memcpy(bayered_pixels, image_r, width * height * sizeof(float));
-
-    switch (method)
-    {
-      case BASIC:
-        basic_debayer(bayered_pixels, image_r, image_g, image_b, width, height, 0x49494949);
-        break;
-
-      case AMAZE:
-        debayered = (float *)calloc(4 * width * height, sizeof(float));
-
-        amaze_demosaic_RT(bayered_pixels, debayered, width, height, 0x49494949);
-
-        for (size_t row = 0; row < height; row++)
-        {
-          for (size_t col = 0; col < width; col++)
-          {
-            image_r[row * width + col] = debayered[(row * width + col) * 4 + 0];
-            image_g[row * width + col] = debayered[(row * width + col) * 4 + 1];
-            image_b[row * width + col] = debayered[(row * width + col) * 4 + 2];
-          }
-        }
-
-        free(debayered);
-        break;
-    }
-
+    demosaic_rgb(bayered_pixels, image_r, image_g, image_b, width, height, 0x49494949, method);
     free(bayered_pixels);
   }
 

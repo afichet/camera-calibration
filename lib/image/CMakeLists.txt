@@ -5,7 +5,7 @@ set(PUBLIC_HEADERS
     include/imagergb.h
     include/imageraw.h
     include/imageprocessing.h
-    include/demosaicamaze.h
+    include/demosaic.h
     )
 
 add_library(image STATIC
@@ -13,7 +13,7 @@ add_library(image STATIC
     imagergb.cpp
     imageraw.cpp
     imageprocessing.cpp
-    demosaicamaze.cpp
+    demosaic.cpp
     )
 
 if (TIFF_FOUND)

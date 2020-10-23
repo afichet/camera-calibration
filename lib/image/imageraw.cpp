@@ -1,7 +1,6 @@
 #include <imageraw.h>
 #include <imageprocessing.h>
 #include <imagergb.h>
-#include <demosaicamaze.h>
 
 #include <cstdio>
 #include <cstdlib>
@@ -432,48 +431,38 @@ extern "C"
   }
 
 
-  int read_raw(const char *filename, float **pixels, size_t *width, size_t *height, RAWDebayerMethod method)
+  int read_raw(const char *filename, float **pixels, size_t *width, size_t *height, RAWDemosaicMethod method)
   {
-    float *r_cv_buffer = NULL;
-    float *g_cv_buffer = NULL;
-    float *b_cv_buffer = NULL;
+    float *bayered_pixels = NULL;
+    int    filter         = 0;
 
-    int ret = read_raw_rgb(filename, &r_cv_buffer, &g_cv_buffer, &b_cv_buffer, width, height, method);
+    int ret = read_raw_file(filename, &bayered_pixels, width, height, &filter);
 
     if (ret != 0)
     {
       return ret;
     }
 
-    // Recompose the image
-    const size_t size       = (*width) * (*height);
-    float *      out_buffer = new float[3 * size];
+    const size_t image_size = (*width) * (*height);
 
-    #pragma omp parallel for
-    for (int i = 0; i < int(size); i++)
-    {
-      out_buffer[3 * i + 0] = r_cv_buffer[i];
-      out_buffer[3 * i + 1] = g_cv_buffer[i];
-      out_buffer[3 * i + 2] = b_cv_buffer[i];
-    }
+    *pixels = (float *)calloc(3 * image_size, sizeof(float));
 
-    delete[] r_cv_buffer;
-    delete[] g_cv_buffer;
-    delete[] b_cv_buffer;
+    demosaic(bayered_pixels, *pixels, *width, *height, filter, method);
 
-    *pixels = out_buffer;
+    free(bayered_pixels);
 
     return 0;
   }
 
+
   int read_raw_rgb(
-      const char *     filename,
-      float **         pixels_red,
-      float **         pixels_green,
-      float **         pixels_blue,
-      size_t *         width,
-      size_t *         height,
-      RAWDebayerMethod method)
+      const char *      filename,
+      float **          pixels_red,
+      float **          pixels_green,
+      float **          pixels_blue,
+      size_t *          width,
+      size_t *          height,
+      RAWDemosaicMethod method)
   {
     float *bayered_pixels = NULL;
     int    filter         = 0;
@@ -491,31 +480,7 @@ extern "C"
     *pixels_green = (float *)calloc(image_size, sizeof(float));
     *pixels_blue  = (float *)calloc(image_size, sizeof(float));
 
-    float *debayed_pixels = NULL;
-
-    switch (method)
-    {
-      case BASIC:
-        basic_debayer(bayered_pixels, *pixels_red, *pixels_green, *pixels_blue, *width, *height, filter);
-        break;
-
-      case AMAZE:
-        debayed_pixels = (float *)calloc(4 * image_size, sizeof(float));
-        amaze_demosaic_RT(bayered_pixels, debayed_pixels, *width, *height, filter);
-        
-        for (size_t row = 0; row < (*height); row++)
-        {
-          for (size_t col = 0; col < (*width); col++)
-          {
-            (*pixels_red)[row * (*width) + col]   = debayed_pixels[(row * (*width) + col) * 4 + 0];
-            (*pixels_green)[row * (*width) + col] = debayed_pixels[(row * (*width) + col) * 4 + 1];
-            (*pixels_blue)[row * (*width) + col]  = debayed_pixels[(row * (*width) + col) * 4 + 2];
-          }
-        }
-
-        free(debayed_pixels);
-        break;
-    }
+    demosaic_rgb(bayered_pixels, *pixels_red, *pixels_green, *pixels_blue, *width, *height, filter, method);
 
     free(bayered_pixels);
 

@@ -2,6 +2,7 @@
 #define IMAGERAW_H_
 
 #include <stddef.h>
+#include <demosaicing.h>
 
 #ifdef __cplusplus
 extern "C"
@@ -20,26 +21,20 @@ extern "C"
     char *filename_info;
   } RAWMetadata;
 
-  typedef enum
-  {
-    BASIC,
-    AMAZE
-  } RAWDebayerMethod;
-
   int read_raw_metadata(const char *filename, RAWMetadata *metadata);
   int read_raw_file(const char *filename, float **bayered_pixels, size_t *width, size_t *height, int *filter);
   int read_dat(const char *filename, float **bayered_pixels, size_t *width, size_t *height, size_t bit_depth);
 
-  int read_raw(const char *filename, float **pixels, size_t *width, size_t *height, RAWDebayerMethod method);
+  int read_raw(const char *filename, float **pixels, size_t *width, size_t *height, RAWDemosaicMethod method);
 
   int read_raw_rgb(
-      const char *     filename,
-      float **         pixels_red,
-      float **         pixels_green,
-      float **         pixels_blue,
-      size_t *         width,
-      size_t *         height,
-      RAWDebayerMethod method);
+      const char *      filename,
+      float **          pixels_red,
+      float **          pixels_green,
+      float **          pixels_blue,
+      size_t *          width,
+      size_t *          height,
+      RAWDemosaicMethod method);
 
 
 #ifdef __cplusplus
