@@ -61,10 +61,8 @@ signals:
   void matrixLoaded(const std::array<float, 9> &matrix);
   void matrixActivationStateChanged(bool state);
 
-
 protected:
   void recalculateCorrection(double exposure);
-
   void recalculateMacbethPatches();
 
 private:

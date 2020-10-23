@@ -173,12 +173,12 @@ void ImageModel::openImage(const QString &filename)
     _macbethOutline << QPointF(0, 0) << QPointF(_image.width(), 0) << QPointF(_image.width(), _image.height())
                     << QPointF(0, _image.height());
 
+    recalculateMacbethPatches();
+
     emit processProgress(100);
     emit loadingMessage("");
     emit exposureChanged(_exposure);
     emit imageLoaded(width, height);
-
-    recalculateMacbethPatches();
   });
 
   _imageLoadingWatcher->setFuture(imageLoading);
@@ -263,16 +263,15 @@ void ImageModel::setDemosaicingMethod(const QString &method)
     _imageLoadingWatcher->waitForFinished();
   }
 
+  if (!isImageLoaded()) return;
+
   if (_imageDemosaicingWatcher->isRunning())
   {
     _imageDemosaicingWatcher->waitForFinished();
   }
 
-  if (!isImageLoaded()) return;
-
   if (_imageEditingWatcher->isRunning())
   {
-    emit _imageEditingWatcher->cancel();
     _imageEditingWatcher->waitForFinished();
   }
 
@@ -411,7 +410,6 @@ void ImageModel::recalculateCorrection(double exposure)
 
   if (_imageDemosaicingWatcher->isRunning())
   {
-    emit _imageDemosaicingWatcher->cancel();
     _imageDemosaicingWatcher->waitForFinished();
   }
 
