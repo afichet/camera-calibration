@@ -5,6 +5,28 @@ set(CMAKE_ARCHIVE_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/lib)
 set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/bin)
 
+
+
+SET(ENABLE_SIMD_FLAGS "native" CACHE STRING "Set compiler SIMD flags")
+SET_PROPERTY(CACHE ENABLE_SIMD_FLAGS PROPERTY STRINGS none native SSE3 SSE4.2 AVX AVX2) 
+
+if(${ENABLE_SIMD_FLAGS} MATCHES "native")
+     add_definitions(-march=native -mfpmath=both)
+    message(STATUS "Enabling native optimizations")
+elseif(${ENABLE_SIMD_FLAGS} MATCHES "AVX2")
+    add_definitions(-mmmx -msse -msse2 -msse3 -mssse3 -msse4.1 -msse4.2 -mpopcnt -mavx -mfma -mavx2 -mfpmath=both)
+    message(STATUS "Enabling AVX2 instructions")
+elseif(${ENABLE_SIMD_FLAGS} MATCHES "AVX")
+    add_definitions(-mmmx -msse -msse2 -msse3 -mssse3 -msse4.1 -msse4.2 -mpopcnt -mavx -mfpmath=both)
+    message(STATUS "Enabling AVX instructions")
+elseif(${ENABLE_SIMD_FLAGS} MATCHES "SSE4.2")
+    add_definitions(-mmmx -msse -msse2 -msse3 -mssse3 -msse4.1 -msse4.2 -mpopcnt -mfpmath=both)
+    message(STATUS "Enabling SSE4.2 instructions")
+elseif(${ENABLE_SIMD_FLAGS} MATCHES "SSE3")
+    add_definitions(-mmmx -msse -msse2 -msse3 -mfpmath=both)
+    message(STATUS "Enabling SSE3 instructions")
+endif()
+
 add_subdirectory(external)
 add_subdirectory(lib)
 add_subdirectory(apps)

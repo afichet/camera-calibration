@@ -1,6 +1,7 @@
 #include <imageraw.h>
 #include <imageprocessing.h>
 #include <imagergb.h>
+#include <demosaicamaze.h>
 
 #include <cstdio>
 #include <cstdlib>
@@ -96,47 +97,7 @@ extern "C"
     return 0;
   }
 
-  int read_raw(const char *filename, float **pixels, size_t *width, size_t *height)
-  {
-    float *r_cv_buffer = NULL;
-    float *g_cv_buffer = NULL;
-    float *b_cv_buffer = NULL;
-
-    int ret = read_raw_rgb(filename, &r_cv_buffer, &g_cv_buffer, &b_cv_buffer, width, height);
-
-    if (ret != 0)
-    {
-      return ret;
-    }
-
-    // Recompose the image
-    const size_t size       = (*width) * (*height);
-    float *      out_buffer = new float[3 * size];
-
-    #pragma omp parallel for
-    for (int i = 0; i < int(size); i++)
-    {
-      out_buffer[3 * i + 0] = r_cv_buffer[i];
-      out_buffer[3 * i + 1] = g_cv_buffer[i];
-      out_buffer[3 * i + 2] = b_cv_buffer[i];
-    }
-
-    delete[] r_cv_buffer;
-    delete[] g_cv_buffer;
-    delete[] b_cv_buffer;
-
-    *pixels = out_buffer;
-
-    return 0;
-  }
-
-  int read_raw_rgb(
-      const char *filename,
-      float **    pixels_red,
-      float **    pixels_green,
-      float **    pixels_blue,
-      size_t *    width,
-      size_t *    height)
+  int read_raw_file(const char *filename, float **bayered_pixels, size_t *width, size_t *height, int *filter)
   {
     RAWMetadata metadata;
     int         err = read_raw_metadata(filename, &metadata);
@@ -166,14 +127,13 @@ extern "C"
     // Now, we have to use the relevant function depending on the file type
     // This is similar to the read_image_* functions except we have to renormalize
     // data for DAT files
-    float *bayered_pixels = NULL;
 
     if (strcmp(metadata.filename_image + len_filename_img - 3, "exr") == 0
         || strcmp(metadata.filename_image + len_filename_img - 3, "EXR") == 0)
     {
       float *pg = NULL;
       float *pb = NULL;
-      err       = read_exr_rgb(path_filename_img, &bayered_pixels, &pg, &pb, width, height);
+      err       = read_exr_rgb(path_filename_img, bayered_pixels, &pg, &pb, width, height);
       free(pg);
       free(pb);
     }
@@ -181,7 +141,7 @@ extern "C"
         strcmp(metadata.filename_image + len_filename_img - 3, "dat") == 0
         || strcmp(metadata.filename_image + len_filename_img - 3, "DAT") == 0)
     {
-      err = read_dat(path_filename_img, &bayered_pixels, width, height, metadata.bitDepth);
+      err = read_dat(path_filename_img, bayered_pixels, width, height, metadata.bitDepth);
     }
 #ifdef HAS_TIFF
     else if (
@@ -192,7 +152,7 @@ extern "C"
     {
       float *pg = NULL;
       float *pb = NULL;
-      err       = read_tiff_rgb(path_filename_img, &bayered_pixels, &pg, &pb, width, height);
+      err       = read_tiff_rgb(path_filename_img, bayered_pixels, &pg, &pb, width, height);
       free(pg);
       free(pb);
     }
@@ -205,25 +165,32 @@ extern "C"
     if (err != 0)
     {
       std::cerr << "Could not decode the image data." << std::endl;
-      free(bayered_pixels);
-      return err;
+      free(*bayered_pixels);
     }
 
-    const size_t image_size = (*width) * (*height);
-
-    *pixels_red   = (float *)calloc(image_size, sizeof(float));
-    *pixels_green = (float *)calloc(image_size, sizeof(float));
-    *pixels_blue  = (float *)calloc(image_size, sizeof(float));
-
-    basic_debayer(bayered_pixels, *pixels_red, *pixels_green, *pixels_blue, *width, *height, metadata.bayerPattern);
-    free(bayered_pixels);
+    if (strcmp(metadata.bayerPattern, "BGGR") == 0)
+    {
+      *filter = 0x16161616;
+    }
+    else if (strcmp(metadata.bayerPattern, "GRBG") == 0)
+    {
+      *filter = 0x61616161;
+    }
+    else if (strcmp(metadata.bayerPattern, "GBRG") == 0)
+    {
+      *filter = 0x49494949;
+    }
+    else if (strcmp(metadata.bayerPattern, "RGGB") == 0)
+    {
+      *filter = 0x94949494;
+    }
 
     free(metadata.bayerPattern);
     free(metadata.filename_image);
     free(metadata.filename_info);
     free(path_filename_img);
 
-    return 0;
+    return err;
   }
 
 
@@ -460,6 +427,97 @@ extern "C"
     *width          = l_width;
     *height         = l_height;
     *bayered_pixels = bayered_image;
+
+    return 0;
+  }
+
+
+  int read_raw(const char *filename, float **pixels, size_t *width, size_t *height, RAWDebayerMethod method)
+  {
+    float *r_cv_buffer = NULL;
+    float *g_cv_buffer = NULL;
+    float *b_cv_buffer = NULL;
+
+    int ret = read_raw_rgb(filename, &r_cv_buffer, &g_cv_buffer, &b_cv_buffer, width, height, method);
+
+    if (ret != 0)
+    {
+      return ret;
+    }
+
+    // Recompose the image
+    const size_t size       = (*width) * (*height);
+    float *      out_buffer = new float[3 * size];
+
+    #pragma omp parallel for
+    for (int i = 0; i < int(size); i++)
+    {
+      out_buffer[3 * i + 0] = r_cv_buffer[i];
+      out_buffer[3 * i + 1] = g_cv_buffer[i];
+      out_buffer[3 * i + 2] = b_cv_buffer[i];
+    }
+
+    delete[] r_cv_buffer;
+    delete[] g_cv_buffer;
+    delete[] b_cv_buffer;
+
+    *pixels = out_buffer;
+
+    return 0;
+  }
+
+  int read_raw_rgb(
+      const char *     filename,
+      float **         pixels_red,
+      float **         pixels_green,
+      float **         pixels_blue,
+      size_t *         width,
+      size_t *         height,
+      RAWDebayerMethod method)
+  {
+    float *bayered_pixels = NULL;
+    int    filter         = 0;
+
+    int ret = read_raw_file(filename, &bayered_pixels, width, height, &filter);
+
+    if (ret != 0)
+    {
+      return ret;
+    }
+
+    const size_t image_size = (*width) * (*height);
+
+    *pixels_red   = (float *)calloc(image_size, sizeof(float));
+    *pixels_green = (float *)calloc(image_size, sizeof(float));
+    *pixels_blue  = (float *)calloc(image_size, sizeof(float));
+
+    float *debayed_pixels = NULL;
+
+    switch (method)
+    {
+      case BASIC:
+        basic_debayer(bayered_pixels, *pixels_red, *pixels_green, *pixels_blue, *width, *height, filter);
+        break;
+
+      case AMAZE:
+        debayed_pixels = (float *)calloc(4 * image_size, sizeof(float));
+        amaze_demosaic_RT(bayered_pixels, debayed_pixels, *width, *height, filter);
+        
+        for (size_t row = 0; row < (*height); row++)
+        {
+          for (size_t col = 0; col < (*width); col++)
+          {
+            (*pixels_red)[row * (*width) + col]   = debayed_pixels[(row * (*width) + col) * 4 + 0];
+            (*pixels_green)[row * (*width) + col] = debayed_pixels[(row * (*width) + col) * 4 + 1];
+            (*pixels_blue)[row * (*width) + col]  = debayed_pixels[(row * (*width) + col) * 4 + 2];
+          }
+        }
+
+        free(debayed_pixels);
+        break;
+    }
+
+    free(bayered_pixels);
 
     return 0;
   }

@@ -18,7 +18,7 @@ extern "C"
 
     if (strcmp(filename + len - 3, "txt") == 0 || strcmp(filename + len - 3, "TXT") == 0)
     {
-      return read_raw(filename, pixels, width, height);
+      return read_raw(filename, pixels, width, height, AMAZE);
     }
 
 #ifdef HAS_TIFF
@@ -52,7 +52,7 @@ extern "C"
 
     if (strcmp(filename + len - 3, "txt") == 0 || strcmp(filename + len - 3, "TXT") == 0)
     {
-      return read_raw_rgb(filename, pixels_red, pixels_green, pixels_blue, width, height);
+      return read_raw_rgb(filename, pixels_red, pixels_green, pixels_blue, width, height, AMAZE);
     }
 
 #ifdef HAS_TIFF

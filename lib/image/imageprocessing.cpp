@@ -169,7 +169,7 @@ extern "C"
       float *      pixels_blue,
       size_t       width,
       size_t       height,
-      const char * bayer_pattern)
+      unsigned int bayer_pattern)
   {
     size_t n_elems = width * height;
 
@@ -178,9 +178,29 @@ extern "C"
     float *b_buffer = new float[n_elems];
     float *bayer[4];
 
+    char *pattern;
+
+    switch (bayer_pattern)
+    {
+      case 0x16161616:
+        pattern = "BGGR";
+        break;
+      case 0x61616161:
+        pattern = "GRBG";
+        break;
+      case 0x49494949:
+        pattern = "GBRG";
+        break;
+      case 0x94949494:
+        pattern = "RGGB";
+        break;
+      default:
+        return;
+    }
+
     for (int i = 0; i < 4; i++)
     {
-      switch (bayer_pattern[i])
+      switch (pattern[i])
       {
         case 'R':
           bayer[i] = r_buffer;
