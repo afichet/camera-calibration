@@ -246,7 +246,7 @@
         <bool>false</bool>
        </property>
        <property name="currentIndex">
-        <number>1</number>
+        <number>2</number>
        </property>
        <item>
         <property name="text">
@@ -260,7 +260,12 @@
        </item>
        <item>
         <property name="text">
-         <string>Amaze</string>
+         <string>VNG4</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
+         <string>AMaZE</string>
         </property>
        </item>
       </widget>

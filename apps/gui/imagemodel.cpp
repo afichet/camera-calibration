@@ -31,7 +31,7 @@ ImageModel::ImageModel()
   , _innerMarginX(0.01)
   , _innerMarginY(0.01)
   , _exposure(0)
-  , _demosaicingMethod(RAWDemosaicMethod::BASIC)
+  , _demosaicingMethod(RAWDemosaicMethod::VNG4)
   , _filters(0x49494949)
   , _imageLoadingWatcher(new QFutureWatcher<void>(this))
   , _imageDemosaicingWatcher(new QFutureWatcher<void>(this))
@@ -280,7 +280,11 @@ void ImageModel::setDemosaicingMethod(const QString &method)
   {
     _demosaicingMethod = RAWDemosaicMethod::BASIC;
   }
-  else if (method == "Amaze")
+  else if (method == "VNG4")
+  {
+    _demosaicingMethod = RAWDemosaicMethod::VNG4;
+  }
+  else if (method == "AMaZE")
   {
     _demosaicingMethod = RAWDemosaicMethod::AMAZE;
   }

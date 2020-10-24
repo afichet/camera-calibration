@@ -4,6 +4,7 @@
 
 #include <cstring>
 #include <iostream>
+#include <climits>
 
 void amaze_demosaic_RT(const float *in, float *out, int width, int height, const unsigned int filters);
 
@@ -21,16 +22,20 @@ extern "C"
   {
     switch (method)
     {
+      case NONE:
+        no_demosaic_rgb(bayered_image, pixels_red, pixels_green, pixels_blue, width, height, filters);
+        break;
+
+      case VNG4:
+        vng4_demosaic_rgb(bayered_image, pixels_red, pixels_green, pixels_blue, width, height, filters);
+        break;
+
       case BASIC:
         basic_demosaic_rgb(bayered_image, pixels_red, pixels_green, pixels_blue, width, height, filters);
         break;
 
       case AMAZE:
         amaze_demosaic_rgb(bayered_image, pixels_red, pixels_green, pixels_blue, width, height, filters);
-        break;
-
-      case NONE:
-        no_demosaic_rgb(bayered_image, pixels_red, pixels_green, pixels_blue, width, height, filters);
         break;
     }
   }
@@ -45,16 +50,20 @@ extern "C"
   {
     switch (method)
     {
+      case NONE:
+        no_demosaic(bayered_image, debayered_image, width, height, filters);
+        break;
+
+      case VNG4:
+        vgn4_demosaic(bayered_image, debayered_image, width, height, filters);
+        break;
+
       case BASIC:
         basic_demosaic(bayered_image, debayered_image, width, height, filters);
         break;
 
       case AMAZE:
         amaze_demosaic(bayered_image, debayered_image, width, height, filters);
-        break;
-
-      case NONE:
-        no_demosaic(bayered_image, debayered_image, width, height, filters);
         break;
     }
   }
@@ -360,7 +369,7 @@ extern "C"
 
 
 /** Calculate the bayer pattern color from the row and column **/
-static inline int FC(const size_t row, const size_t col, const uint32_t filters)
+static inline unsigned int FC(const size_t row, const size_t col, const uint32_t filters)
 {
   return filters >> (((row << 1 & 14) + (col & 1)) << 1) & 3;
 }
@@ -433,6 +442,22 @@ static __inline float xdivf(float d, int n)
 /*==================================================================================
  * begin raw therapee code, hg checkout of march 03, 2016 branch master.
  *==================================================================================*/
+
+#define pow_F(a, b) (xexpf(b * xlogf(a)))
+
+#ifdef __GNUC__
+#  define RESTRICT    __restrict__
+#  define LIKELY(x)   __builtin_expect(!!(x), 1)
+#  define UNLIKELY(x) __builtin_expect(!!(x), 0)
+#  define ALIGNED64   __attribute__((aligned(64)))
+#  define ALIGNED16   __attribute__((aligned(16)))
+#else
+#  define RESTRICT
+#  define LIKELY(x)   (x)
+#  define UNLIKELY(x) (x)
+#  define ALIGNED64
+#  define ALIGNED16
+#endif
 
 
 #ifdef __SSE2__
@@ -2728,10 +2753,719 @@ void amaze_demosaic_RT(const float *in, float *out, int width, int height, const
   }
 }
 
+
+void border_interpolate(
+    int          winw,
+    int          winh,
+    int          lborders,
+    const float *rawData,
+    float *      red,
+    float *      green,
+    float *      blue,
+    unsigned int filters)
+{
+  int bord   = lborders;
+  int width  = winw;
+  int height = winh;
+
+  for (int i = 0; i < height; i++)
+  {
+    float sum[6];
+
+    for (int j = 0; j < bord; j++)
+    {
+      // first few columns
+      memset(sum, 0, 6 * sizeof(float));
+
+      for (int i1 = i - 1; i1 < i + 2; i1++)
+        for (int j1 = j - 1; j1 < j + 2; j1++)
+        {
+          if ((i1 > -1) && (i1 < height) && (j1 > -1))
+          {
+            int c = FC(i1, j1, filters);
+            sum[c] += rawData[i1 * width + j1];
+            sum[c + 3]++;
+          }
+        }
+
+      int c = FC(i, j, filters);
+
+      if (c == 1)
+      {
+        red[i * width + j]   = sum[0] / sum[3];
+        green[i * width + j] = rawData[i * width + j];
+        blue[i * width + j]  = sum[2] / sum[5];
+      }
+      else
+      {
+        green[i * width + j] = sum[1] / sum[4];
+
+        if (c == 0)
+        {
+          red[i * width + j]  = rawData[i * width + j];
+          blue[i * width + j] = sum[2] / sum[5];
+        }
+        else
+        {
+          red[i * width + j]  = sum[0] / sum[3];
+          blue[i * width + j] = rawData[i * width + j];
+        }
+      }
+    }   //j
+
+    for (int j = width - bord; j < width; j++)
+    {   //last few columns
+      for (int c = 0; c < 6; c++)
+      {
+        sum[c] = 0;
+      }
+
+      for (int i1 = i - 1; i1 < i + 2; i1++)
+        for (int j1 = j - 1; j1 < j + 2; j1++)
+        {
+          if ((i1 > -1) && (i1 < height) && (j1 < width))
+          {
+            int c = FC(i1, j1, filters);
+            sum[c] += rawData[i1 * width + j1];
+            sum[c + 3]++;
+          }
+        }
+
+      int c = FC(i, j, filters);
+
+      if (c == 1)
+      {
+        red[i * width + j]   = sum[0] / sum[3];
+        green[i * width + j] = rawData[i * width + j];
+        blue[i * width + j]  = sum[2] / sum[5];
+      }
+      else
+      {
+        green[i * width + j] = sum[1] / sum[4];
+
+        if (c == 0)
+        {
+          red[i * width + j]  = rawData[i * width + j];
+          blue[i * width + j] = sum[2] / sum[5];
+        }
+        else
+        {
+          red[i * width + j]  = sum[0] / sum[3];
+          blue[i * width + j] = rawData[i * width + j];
+        }
+      }
+    }   //j
+  }     //i
+
+  for (int i = 0; i < bord; i++)
+  {
+    float sum[6];
+
+    for (int j = bord; j < width - bord; j++)
+    {   //first few rows
+      for (int c = 0; c < 6; c++)
+      {
+        sum[c] = 0;
+      }
+
+      for (int i1 = i - 1; i1 < i + 2; i1++)
+        for (int j1 = j - 1; j1 < j + 2; j1++)
+        {
+          if ((i1 > -1) && (i1 < height) && (j1 > -1))
+          {
+            int c = FC(i1, j1, filters);
+            sum[c] += rawData[i1 * width + j1];
+            sum[c + 3]++;
+          }
+        }
+
+      int c = FC(i, j, filters);
+
+      if (c == 1)
+      {
+        red[i * width + j]   = sum[0] / sum[3];
+        green[i * width + j] = rawData[i * width + j];
+        blue[i * width + j]  = sum[2] / sum[5];
+      }
+      else
+      {
+        green[i * width + j] = sum[1] / sum[4];
+
+        if (c == 0)
+        {
+          red[i * width + j]  = rawData[i * width + j];
+          blue[i * width + j] = sum[2] / sum[5];
+        }
+        else
+        {
+          red[i * width + j]  = sum[0] / sum[3];
+          blue[i * width + j] = rawData[i * width + j];
+        }
+      }
+    }   //j
+  }
+
+  for (int i = height - bord; i < height; i++)
+  {
+    float sum[6];
+
+    for (int j = bord; j < width - bord; j++)
+    {   //last few rows
+      for (int c = 0; c < 6; c++)
+      {
+        sum[c] = 0;
+      }
+
+      for (int i1 = i - 1; i1 < i + 2; i1++)
+        for (int j1 = j - 1; j1 < j + 2; j1++)
+        {
+          if ((i1 > -1) && (i1 < height) && (j1 < width))
+          {
+            int c = FC(i1, j1, filters);
+            sum[c] += rawData[i1 * width + j1];
+            sum[c + 3]++;
+          }
+        }
+
+      int c = FC(i, j, filters);
+
+      if (c == 1)
+      {
+        red[i * width + j]   = sum[0] / sum[3];
+        green[i * width + j] = rawData[i * width + j];
+        blue[i * width + j]  = sum[2] / sum[5];
+      }
+      else
+      {
+        green[i * width + j] = sum[1] / sum[4];
+
+        if (c == 0)
+        {
+          red[i * width + j]  = rawData[i * width + j];
+          blue[i * width + j] = sum[2] / sum[5];
+        }
+        else
+        {
+          red[i * width + j]  = sum[0] / sum[3];
+          blue[i * width + j] = rawData[i * width + j];
+        }
+      }
+    }   //j
+  }
+}
+
+bool ISRED(unsigned row, unsigned col, unsigned filters)
+{
+  return ((filters >> ((((row) << 1 & 14) + ((col)&1)) << 1) & 3) == 0);
+}
+bool ISGREEN(unsigned row, unsigned col, unsigned filters)
+{
+  return ((filters >> ((((row) << 1 & 14) + ((col)&1)) << 1) & 3) == 1);
+}
+bool ISBLUE(unsigned row, unsigned col, unsigned filters)
+{
+  return ((filters >> ((((row) << 1 & 14) + ((col)&1)) << 1) & 3) == 2);
+}
+
+inline void vng4interpolate_row_redblue(
+    const float *      rawData,
+    float *            ar,
+    float *            ab,
+    const float *const pg,
+    const float *const cg,
+    const float *const ng,
+    int                i,
+    int                width,
+    unsigned int       filters)
+{
+  if (ISBLUE(i, 0, filters) || ISBLUE(i, 1, filters))
+  {
+    std::swap(ar, ab);
+  }
+
+  // RGRGR or GRGRGR line
+  for (int j = 3; j < width - 3; ++j)
+  {
+    if (!ISGREEN(i, j, filters))
+    {
+      // keep original value
+      ar[j] = rawData[i * width + j];
+      // cross interpolation of red/blue
+      float rb = (rawData[(i - 1) * width + j - 1] - pg[j - 1] + rawData[(i + 1) * width + j - 1] - ng[j - 1]);
+      rb += (rawData[(i - 1) * width + j + 1] - pg[j + 1] + rawData[(i + 1) * width + j + 1] - ng[j + 1]);
+      ab[j] = std::max(0.f, cg[j] + rb * 0.25f);
+    }
+    else
+    {
+      // linear R/B-G interpolation horizontally
+      ar[j] = std::max(
+          0.f,
+          cg[j] + (rawData[i * width + j - 1] - cg[j - 1] + rawData[i * width + j + 1] - cg[j + 1]) / 2);
+      // linear B/R-G interpolation vertically
+      ab[j] = std::max(0.f, cg[j] + (rawData[(i - 1) * width + j] - pg[j] + rawData[(i + 1) * width + j] - ng[j]) / 2);
+    }
+  }
+}
+
+
+extern "C" void
+vng4_demosaic_rgb(const float *rawData, float *red, float *green, float *blue, size_t w, size_t h, unsigned int filters)
+{
+  memset(red, 0, w * h * sizeof(float));
+  memset(green, 0, w * h * sizeof(float));
+  memset(blue, 0, w * h * sizeof(float));
+  // // Test for RGB cfa
+  // for (int i = 0; i < 2; i++) {
+  //     for (int j = 0; j < 2; j++) {
+  //         if (FC(i, j) == 3) {
+  //             // avoid crash
+  //             std::cout << "vng4_demosaic supports only RGB Colour filter arrays. Falling back to igv_interpolate" << std::endl;
+  //             // igv_interpolate(W, H);
+  //             return;
+  //         }
+  //     }
+  // }
+
+  const signed short int *cp,
+      terms[] = {-2, -2, +0, -1, 0, 0x01, -2, -2, +0, +0, 1, 0x01, -2, -1, -1, +0, 0, 0x01, -2, -1, +0, -1, 0, 0x02,
+                 -2, -1, +0, +0, 0, 0x03, -2, -1, +0, +1, 1, 0x01, -2, +0, +0, -1, 0, 0x06, -2, +0, +0, +0, 1, 0x02,
+                 -2, +0, +0, +1, 0, 0x03, -2, +1, -1, +0, 0, 0x04, -2, +1, +0, -1, 1, 0x04, -2, +1, +0, +0, 0, 0x06,
+                 -2, +1, +0, +1, 0, 0x02, -2, +2, +0, +0, 1, 0x04, -2, +2, +0, +1, 0, 0x04, -1, -2, -1, +0, 0, 0x80,
+                 -1, -2, +0, -1, 0, 0x01, -1, -2, +1, -1, 0, 0x01, -1, -2, +1, +0, 1, 0x01, -1, -1, -1, +1, 0, 0x88,
+                 -1, -1, +1, -2, 0, 0x40, -1, -1, +1, -1, 0, 0x22, -1, -1, +1, +0, 0, 0x33, -1, -1, +1, +1, 1, 0x11,
+                 -1, +0, -1, +2, 0, 0x08, -1, +0, +0, -1, 0, 0x44, -1, +0, +0, +1, 0, 0x11, -1, +0, +1, -2, 1, 0x40,
+                 -1, +0, +1, -1, 0, 0x66, -1, +0, +1, +0, 1, 0x22, -1, +0, +1, +1, 0, 0x33, -1, +0, +1, +2, 1, 0x10,
+                 -1, +1, +1, -1, 1, 0x44, -1, +1, +1, +0, 0, 0x66, -1, +1, +1, +1, 0, 0x22, -1, +1, +1, +2, 0, 0x10,
+                 -1, +2, +0, +1, 0, 0x04, -1, +2, +1, +0, 1, 0x04, -1, +2, +1, +1, 0, 0x04, +0, -2, +0, +0, 1, 0x80,
+                 +0, -1, +0, +1, 1, 0x88, +0, -1, +1, -2, 0, 0x40, +0, -1, +1, +0, 0, 0x11, +0, -1, +2, -2, 0, 0x40,
+                 +0, -1, +2, -1, 0, 0x20, +0, -1, +2, +0, 0, 0x30, +0, -1, +2, +1, 1, 0x10, +0, +0, +0, +2, 1, 0x08,
+                 +0, +0, +2, -2, 1, 0x40, +0, +0, +2, -1, 0, 0x60, +0, +0, +2, +0, 1, 0x20, +0, +0, +2, +1, 0, 0x30,
+                 +0, +0, +2, +2, 1, 0x10, +0, +1, +1, +0, 0, 0x44, +0, +1, +1, +2, 0, 0x10, +0, +1, +2, -1, 1, 0x40,
+                 +0, +1, +2, +0, 0, 0x60, +0, +1, +2, +1, 0, 0x20, +0, +1, +2, +2, 0, 0x10, +1, -2, +1, +0, 0, 0x80,
+                 +1, -1, +1, +1, 0, 0x88, +1, +0, +1, +2, 0, 0x08, +1, +0, +2, -1, 0, 0x40, +1, +0, +2, +1, 0, 0x10},
+      chood[] = {-1, -1, -1, 0, -1, +1, 0, +1, +1, +1, +1, 0, +1, -1, 0, -1};
+
+  // double progress = 0.0;
+  // const bool plistenerActive = plistener;
+
+  // if (plistenerActive) {
+  //     plistener->setProgressStr (Glib::ustring::compose(M("TP_RAW_DMETHOD_PROGRESSBAR"), M("TP_RAW_VNG4")));
+  //     plistener->setProgress (progress);
+  // }
+
+  unsigned prefilters = filters;
+
+  // separate out G1 and G2 in RGGB Bayer patterns
+  // Thanks Darktable ;-)
+  if ((filters & 3) == 1)
+    prefilters = filters | 0x03030303u;
+  else
+    prefilters = filters | 0x0c0c0c0cu;
+
+  const int              width = w, height = h;
+  constexpr unsigned int colors = 4;
+
+  float(*image)[4] = (float(*)[4])calloc(static_cast<size_t>(height) * width, sizeof *image);
+
+  int   lcode[16][16][32];
+  float mul[16][16][8];
+  float csum[16][16][3];
+
+  // first linear interpolation
+  for (int row = 0; row < 16; row++)
+    for (int col = 0; col < 16; col++)
+    {
+      int * ip       = lcode[row][col];
+      int   mulcount = 0;
+      float sum[4]   = {};
+
+      for (int y = -1; y <= 1; y++)
+        for (int x = -1; x <= 1; x++)
+        {
+          int shift = (y == 0) + (x == 0);
+
+          if (shift == 2)
+          {
+            continue;
+          }
+
+          int color = FC(row + y, col + x, prefilters);
+          *ip++     = (width * y + x) * 4 + color;
+
+          mul[row][col][mulcount] = (1 << shift);
+          *ip++                   = color;
+          sum[color] += (1 << shift);
+          mulcount++;
+        }
+
+      int colcount = 0;
+
+      for (unsigned int c = 0; c < colors; c++)
+        if (c != FC(row, col, prefilters))
+        {
+          *ip++                    = c;
+          csum[row][col][colcount] = 1.f / sum[c];
+          colcount++;
+        }
+    }
+
+#ifdef _OPENMP
+    #pragma omp parallel
+#endif
+  {
+    int firstRow = -1;
+    int lastRow  = -1;
+#ifdef _OPENMP
+    // note, static scheduling is important in this implementation
+    #pragma omp for schedule(static)
+#endif
+
+    for (int ii = 0; ii < height; ii++)
+    {
+      if (firstRow == -1)
+      {
+        firstRow = ii;
+      }
+      lastRow = ii;
+      for (int jj = 0; jj < width; jj++)
+      {
+        image[ii * width + jj][FC(ii, jj, prefilters)] = rawData[ii * width + jj];
+      }
+      if (ii - 1 > firstRow)
+      {
+        int row = ii - 1;
+        for (int col = 1; col < width - 1; col++)
+        {
+          float *pix    = image[row * width + col];
+          int *  ip     = lcode[row & 15][col & 15];
+          float  sum[4] = {};
+
+          for (int i = 0; i < 8; i++, ip += 2)
+          {
+            sum[ip[1]] += pix[ip[0]] * mul[row & 15][col & 15][i];
+          }
+
+          for (unsigned int i = 0; i < colors - 1; i++, ip++)
+          {
+            pix[ip[0]] = sum[ip[0]] * csum[row & 15][col & 15][i];
+          }
+        }
+      }
+    }
+
+    // now all rows are processed except the first and last row of each chunk
+    // let's process them now but skip row 0 and row H - 1
+    if (firstRow > 0 && firstRow < height - 1)
+    {
+      const int row = firstRow;
+      for (int col = 1; col < width - 1; col++)
+      {
+        float *pix    = image[row * width + col];
+        int *  ip     = lcode[row & 15][col & 15];
+        float  sum[4] = {};
+
+        for (int i = 0; i < 8; i++, ip += 2)
+        {
+          sum[ip[1]] += pix[ip[0]] * mul[row & 15][col & 15][i];
+        }
+
+        for (unsigned int i = 0; i < colors - 1; i++, ip++)
+        {
+          pix[ip[0]] = sum[ip[0]] * csum[row & 15][col & 15][i];
+        }
+      }
+    }
+
+    if (lastRow > 0 && lastRow < height - 1)
+    {
+      const int row = lastRow;
+      for (int col = 1; col < width - 1; col++)
+      {
+        float *pix    = image[row * width + col];
+        int *  ip     = lcode[row & 15][col & 15];
+        float  sum[4] = {};
+
+        for (int i = 0; i < 8; i++, ip += 2)
+        {
+          sum[ip[1]] += pix[ip[0]] * mul[row & 15][col & 15][i];
+        }
+
+        for (unsigned int i = 0; i < colors - 1; i++, ip++)
+        {
+          pix[ip[0]] = sum[ip[0]] * csum[row & 15][col & 15][i];
+        }
+      }
+    }
+  }
+
+  constexpr int prow = 7, pcol = 1;
+  int32_t *     code[8][2];
+  int32_t *     ip = (int32_t *)calloc((prow + 1) * (pcol + 1), 1280);
+
+  for (int row = 0; row <= prow; row++) /* Precalculate for VNG */
+    for (int col = 0; col <= pcol; col++)
+    {
+      code[row][col] = ip;
+      cp             = terms;
+      for (int t = 0; t < 64; t++)
+      {
+        int          y1     = *cp++;
+        int          x1     = *cp++;
+        int          y2     = *cp++;
+        int          x2     = *cp++;
+        int          weight = *cp++;
+        int          grads  = *cp++;
+        unsigned int color  = FC(row + y1, col + x1, prefilters);
+
+        if (FC(row + y2, col + x2, prefilters) != color)
+        {
+          continue;
+        }
+
+        int diag = (FC(row, col + 1, prefilters) == color && FC(row + 1, col, prefilters) == color) ? 2 : 1;
+
+        if (abs(y1 - y2) == diag && abs(x1 - x2) == diag)
+        {
+          continue;
+        }
+
+        *ip++ = (y1 * width + x1) * 4 + color;
+        *ip++ = (y2 * width + x2) * 4 + color;
+#ifdef __SSE2__
+        // at least on machines with SSE2 feature this cast is save
+        *reinterpret_cast<float *>(ip++) = 1 << weight;
+#else
+        *ip++ = 1 << weight;
+#endif
+        for (int g = 0; g < 8; g++)
+          if (grads & (1 << g))
+          {
+            *ip++ = g;
+          }
+
+        *ip++ = -1;
+      }
+
+      *ip++ = INT_MAX;
+
+      cp = chood;
+      for (int g = 0; g < 8; g++)
+      {
+        int y              = *cp++;
+        int x              = *cp++;
+        *ip++              = (y * width + x) * 4;
+        unsigned int color = FC(row, col, prefilters);
+
+        if (FC(row + y, col + x, prefilters) != color && FC(row + y * 2, col + x * 2, prefilters) == color)
+        {
+          *ip++ = (y * width + x) * 8 + color;
+        }
+        else
+        {
+          *ip++ = 0;
+        }
+      }
+    }
+
+    // if(plistenerActive) {
+    //     progress = 0.2;
+    //     plistener->setProgress (progress);
+    // }
+
+#ifdef _OPENMP
+    #pragma omp parallel
+#endif
+  {
+    // constexpr int progressStep = 64;
+    // const double progressInc = (1.0 - progress) / ((height - 2) / progressStep);
+    int firstRow = -1;
+    int lastRow  = -1;
+#ifdef _OPENMP
+    // note, static scheduling is important in this implementation
+    #pragma omp for schedule(static)
+#endif
+
+    for (int row = 2; row < height - 2; row++)
+    { /* Do VNG interpolation */
+      if (firstRow == -1)
+      {
+        firstRow = row;
+      }
+      lastRow = row;
+      for (int col = 2; col < width - 2; col++)
+      {
+        float *  pix     = image[row * width + col];
+        int      color   = FC(row, col, prefilters);
+        int32_t *ip      = code[row & prow][col & pcol];
+        float    gval[8] = {};
+
+        while (ip[0] != INT_MAX)
+        { /* Calculate gradients */
+#ifdef __SSE2__
+          // at least on machines with SSE2 feature this cast is save and saves a lot of int => float conversions
+          const float diff = std::fabs(pix[ip[0]] - pix[ip[1]]) * reinterpret_cast<float *>(ip)[2];
+#else
+          const float diff = std::fabs(pix[ip[0]] - pix[ip[1]]) * ip[2];
+#endif
+          gval[ip[3]] += diff;
+          ip += 5;
+          if (UNLIKELY(ip[-1] != -1))
+          {
+            gval[ip[-1]] += diff;
+            ip++;
+          }
+        }
+        ip++;
+
+        float gMin = gval[0];
+        float gMax = gval[0];
+
+        for (int g = 1; g < 8; g++)
+        {
+          gMin = std::min(gMin, gval[g]);
+          gMax = std::max(gMax, gval[g]);
+        }
+
+        const float thold = 1.5 * gMin + 0.5f * (gMax + gMin);
+
+        float       sum0     = 0.f;
+        float       sum1     = 0.f;
+        const float greenval = pix[color];
+        int         num      = 0;
+
+        if (color & 1)
+        {
+          color ^= 2;
+          for (int g = 0; g < 8; g++, ip += 2)
+          { /* Average the neighbors */
+            if (gval[g] <= thold)
+            {
+              if (ip[1])
+              {
+                sum0 += greenval + pix[ip[1]];
+              }
+
+              sum1 += pix[ip[0] + color];
+              num++;
+            }
+          }
+          sum0 *= 0.5f;
+        }
+        else
+        {
+          for (int g = 0; g < 8; g++, ip += 2)
+          { /* Average the neighbors */
+            if (gval[g] <= thold)
+            {
+              if (ip[1])
+              {
+                sum0 += greenval + pix[ip[1]];
+              }
+
+              sum1 += pix[ip[0] + 1] + pix[ip[0] + 3];
+              num++;
+            }
+          }
+        }
+        //sum1 = 0;
+        //  std::cout << sum1 << " " << sum0 << " " << greenval << std::endl;
+        green[row * w + col] = std::max(0.f, greenval + (sum1 - sum0) / (2 * num));
+      }
+      if (row - 1 > firstRow)
+      {
+        vng4interpolate_row_redblue(
+            rawData,
+            &red[(row - 1) * width],
+            &blue[(row - 1) * width],
+            &green[(row - 2) * width],
+            &green[(row - 1) * width],
+            &green[row * width],
+            row - 1,
+            w,
+            filters);
+      }
+
+      //             if(plistenerActive) {
+      //                 if((row % progressStep) == 0)
+      // #ifdef _OPENMP
+      //                     #pragma omp critical (updateprogress)
+      // #endif
+      //                 {
+      //                     progress += progressInc;
+      //                     plistener->setProgress (progress);
+      //                 }
+      //             }
+    }
+
+    if (firstRow > 2 && firstRow < height - 3)
+    {
+      vng4interpolate_row_redblue(
+          rawData,
+          &red[firstRow * width],
+          &blue[firstRow * width],
+          &green[(firstRow - 1) * width],
+          &green[firstRow * width],
+          &green[(firstRow + 1) * width],
+          firstRow,
+          w,
+          filters);
+    }
+
+    if (lastRow > 2 && lastRow < height - 3)
+    {
+      vng4interpolate_row_redblue(
+          rawData,
+          &red[lastRow * width],
+          &blue[lastRow * width],
+          &green[(lastRow - 1) * width],
+          &green[lastRow * width],
+          &green[(lastRow + 1) * width],
+          lastRow,
+          w,
+          filters);
+    }
+#ifdef _OPENMP
+    #pragma omp single
+#endif
+    {
+      // let the first thread, which is out of work, do the border interpolation
+      border_interpolate(w, h, 3, rawData, red, green, blue, filters);
+    }
+  }
+
+  free(code[0][0]);
+  free(image);
+
+  // if(plistenerActive) {
+  //     plistener->setProgress (1.0);
+  // }
+}
+
+
 /*==================================================================================
  * end of raw therapee code
  *==================================================================================*/
 
-// modelines: These editor modelines have been set for all relevant files by tools/update_modelines.sh
-// vim: shiftwidth=2 expandtab tabstop=2 cindent
-// kate: tab-indents: off; indent-width 2; replace-tabs on; indent-mode cstyle; remove-trailing-spaces modified;
+extern "C" void
+vgn4_demosaic(const float *rawData, float *debayered_image, size_t width, size_t height, unsigned int filters)
+{
+  float *debayered_r_temp = new float[width * height];
+  float *debayered_g_temp = new float[width * height];
+  float *debayered_b_temp = new float[width * height];
+
+  vng4_demosaic_rgb(rawData, debayered_r_temp, debayered_g_temp, debayered_b_temp, width, height, filters);
+
+  for (size_t row = 0; row < height; row++)
+  {
+    for (size_t col = 0; col < width; col++)
+    {
+      debayered_image[3 * (row * width + col) + 0] = debayered_r_temp[row * width + col];
+      debayered_image[3 * (row * width + col) + 1] = debayered_g_temp[row * width + col];
+      debayered_image[3 * (row * width + col) + 2] = debayered_b_temp[row * width + col];
+    }
+  }
+
+  delete[] debayered_r_temp;
+  delete[] debayered_g_temp;
+  delete[] debayered_b_temp;
+}

@@ -24,7 +24,7 @@ int main(int argc, char *argv[])
   float *image_b = NULL;
 
   size_t            width, height;
-  RAWDemosaicMethod method = AMAZE;
+  RAWDemosaicMethod method = VNG4;
 
   int ret = read_image_rgb(filename_in, &image_r, &image_g, &image_b, &width, &height);
 

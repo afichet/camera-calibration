@@ -11,6 +11,7 @@ extern "C"
   typedef enum
   {
     BASIC,
+    VNG4,
     AMAZE,
     NONE
   } RAWDemosaicMethod;
@@ -73,6 +74,17 @@ extern "C"
       size_t             height,
       const unsigned int filters);
 
+
+  void vng4_demosaic_rgb(
+      const float *rawData,
+      float *      pixels_red,
+      float *      pixels_green,
+      float *      pixels_blue,
+      size_t       width,
+      size_t       height,
+      unsigned int filters);
+
+  void vgn4_demosaic(const float *rawData, float *debayered_image, size_t width, size_t height, unsigned int filters);
 
 #ifdef __cplusplus
 }
