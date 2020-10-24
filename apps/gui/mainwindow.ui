@@ -265,6 +265,11 @@
        </item>
        <item>
         <property name="text">
+         <string>AHD</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
          <string>AMaZE</string>
         </property>
        </item>

@@ -12,6 +12,7 @@ extern "C"
   {
     BASIC,
     VNG4,
+    AHD,
     AMAZE,
     NONE
   } RAWDemosaicMethod;
@@ -85,6 +86,18 @@ extern "C"
       unsigned int filters);
 
   void vgn4_demosaic(const float *rawData, float *debayered_image, size_t width, size_t height, unsigned int filters);
+
+  void ahd_demosaic_rgb(
+      const float *rawData,
+      float *      pixels_red,
+      float *      pixels_green,
+      float *      pixels_blue,
+      size_t       w,
+      size_t       h,
+      unsigned int filters);
+
+
+  void ahd_demosaic(const float *rawData, float *debayered_image, size_t w, size_t h, unsigned int filters);
 
 #ifdef __cplusplus
 }

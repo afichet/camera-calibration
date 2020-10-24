@@ -284,6 +284,10 @@ void ImageModel::setDemosaicingMethod(const QString &method)
   {
     _demosaicingMethod = RAWDemosaicMethod::VNG4;
   }
+  else if (method == "AHD")
+  {
+    _demosaicingMethod = RAWDemosaicMethod::AHD;
+  }
   else if (method == "AMaZE")
   {
     _demosaicingMethod = RAWDemosaicMethod::AMAZE;
