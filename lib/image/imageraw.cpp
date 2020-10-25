@@ -99,7 +99,11 @@ extern "C"
   int read_raw_file(const char *filename, float **bayered_pixels, size_t *width, size_t *height, unsigned int *filters)
   {
     RAWMetadata metadata;
-    int         err = read_raw_metadata(filename, &metadata);
+    metadata.bayerPattern   = NULL;
+    metadata.filename_image = NULL;
+    metadata.filename_info  = NULL;
+
+    int err = read_raw_metadata(filename, &metadata);
 
     if (err != 0)
     {

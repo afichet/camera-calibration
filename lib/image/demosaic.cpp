@@ -38,6 +38,10 @@ extern "C"
         ahd_demosaic_rgb(bayered_image, pixels_red, pixels_green, pixels_blue, width, height, filters);
         break;
 
+      case RCD:
+        rcd_demosaic_rgb(bayered_image, pixels_red, pixels_green, pixels_blue, width, height, filters);
+        break;
+
       case AMAZE:
         amaze_demosaic_rgb(bayered_image, pixels_red, pixels_green, pixels_blue, width, height, filters);
         break;
@@ -68,6 +72,10 @@ extern "C"
 
       case AHD:
         ahd_demosaic(bayered_image, debayered_image, width, height, filters);
+        break;
+
+      case RCD:
+        rcd_demosaic(bayered_image, debayered_image, width, height, filters);
         break;
 
       case AMAZE:
@@ -386,6 +394,7 @@ static inline unsigned int FC(const size_t row, const size_t col, const uint32_t
 static __inline float clampnan(const float x, const float m, const float M)
 {
   float r;
+#warning seems wrong...
 
   // clamp to [m, M] if x is infinite; return average of m and M if x is NaN; else just return x
 
@@ -650,6 +659,31 @@ static inline const _Tp ULIM(const _Tp a, const _Tp b, const _Tp c)
 {
   return ((b < c) ? LIM(a, b, c) : LIM(a, c, b));
 }
+
+// Store a vector of 4 floats in a[0],a[2],a[4] and a[6]
+#ifdef __SSE4_1__
+// SSE4.1 => use _mm_blend_ps instead of _mm_set_epi32 and vself
+#  define STC2VFU(a, v)                                                                                                \
+    {                                                                                                                  \
+      __m128 TST1V = _mm_loadu_ps(&a);                                                                                 \
+      __m128 TST2V = _mm_unpacklo_ps(v, v);                                                                            \
+      _mm_storeu_ps(&a, _mm_blend_ps(TST1V, TST2V, 5));                                                                \
+      TST1V = _mm_loadu_ps((&a) + 4);                                                                                  \
+      TST2V = _mm_unpackhi_ps(v, v);                                                                                   \
+      _mm_storeu_ps((&a) + 4, _mm_blend_ps(TST1V, TST2V, 5));                                                          \
+    }
+#else
+#  define STC2VFU(a, v)                                                                                                \
+    {                                                                                                                  \
+      __m128 TST1V = _mm_loadu_ps(&a);                                                                                 \
+      __m128 TST2V = _mm_unpacklo_ps(v, v);                                                                            \
+      vmask  cmask = _mm_set_epi32(0xffffffff, 0, 0xffffffff, 0);                                                      \
+      _mm_storeu_ps(&a, vself(cmask, TST1V, TST2V));                                                                   \
+      TST1V = _mm_loadu_ps((&a) + 4);                                                                                  \
+      TST2V = _mm_unpackhi_ps(v, v);                                                                                   \
+      _mm_storeu_ps((&a) + 4, vself(cmask, TST1V, TST2V));                                                             \
+    }
+#endif
 
 
 ////////////////////////////////////////////////////////////////
@@ -3640,7 +3674,7 @@ ahd_demosaic_rgb(const float *rawData, float *red, float *green, float *blue, si
               // Check...
               for (unsigned int c = 0; c < 3; ++c)
               {
-                xyz[c] = cbrt[std::max(0, std::min(int(xyz[c]), 65535))];
+                xyz[c] = cbrt[std::max(0, std::min(int(65535.f * xyz[c]), 65535))];
               }
 
               lix[0] = 116.f * xyz[1] - 16.f;
@@ -3746,6 +3780,534 @@ ahd_demosaic(const float *rawData, float *debayered_image, size_t width, size_t 
   float *debayered_b_temp = new float[width * height];
 
   ahd_demosaic_rgb(rawData, debayered_r_temp, debayered_g_temp, debayered_b_temp, width, height, filters);
+
+  for (size_t row = 0; row < height; row++)
+  {
+    for (size_t col = 0; col < width; col++)
+    {
+      debayered_image[3 * (row * width + col) + 0] = debayered_r_temp[row * width + col];
+      debayered_image[3 * (row * width + col) + 1] = debayered_g_temp[row * width + col];
+      debayered_image[3 * (row * width + col) + 2] = debayered_b_temp[row * width + col];
+    }
+  }
+
+  delete[] debayered_r_temp;
+  delete[] debayered_g_temp;
+  delete[] debayered_b_temp;
+}
+
+
+
+/**
+ * RATIO CORRECTED DEMOSAICING
+ * Luis Sanz Rodriguez (luis.sanz.rodriguez(at)gmail(dot)com)
+ *
+ * Release 2.3 @ 171125
+ *
+ * Original code from https://github.com/LuisSR/RCD-Demosaicing
+ * Licensed under the GNU GPL version 3
+ */
+// Tiled version by Ingo Weyrich (heckflosse67@gmx.de)
+extern "C" void
+rcd_demosaic_rgb(const float *rawData, float *red, float *green, float *blue, size_t w, size_t h, unsigned int filters)
+{
+  const int width  = w;
+  const int height = h;
+  // Test for RGB cfa
+  // for (int i = 0; i < 2; i++) {
+  //     for (int j = 0; j < 2; j++) {
+  //         if (FC(i, j) == 3) {
+  //             // avoid crash
+  //             std::cout << "rcd_demosaic supports only RGB Colour filter arrays. Falling back to igv_interpolate" << std::endl;
+  //             igv_interpolate(W, H);
+  //             return;
+  //         }
+  //     }
+  // }
+
+  // std::unique_ptr<StopWatch> stop;
+
+  // if (measure) {
+  //     std::cout << "Demosaicing " << W << "x" << H << " image using rcd with " << chunkSize << " tiles per thread" << std::endl;
+  //     stop.reset(new StopWatch("rcd demosaic"));
+  // }
+
+  // double progress = 0.0;
+
+  // if (plistener) {
+  //     plistener->setProgressStr(Glib::ustring::compose(M("TP_RAW_DMETHOD_PROGRESSBAR"), M("TP_RAW_RCD")));
+  //     plistener->setProgress(progress);
+  // }
+
+  const unsigned int cfarray[2][2] = {{FC(0, 0, filters), FC(0, 1, filters)}, {FC(1, 0, filters), FC(1, 1, filters)}};
+  constexpr int      rcdBorder     = 9;
+  constexpr int      tileSize      = 214;
+  constexpr int      tileSizeN     = tileSize - 2 * rcdBorder;
+  const int          numTh         = height / (tileSizeN) + ((height % (tileSizeN)) ? 1 : 0);
+  const int          numTw         = width / (tileSizeN) + ((width % (tileSizeN)) ? 1 : 0);
+  constexpr int      w1 = tileSize, w2 = 2 * tileSize, w3 = 3 * tileSize, w4 = 4 * tileSize;
+  //Tolerance to avoid dividing by zero
+  constexpr float eps   = 1e-5f;
+  constexpr float epssq = 1e-10f;
+
+#ifdef _OPENMP
+#pragma omp parallel
+#endif
+  {
+    int    progresscounter           = 0;
+    float *cfa                       = (float *)calloc(tileSize * tileSize, sizeof *cfa);
+    float(*rgb)[tileSize * tileSize] = (float(*)[tileSize * tileSize]) malloc(3 * sizeof *rgb);
+    float *VH_Dir                    = (float *)calloc(tileSize * tileSize, sizeof *VH_Dir);
+    float *PQ_Dir                    = (float *)calloc(tileSize * tileSize, sizeof *PQ_Dir);
+    float *lpf                       = PQ_Dir;   // reuse buffer, they don't overlap in usage
+
+#ifdef _OPENMP
+    #pragma omp for schedule(dynamic, 32) collapse(2) nowait
+#endif
+    for (int tr = 0; tr < numTh; ++tr)
+    {
+      for (int tc = 0; tc < numTw; ++tc)
+      {
+        const int rowStart = tr * tileSizeN;
+        const int rowEnd   = std::min(rowStart + tileSize, height);
+        if (rowStart + rcdBorder == rowEnd - rcdBorder)
+        {
+          continue;
+        }
+        const int colStart = tc * tileSizeN;
+        const int colEnd   = std::min(colStart + tileSize, width);
+        if (colStart + rcdBorder == colEnd - rcdBorder)
+        {
+          continue;
+        }
+
+        const int tileRows = std::min(rowEnd - rowStart, tileSize);
+        const int tilecols = std::min(colEnd - colStart, tileSize);
+
+        for (int row = rowStart; row < rowEnd; row++)
+        {
+          int indx = (row - rowStart) * tileSize;
+          int c0   = fc(cfarray, row, colStart);
+          int c1   = fc(cfarray, row, colStart + 1);
+          int col  = colStart;
+
+          for (; col < colEnd - 1; col += 2, indx += 2)
+          {
+            cfa[indx] = rgb[c0][indx] = LIM(rawData[row * width + col] / 65535.f, 0.f, 1.f);
+            cfa[indx + 1] = rgb[c1][indx + 1] = LIM(rawData[row * width + col + 1] / 65535.f, 0.f, 1.0f);
+          }
+          if (col < colEnd)
+          {
+            cfa[indx] = rgb[c0][indx] = LIM(rawData[row * width + col], 0.f, 1.f);
+          }
+        }
+
+        /**
+         * STEP 1: Find cardinal and diagonal interpolation directions
+         */
+
+        for (int row = 4; row < tileRows - 4; row++)
+        {
+          for (int col = 4, indx = row * tileSize + col; col < tilecols - 4; col++, indx++)
+          {
+            const float cfai = cfa[indx];
+            //Calculate h/v local discrimination
+            float V_Stat = std::max(
+                epssq,
+                -18.f * cfai
+                        * (cfa[indx - w1] + cfa[indx + w1] + 2.f * (cfa[indx - w2] + cfa[indx + w2]) - cfa[indx - w3]
+                           - cfa[indx + w3])
+                    - 2.f * cfai * (cfa[indx - w4] + cfa[indx + w4] - 19.f * cfai)
+                    - cfa[indx - w1]
+                          * (70.f * cfa[indx + w1] + 12.f * cfa[indx - w2] - 24.f * cfa[indx + w2]
+                             + 38.f * cfa[indx - w3] - 16.f * cfa[indx + w3] - 12.f * cfa[indx - w4]
+                             + 6.f * cfa[indx + w4] - 46.f * cfa[indx - w1])
+                    + cfa[indx + w1]
+                          * (24.f * cfa[indx - w2] - 12.f * cfa[indx + w2] + 16.f * cfa[indx - w3]
+                             - 38.f * cfa[indx + w3] - 6.f * cfa[indx - w4] + 12.f * cfa[indx + w4]
+                             + 46.f * cfa[indx + w1])
+                    + cfa[indx - w2]
+                          * (14.f * cfa[indx + w2] - 12.f * cfa[indx + w3] - 2.f * cfa[indx - w4] + 2.f * cfa[indx + w4]
+                             + 11.f * cfa[indx - w2])
+                    + cfa[indx + w2]
+                          * (-12.f * cfa[indx - w3] + 2.f * (cfa[indx - w4] - cfa[indx + w4]) + 11.f * cfa[indx + w2])
+                    + cfa[indx - w3] * (2.f * cfa[indx + w3] - 6.f * cfa[indx - w4] + 10.f * cfa[indx - w3])
+                    + cfa[indx + w3] * (-6.f * cfa[indx + w4] + 10.f * cfa[indx + w3]) + cfa[indx - w4] * cfa[indx - w4]
+                    + cfa[indx + w4] * cfa[indx + w4]);
+            float H_Stat = std::max(
+                epssq,
+                -18.f * cfai
+                        * (cfa[indx - 1] + cfa[indx + 1] + 2.f * (cfa[indx - 2] + cfa[indx + 2]) - cfa[indx - 3]
+                           - cfa[indx + 3])
+                    - 2.f * cfai * (cfa[indx - 4] + cfa[indx + 4] - 19.f * cfai)
+                    - cfa[indx - 1]
+                          * (70.f * cfa[indx + 1] + 12.f * cfa[indx - 2] - 24.f * cfa[indx + 2] + 38.f * cfa[indx - 3]
+                             - 16.f * cfa[indx + 3] - 12.f * cfa[indx - 4] + 6.f * cfa[indx + 4] - 46.f * cfa[indx - 1])
+                    + cfa[indx + 1]
+                          * (24.f * cfa[indx - 2] - 12.f * cfa[indx + 2] + 16.f * cfa[indx - 3] - 38.f * cfa[indx + 3]
+                             - 6.f * cfa[indx - 4] + 12.f * cfa[indx + 4] + 46.f * cfa[indx + 1])
+                    + cfa[indx - 2]
+                          * (14.f * cfa[indx + 2] - 12.f * cfa[indx + 3] - 2.f * cfa[indx - 4] + 2.f * cfa[indx + 4]
+                             + 11.f * cfa[indx - 2])
+                    + cfa[indx + 2]
+                          * (-12.f * cfa[indx - 3] + 2.f * (cfa[indx - 4] - cfa[indx + 4]) + 11.f * cfa[indx + 2])
+                    + cfa[indx - 3] * (2.f * cfa[indx + 3] - 6.f * cfa[indx - 4] + 10.f * cfa[indx - 3])
+                    + cfa[indx + 3] * (-6.f * cfa[indx + 4] + 10.f * cfa[indx + 3]) + cfa[indx - 4] * cfa[indx - 4]
+                    + cfa[indx + 4] * cfa[indx + 4]);
+
+            VH_Dir[indx] = V_Stat / (V_Stat + H_Stat);
+          }
+        }
+
+        /**
+         * STEP 2: Calculate the low pass filter
+         */
+        // Step 2.1: Low pass filter incorporating green, red and blue local samples from the raw data
+
+        for (int row = 2; row < tileRows - 2; row++)
+        {
+          for (int col = 2 + (fc(cfarray, row, 0) & 1), indx = row * tileSize + col; col < tilecols - 2;
+               col += 2, indx += 2)
+          {
+            lpf[indx >> 1]
+                = 0.25f * cfa[indx] + 0.125f * (cfa[indx - w1] + cfa[indx + w1] + cfa[indx - 1] + cfa[indx + 1])
+                  + 0.0625f * (cfa[indx - w1 - 1] + cfa[indx - w1 + 1] + cfa[indx + w1 - 1] + cfa[indx + w1 + 1]);
+          }
+        }
+
+        /**
+         * STEP 3: Populate the green channel
+         */
+        // Step 3.1: Populate the green channel at blue and red CFA positions
+        for (int row = 4; row < tileRows - 4; row++)
+        {
+          int col  = 4 + (fc(cfarray, row, 0) & 1);
+          int indx = row * tileSize + col;
+#ifdef __SSE2__
+          const vfloat zd5v  = F2V(0.5f);
+          const vfloat zd25v = F2V(0.25f);
+          const vfloat epsv  = F2V(eps);
+          for (; col < tilecols - 7; col += 8, indx += 8)
+          {
+            // Cardinal gradients
+            const vfloat cfai = LC2VFU(cfa[indx]);
+            const vfloat N_Grad
+                = epsv + (vabsf(LC2VFU(cfa[indx - w1]) - LC2VFU(cfa[indx + w1])) + vabsf(cfai - LC2VFU(cfa[indx - w2])))
+                  + (vabsf(LC2VFU(cfa[indx - w1]) - LC2VFU(cfa[indx - w3]))
+                     + vabsf(LC2VFU(cfa[indx - w2]) - LC2VFU(cfa[indx - w4])));
+            const vfloat S_Grad
+                = epsv + (vabsf(LC2VFU(cfa[indx - w1]) - LC2VFU(cfa[indx + w1])) + vabsf(cfai - LC2VFU(cfa[indx + w2])))
+                  + (vabsf(LC2VFU(cfa[indx + w1]) - LC2VFU(cfa[indx + w3]))
+                     + vabsf(LC2VFU(cfa[indx + w2]) - LC2VFU(cfa[indx + w4])));
+            const vfloat W_Grad
+                = epsv + (vabsf(LC2VFU(cfa[indx - 1]) - LC2VFU(cfa[indx + 1])) + vabsf(cfai - LC2VFU(cfa[indx - 2])))
+                  + (vabsf(LC2VFU(cfa[indx - 1]) - LC2VFU(cfa[indx - 3]))
+                     + vabsf(LC2VFU(cfa[indx - 2]) - LC2VFU(cfa[indx - 4])));
+            const vfloat E_Grad
+                = epsv + (vabsf(LC2VFU(cfa[indx - 1]) - LC2VFU(cfa[indx + 1])) + vabsf(cfai - LC2VFU(cfa[indx + 2])))
+                  + (vabsf(LC2VFU(cfa[indx + 1]) - LC2VFU(cfa[indx + 3]))
+                     + vabsf(LC2VFU(cfa[indx + 2]) - LC2VFU(cfa[indx + 4])));
+
+            // Cardinal pixel estimations
+            const vfloat lpfi  = LVFU(lpf[indx >> 1]);
+            const vfloat N_Est = LC2VFU(cfa[indx - w1])
+                                 + (LC2VFU(cfa[indx - w1]) * (lpfi - LVFU(lpf[(indx - w2) >> 1]))
+                                    / (epsv + lpfi + LVFU(lpf[(indx - w2) >> 1])));
+            const vfloat S_Est = LC2VFU(cfa[indx + w1])
+                                 + (LC2VFU(cfa[indx + w1]) * (lpfi - LVFU(lpf[(indx + w2) >> 1]))
+                                    / (epsv + lpfi + LVFU(lpf[(indx + w2) >> 1])));
+            const vfloat W_Est = LC2VFU(cfa[indx - 1])
+                                 + (LC2VFU(cfa[indx - 1]) * (lpfi - LVFU(lpf[(indx - 2) >> 1]))
+                                    / (epsv + lpfi + LVFU(lpf[(indx - 2) >> 1])));
+            const vfloat E_Est = LC2VFU(cfa[indx + 1])
+                                 + (LC2VFU(cfa[indx + 1]) * (lpfi - LVFU(lpf[(indx + 2) >> 1]))
+                                    / (epsv + lpfi + LVFU(lpf[(indx + 2) >> 1])));
+
+            // Vertical and horizontal estimations
+            const vfloat V_Est = (S_Grad * N_Est + N_Grad * S_Est) / (N_Grad + S_Grad);
+            const vfloat H_Est = (W_Grad * E_Est + E_Grad * W_Est) / (E_Grad + W_Grad);
+
+            // G@B and G@R interpolation
+            // Refined vertical and horizontal local discrimination
+            const vfloat VH_Central_Value       = LC2VFU(VH_Dir[indx]);
+            const vfloat VH_Neighbourhood_Value = zd25v
+                                                  * ((LC2VFU(VH_Dir[indx - w1 - 1]) + LC2VFU(VH_Dir[indx - w1 + 1]))
+                                                     + (LC2VFU(VH_Dir[indx + w1 - 1]) + LC2VFU(VH_Dir[indx + w1 + 1])));
+
+#  if defined(__clang__)
+            const vfloat VH_Disc = vself(
+                vmaskf_lt(vabsf(zd5v - VH_Central_Value), vabsf(zd5v - VH_Neighbourhood_Value)),
+                VH_Neighbourhood_Value,
+                VH_Central_Value);
+#  else
+            const vfloat VH_Disc = vabsf(zd5v - VH_Central_Value) < vabsf(zd5v - VH_Neighbourhood_Value)
+                                       ? VH_Neighbourhood_Value
+                                       : VH_Central_Value;
+#  endif
+            STC2VFU(rgb[1][indx], vintpf(VH_Disc, H_Est, V_Est));
+          }
+#endif
+          for (; col < tilecols - 4; col += 2, indx += 2)
+          {
+            // Cardinal gradients
+            const float cfai = cfa[indx];
+            const float N_Grad
+                = eps + (std::fabs(cfa[indx - w1] - cfa[indx + w1]) + std::fabs(cfai - cfa[indx - w2]))
+                  + (std::fabs(cfa[indx - w1] - cfa[indx - w3]) + std::fabs(cfa[indx - w2] - cfa[indx - w4]));
+            const float S_Grad
+                = eps + (std::fabs(cfa[indx - w1] - cfa[indx + w1]) + std::fabs(cfai - cfa[indx + w2]))
+                  + (std::fabs(cfa[indx + w1] - cfa[indx + w3]) + std::fabs(cfa[indx + w2] - cfa[indx + w4]));
+            const float W_Grad
+                = eps + (std::fabs(cfa[indx - 1] - cfa[indx + 1]) + std::fabs(cfai - cfa[indx - 2]))
+                  + (std::fabs(cfa[indx - 1] - cfa[indx - 3]) + std::fabs(cfa[indx - 2] - cfa[indx - 4]));
+            const float E_Grad
+                = eps + (std::fabs(cfa[indx - 1] - cfa[indx + 1]) + std::fabs(cfai - cfa[indx + 2]))
+                  + (std::fabs(cfa[indx + 1] - cfa[indx + 3]) + std::fabs(cfa[indx + 2] - cfa[indx + 4]));
+
+            // Cardinal pixel estimations
+            const float lpfi = lpf[indx >> 1];
+            const float N_Est
+                = cfa[indx - w1] * (1.f + (lpfi - lpf[(indx - w2) >> 1]) / (eps + lpfi + lpf[(indx - w2) >> 1]));
+            const float S_Est
+                = cfa[indx + w1] * (1.f + (lpfi - lpf[(indx + w2) >> 1]) / (eps + lpfi + lpf[(indx + w2) >> 1]));
+            const float W_Est
+                = cfa[indx - 1] * (1.f + (lpfi - lpf[(indx - 2) >> 1]) / (eps + lpfi + lpf[(indx - 2) >> 1]));
+            const float E_Est
+                = cfa[indx + 1] * (1.f + (lpfi - lpf[(indx + 2) >> 1]) / (eps + lpfi + lpf[(indx + 2) >> 1]));
+
+            // Vertical and horizontal estimations
+            const float V_Est = (S_Grad * N_Est + N_Grad * S_Est) / (N_Grad + S_Grad);
+            const float H_Est = (W_Grad * E_Est + E_Grad * W_Est) / (E_Grad + W_Grad);
+
+            // G@B and G@R interpolation
+            // Refined vertical and horizontal local discrimination
+            const float VH_Central_Value = VH_Dir[indx];
+            const float VH_Neighbourhood_Value
+                = 0.25f
+                  * ((VH_Dir[indx - w1 - 1] + VH_Dir[indx - w1 + 1]) + (VH_Dir[indx + w1 - 1] + VH_Dir[indx + w1 + 1]));
+
+            const float VH_Disc = std::fabs(0.5f - VH_Central_Value) < std::fabs(0.5f - VH_Neighbourhood_Value)
+                                      ? VH_Neighbourhood_Value
+                                      : VH_Central_Value;
+            rgb[1][indx] = VH_Disc * H_Est + (1.f - VH_Disc) * V_Est;
+          }
+        }
+
+        /**
+         * STEP 4: Populate the red and blue channels
+         */
+
+        // Step 4.1: Calculate P/Q diagonal local discrimination
+        for (int row = rcdBorder - 4; row < tileRows - rcdBorder + 4; row++)
+        {
+          for (int col = rcdBorder - 4 + (fc(cfarray, row, rcdBorder) & 1), indx = row * tileSize + col;
+               col < tilecols - rcdBorder + 4;
+               col += 2, indx += 2)
+          {
+            const float cfai = cfa[indx];
+
+            float P_Stat = std::max(
+                epssq,
+                -18.f * cfai
+                        * (cfa[indx - w1 - 1] + cfa[indx + w1 + 1] + 2.f * (cfa[indx - w2 - 2] + cfa[indx + w2 + 2])
+                           - cfa[indx - w3 - 3] - cfa[indx + w3 + 3])
+                    - 2.f * cfai * (cfa[indx - w4 - 4] + cfa[indx + w4 + 4] - 19.f * cfai)
+                    - cfa[indx - w1 - 1]
+                          * (70.f * cfa[indx + w1 + 1] - 12.f * cfa[indx - w2 - 2] + 24.f * cfa[indx + w2 + 2]
+                             - 38.f * cfa[indx - w3 - 3] + 16.f * cfa[indx + w3 + 3] + 12.f * cfa[indx - w4 - 4]
+                             - 6.f * cfa[indx + w4 + 4] + 46.f * cfa[indx - w1 - 1])
+                    + cfa[indx + w1 + 1]
+                          * (24.f * cfa[indx - w2 - 2] - 12.f * cfa[indx + w2 + 2] + 16.f * cfa[indx - w3 - 3]
+                             - 38.f * cfa[indx + w3 + 3] - 6.f * cfa[indx - w4 - 4] + 12.f * cfa[indx + w4 + 4]
+                             + 46.f * cfa[indx + w1 + 1])
+                    + cfa[indx - w2 - 2]
+                          * (14.f * cfa[indx + w2 + 2] - 12.f * cfa[indx + w3 + 3]
+                             - 2.f * (cfa[indx - w4 - 4] - cfa[indx + w4 + 4]) + 11.f * cfa[indx - w2 - 2])
+                    - cfa[indx + w2 + 2]
+                          * (12.f * cfa[indx - w3 - 3] + 2.f * (cfa[indx - w4 - 4] - cfa[indx + w4 + 4])
+                             + 11.f * cfa[indx + w2 + 2])
+                    + cfa[indx - w3 - 3]
+                          * (2.f * cfa[indx + w3 + 3] - 6.f * cfa[indx - w4 - 4] + 10.f * cfa[indx - w3 - 3])
+                    - cfa[indx + w3 + 3] * (6.f * cfa[indx + w4 + 4] + 10.f * cfa[indx + w3 + 3])
+                    + cfa[indx - w4 - 4] * cfa[indx - w4 - 4] + cfa[indx + w4 + 4] * cfa[indx + w4 + 4]);
+            float Q_Stat = std::max(
+                epssq,
+                -18.f * cfai
+                        * (cfa[indx + w1 - 1] + cfa[indx - w1 + 1] + 2.f * (cfa[indx + w2 - 2] + cfa[indx - w2 + 2])
+                           - cfa[indx + w3 - 3] - cfa[indx - w3 + 3])
+                    - 2.f * cfai * (cfa[indx + w4 - 4] + cfa[indx - w4 + 4] - 19.f * cfai)
+                    - cfa[indx + w1 - 1]
+                          * (70.f * cfa[indx - w1 + 1] - 12.f * cfa[indx + w2 - 2] + 24.f * cfa[indx - w2 + 2]
+                             - 38.f * cfa[indx + w3 - 3] + 16.f * cfa[indx - w3 + 3] + 12.f * cfa[indx + w4 - 4]
+                             - 6.f * cfa[indx - w4 + 4] + 46.f * cfa[indx + w1 - 1])
+                    + cfa[indx - w1 + 1]
+                          * (24.f * cfa[indx + w2 - 2] - 12.f * cfa[indx - w2 + 2] + 16.f * cfa[indx + w3 - 3]
+                             - 38.f * cfa[indx - w3 + 3] - 6.f * cfa[indx + w4 - 4] + 12.f * cfa[indx - w4 + 4]
+                             + 46.f * cfa[indx - w1 + 1])
+                    + cfa[indx + w2 - 2]
+                          * (14.f * cfa[indx - w2 + 2] - 12.f * cfa[indx - w3 + 3]
+                             - 2.f * (cfa[indx + w4 - 4] - cfa[indx - w4 + 4]) + 11.f * cfa[indx + w2 - 2])
+                    - cfa[indx - w2 + 2]
+                          * (12.f * cfa[indx + w3 - 3] + 2.f * (cfa[indx + w4 - 4] - cfa[indx - w4 + 4])
+                             + 11.f * cfa[indx - w2 + 2])
+                    + cfa[indx + w3 - 3]
+                          * (2.f * cfa[indx - w3 + 3] - 6.f * cfa[indx + w4 - 4] + 10.f * cfa[indx + w3 - 3])
+                    - cfa[indx - w3 + 3] * (6.f * cfa[indx - w4 + 4] + 10.f * cfa[indx - w3 + 3])
+                    + cfa[indx + w4 - 4] * cfa[indx + w4 - 4] + cfa[indx - w4 + 4] * cfa[indx - w4 + 4]);
+
+            PQ_Dir[indx] = P_Stat / (P_Stat + Q_Stat);
+          }
+        }
+
+        // Step 4.2: Populate the red and blue channels at blue and red CFA positions
+        for (int row = rcdBorder - 3; row < tileRows - rcdBorder + 3; row++)
+        {
+          for (int col  = rcdBorder - 3 + (fc(cfarray, row, rcdBorder - 1) & 1),
+                   indx = row * tileSize + col,
+                   c    = 2 - fc(cfarray, row, col);
+               col < tilecols - rcdBorder + 3;
+               col += 2, indx += 2)
+          {
+            // Refined P/Q diagonal local discrimination
+            float PQ_Central_Value = PQ_Dir[indx];
+            float PQ_Neighbourhood_Value
+                = 0.25f
+                  * (PQ_Dir[indx - w1 - 1] + PQ_Dir[indx - w1 + 1] + PQ_Dir[indx + w1 - 1] + PQ_Dir[indx + w1 + 1]);
+
+            float PQ_Disc = (std::fabs(0.5f - PQ_Central_Value) < std::fabs(0.5f - PQ_Neighbourhood_Value))
+                                ? PQ_Neighbourhood_Value
+                                : PQ_Central_Value;
+
+            // Diagonal gradients
+            float NW_Grad = eps + std::fabs(rgb[c][indx - w1 - 1] - rgb[c][indx + w1 + 1])
+                            + std::fabs(rgb[c][indx - w1 - 1] - rgb[c][indx - w3 - 3])
+                            + std::fabs(rgb[1][indx] - rgb[1][indx - w2 - 2]);
+            float NE_Grad = eps + std::fabs(rgb[c][indx - w1 + 1] - rgb[c][indx + w1 - 1])
+                            + std::fabs(rgb[c][indx - w1 + 1] - rgb[c][indx - w3 + 3])
+                            + std::fabs(rgb[1][indx] - rgb[1][indx - w2 + 2]);
+            float SW_Grad = eps + std::fabs(rgb[c][indx - w1 + 1] - rgb[c][indx + w1 - 1])
+                            + std::fabs(rgb[c][indx + w1 - 1] - rgb[c][indx + w3 - 3])
+                            + std::fabs(rgb[1][indx] - rgb[1][indx + w2 - 2]);
+            float SE_Grad = eps + std::fabs(rgb[c][indx - w1 - 1] - rgb[c][indx + w1 + 1])
+                            + std::fabs(rgb[c][indx + w1 + 1] - rgb[c][indx + w3 + 3])
+                            + std::fabs(rgb[1][indx] - rgb[1][indx + w2 + 2]);
+
+            // Diagonal colour differences
+            float NW_Est = rgb[c][indx - w1 - 1] - rgb[1][indx - w1 - 1];
+            float NE_Est = rgb[c][indx - w1 + 1] - rgb[1][indx - w1 + 1];
+            float SW_Est = rgb[c][indx + w1 - 1] - rgb[1][indx + w1 - 1];
+            float SE_Est = rgb[c][indx + w1 + 1] - rgb[1][indx + w1 + 1];
+
+            // P/Q estimations
+            float P_Est = (NW_Grad * SE_Est + SE_Grad * NW_Est) / (NW_Grad + SE_Grad);
+            float Q_Est = (NE_Grad * SW_Est + SW_Grad * NE_Est) / (NE_Grad + SW_Grad);
+
+            // R@B and B@R interpolation
+            rgb[c][indx] = rgb[1][indx] + (1.f - PQ_Disc) * P_Est + PQ_Disc * Q_Est;
+          }
+        }
+
+        // Step 4.3: Populate the red and blue channels at green CFA positions
+        for (int row = rcdBorder; row < tileRows - rcdBorder; row++)
+        {
+          for (int col = rcdBorder + (fc(cfarray, row, rcdBorder - 1) & 1), indx = row * tileSize + col;
+               col < tilecols - rcdBorder;
+               col += 2, indx += 2)
+          {
+            // Refined vertical and horizontal local discrimination
+            float VH_Central_Value = VH_Dir[indx];
+            float VH_Neighbourhood_Value
+                = 0.25f
+                  * ((VH_Dir[indx - w1 - 1] + VH_Dir[indx - w1 + 1]) + (VH_Dir[indx + w1 - 1] + VH_Dir[indx + w1 + 1]));
+
+            float VH_Disc = (std::fabs(0.5f - VH_Central_Value) < std::fabs(0.5f - VH_Neighbourhood_Value))
+                                ? VH_Neighbourhood_Value
+                                : VH_Central_Value;
+            float rgb1 = rgb[1][indx];
+            float N1   = eps + std::fabs(rgb1 - rgb[1][indx - w2]);
+            float S1   = eps + std::fabs(rgb1 - rgb[1][indx + w2]);
+            float W1   = eps + std::fabs(rgb1 - rgb[1][indx - 2]);
+            float E1   = eps + std::fabs(rgb1 - rgb[1][indx + 2]);
+
+            float rgb1mw1 = rgb[1][indx - w1];
+            float rgb1pw1 = rgb[1][indx + w1];
+            float rgb1m1  = rgb[1][indx - 1];
+            float rgb1p1  = rgb[1][indx + 1];
+            for (int c = 0; c <= 2; c += 2)
+            {
+              // Cardinal gradients
+              float SNabs  = std::fabs(rgb[c][indx - w1] - rgb[c][indx + w1]);
+              float EWabs  = std::fabs(rgb[c][indx - 1] - rgb[c][indx + 1]);
+              float N_Grad = N1 + SNabs + std::fabs(rgb[c][indx - w1] - rgb[c][indx - w3]);
+              float S_Grad = S1 + SNabs + std::fabs(rgb[c][indx + w1] - rgb[c][indx + w3]);
+              float W_Grad = W1 + EWabs + std::fabs(rgb[c][indx - 1] - rgb[c][indx - 3]);
+              float E_Grad = E1 + EWabs + std::fabs(rgb[c][indx + 1] - rgb[c][indx + 3]);
+
+              // Cardinal colour differences
+              float N_Est = rgb[c][indx - w1] - rgb1mw1;
+              float S_Est = rgb[c][indx + w1] - rgb1pw1;
+              float W_Est = rgb[c][indx - 1] - rgb1m1;
+              float E_Est = rgb[c][indx + 1] - rgb1p1;
+
+              // Vertical and horizontal estimations
+              float V_Est = (N_Grad * S_Est + S_Grad * N_Est) / (N_Grad + S_Grad);
+              float H_Est = (E_Grad * W_Est + W_Grad * E_Est) / (E_Grad + W_Grad);
+
+              // R@G and B@G interpolation
+              rgb[c][indx] = rgb1 + (1.f - VH_Disc) * V_Est + VH_Disc * H_Est;
+            }
+          }
+        }
+
+        for (int row = rowStart + rcdBorder; row < rowEnd - rcdBorder; ++row)
+        {
+          for (int col = colStart + rcdBorder; col < colEnd - rcdBorder; ++col)
+          {
+            int idx                  = (row - rowStart) * tileSize + col - colStart;
+            red[row * width + col]   = std::max(0.f, rgb[0][idx] * 65535.f);
+            green[row * width + col] = std::max(0.f, rgb[1][idx] * 65535.f);
+            blue[row * width + col]  = std::max(0.f, rgb[2][idx] * 65535.f);
+          }
+        }
+
+        //             if (plistener) {
+        //                 progresscounter++;
+        //                 if (progresscounter % 32 == 0) {
+        // #ifdef _OPENMP
+        //                     #pragma omp critical (rcdprogress)
+        // #endif
+        //                     {
+        //                         progress += (double)32 * ((tileSizeN) * (tileSizeN)) / (H * W);
+        //                         progress = progress > 1.0 ? 1.0 : progress;
+        //                         plistener->setProgress(progress);
+        //                     }
+        //                 }
+        //             }
+      }
+    }
+
+    free(cfa);
+    free(rgb);
+    free(VH_Dir);
+    free(PQ_Dir);
+  }
+
+  border_interpolate(width, height, rcdBorder, rawData, red, green, blue, filters);
+
+  // if (plistener) {
+  //     plistener->setProgress(1);
+  // }
+}
+
+
+extern "C" void
+rcd_demosaic(const float *rawData, float *debayered_image, size_t width, size_t height, unsigned int filters)
+{
+  float *debayered_r_temp = new float[width * height];
+  float *debayered_g_temp = new float[width * height];
+  float *debayered_b_temp = new float[width * height];
+
+  rcd_demosaic_rgb(rawData, debayered_r_temp, debayered_g_temp, debayered_b_temp, width, height, filters);
 
   for (size_t row = 0; row < height; row++)
   {

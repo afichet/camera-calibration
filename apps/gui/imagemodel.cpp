@@ -288,6 +288,10 @@ void ImageModel::setDemosaicingMethod(const QString &method)
   {
     _demosaicingMethod = RAWDemosaicMethod::AHD;
   }
+  else if (method == "RCD")
+  {
+    _demosaicingMethod = RAWDemosaicMethod::RCD;
+  }
   else if (method == "AMaZE")
   {
     _demosaicingMethod = RAWDemosaicMethod::AMAZE;

@@ -270,6 +270,11 @@
        </item>
        <item>
         <property name="text">
+         <string>RCD</string>
+        </property>
+       </item>
+       <item>
+        <property name="text">
          <string>AMaZE</string>
         </property>
        </item>
