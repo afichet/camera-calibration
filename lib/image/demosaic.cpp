@@ -661,29 +661,29 @@ static inline const _Tp ULIM(const _Tp a, const _Tp b, const _Tp c)
 }
 
 // Store a vector of 4 floats in a[0],a[2],a[4] and a[6]
-#ifdef __SSE4_1__
-// SSE4.1 => use _mm_blend_ps instead of _mm_set_epi32 and vself
-#  define STC2VFU(a, v)                                                                                                \
-    {                                                                                                                  \
-      __m128 TST1V = _mm_loadu_ps(&a);                                                                                 \
-      __m128 TST2V = _mm_unpacklo_ps(v, v);                                                                            \
-      _mm_storeu_ps(&a, _mm_blend_ps(TST1V, TST2V, 5));                                                                \
-      TST1V = _mm_loadu_ps((&a) + 4);                                                                                  \
-      TST2V = _mm_unpackhi_ps(v, v);                                                                                   \
-      _mm_storeu_ps((&a) + 4, _mm_blend_ps(TST1V, TST2V, 5));                                                          \
-    }
-#else
-#  define STC2VFU(a, v)                                                                                                \
-    {                                                                                                                  \
-      __m128 TST1V = _mm_loadu_ps(&a);                                                                                 \
-      __m128 TST2V = _mm_unpacklo_ps(v, v);                                                                            \
-      vmask  cmask = _mm_set_epi32(0xffffffff, 0, 0xffffffff, 0);                                                      \
-      _mm_storeu_ps(&a, vself(cmask, TST1V, TST2V));                                                                   \
-      TST1V = _mm_loadu_ps((&a) + 4);                                                                                  \
-      TST2V = _mm_unpackhi_ps(v, v);                                                                                   \
-      _mm_storeu_ps((&a) + 4, vself(cmask, TST1V, TST2V));                                                             \
-    }
-#endif
+// #ifdef __SSE4_1__
+// // SSE4.1 => use _mm_blend_ps instead of _mm_set_epi32 and vself
+// #  define STC2VFU(a, v)                                                                                                \
+//     {                                                                                                                  \
+//       __m128 TST1V = _mm_loadu_ps(&a);                                                                                 \
+//       __m128 TST2V = _mm_unpacklo_ps(v, v);                                                                            \
+//       _mm_storeu_ps(&a, _mm_blend_ps(TST1V, TST2V, 5));                                                                \
+//       TST1V = _mm_loadu_ps((&a) + 4);                                                                                  \
+//       TST2V = _mm_unpackhi_ps(v, v);                                                                                   \
+//       _mm_storeu_ps((&a) + 4, _mm_blend_ps(TST1V, TST2V, 5));                                                          \
+//     }
+// #else
+#define STC2VFU(a, v)                                                                                                  \
+  {                                                                                                                    \
+    __m128 TST1V = _mm_loadu_ps(&a);                                                                                   \
+    __m128 TST2V = _mm_unpacklo_ps(v, v);                                                                              \
+    vmask  cmask = _mm_set_epi32(0xffffffff, 0, 0xffffffff, 0);                                                        \
+    _mm_storeu_ps(&a, vself(cmask, TST1V, TST2V));                                                                     \
+    TST1V = _mm_loadu_ps((&a) + 4);                                                                                    \
+    TST2V = _mm_unpackhi_ps(v, v);                                                                                     \
+    _mm_storeu_ps((&a) + 4, vself(cmask, TST1V, TST2V));                                                               \
+  }
+// #endif
 
 
 ////////////////////////////////////////////////////////////////
