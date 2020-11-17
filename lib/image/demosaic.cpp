@@ -5,11 +5,42 @@
 #include <cstring>
 #include <iostream>
 #include <climits>
+#include <cmath>
 
 void amaze_demosaic_RT(const float *in, float *out, int width, int height, const unsigned int filters);
 
 extern "C"
 {
+  void demosaic_rgb_to_img(
+      const float *bayered_image,
+      float *      debayered_image,
+      size_t       width,
+      size_t       height,
+      unsigned int filters,
+      void (*demosaic_rgb_3)(const float *, float *, float *, float *, size_t, size_t, unsigned int))
+  {
+    float *debayered_r_temp = new float[width * height];
+    float *debayered_g_temp = new float[width * height];
+    float *debayered_b_temp = new float[width * height];
+
+    demosaic_rgb_3(bayered_image, debayered_r_temp, debayered_g_temp, debayered_b_temp, width, height, filters);
+
+    for (size_t row = 0; row < height; row++)
+    {
+      for (size_t col = 0; col < width; col++)
+      {
+        debayered_image[3 * (row * width + col) + 0] = debayered_r_temp[row * width + col];
+        debayered_image[3 * (row * width + col) + 1] = debayered_g_temp[row * width + col];
+        debayered_image[3 * (row * width + col) + 2] = debayered_b_temp[row * width + col];
+      }
+    }
+
+    delete[] debayered_r_temp;
+    delete[] debayered_g_temp;
+    delete[] debayered_b_temp;
+  }
+
+
   void demosaic_rgb(
       const float *     bayered_image,
       float *           pixels_red,
@@ -30,6 +61,14 @@ extern "C"
         basic_demosaic_rgb(bayered_image, pixels_red, pixels_green, pixels_blue, width, height, filters);
         break;
 
+      case REDUCE2X2:
+        reduce2x2_demosaic_rgb(bayered_image, pixels_red, pixels_green, pixels_blue, width, height, filters);
+        break;
+
+      case BARYCENTRIC2X2:
+        barycentric2x2_demosaic_rgb(bayered_image, pixels_red, pixels_green, pixels_blue, width, height, filters);
+        break;
+
       case VNG4:
         vng4_demosaic_rgb(bayered_image, pixels_red, pixels_green, pixels_blue, width, height, filters);
         break;
@@ -48,6 +87,7 @@ extern "C"
     }
   }
 
+
   void demosaic(
       const float *     bayered_image,
       float *           debayered_image,
@@ -64,6 +104,14 @@ extern "C"
 
       case BASIC:
         basic_demosaic(bayered_image, debayered_image, width, height, filters);
+        break;
+
+      case REDUCE2X2:
+        reduce2x2_demosaic(bayered_image, debayered_image, width, height, filters);
+        break;
+
+      case BARYCENTRIC2X2:
+        barycentric2x2_demosaic(bayered_image, debayered_image, width, height, filters);
         break;
 
       case VNG4:
@@ -84,6 +132,7 @@ extern "C"
     }
   }
 
+  ////////////////////////////////////////////////////////////////////////////
 
   void no_demosaic_rgb(
       const float *bayered_image,
@@ -146,30 +195,13 @@ extern "C"
     }
   }
 
-
   void
   no_demosaic(const float *bayered_image, float *debayered_image, size_t width, size_t height, unsigned int filters)
   {
-    float *debayered_r_temp = new float[width * height];
-    float *debayered_g_temp = new float[width * height];
-    float *debayered_b_temp = new float[width * height];
-
-    no_demosaic_rgb(bayered_image, debayered_r_temp, debayered_g_temp, debayered_b_temp, width, height, filters);
-
-    for (size_t row = 0; row < height; row++)
-    {
-      for (size_t col = 0; col < width; col++)
-      {
-        debayered_image[3 * (row * width + col) + 0] = debayered_r_temp[row * width + col];
-        debayered_image[3 * (row * width + col) + 1] = debayered_g_temp[row * width + col];
-        debayered_image[3 * (row * width + col) + 2] = debayered_b_temp[row * width + col];
-      }
-    }
-
-    delete[] debayered_r_temp;
-    delete[] debayered_g_temp;
-    delete[] debayered_b_temp;
+    demosaic_rgb_to_img(bayered_image, debayered_image, width, height, filters, no_demosaic_rgb);
   }
+
+  ////////////////////////////////////////////////////////////////////////////
 
   /**
    * Demosaicing
@@ -273,27 +305,429 @@ extern "C"
   void
   basic_demosaic(const float *bayered_image, float *debayered_image, size_t width, size_t height, unsigned int filters)
   {
-    float *debayered_r_temp = new float[width * height];
-    float *debayered_g_temp = new float[width * height];
-    float *debayered_b_temp = new float[width * height];
+    demosaic_rgb_to_img(bayered_image, debayered_image, width, height, filters, basic_demosaic_rgb);
+  }
 
-    basic_demosaic_rgb(bayered_image, debayered_r_temp, debayered_g_temp, debayered_b_temp, width, height, filters);
+  ////////////////////////////////////////////////////////////////////////////
 
-    for (size_t row = 0; row < height; row++)
+  /**
+   * @brief Reduce 2x2 algorithm for demosaicing
+   *
+   * As the name suggests, this demosaicing technique deacreases the image
+   * resolution by a factor of 4. You must provide then pixels_red,
+   * pixels_green and pixels_blue buffer with size (width/2*height/2).
+   *
+   * @param bayered_image The bayered image
+   * @param pixels_red A buffer to write the demosaiced image (/4 resolution)
+   * @param pixels_green A buffer to write the demosaiced image (/4 resolution)
+   * @param pixels_blue A buffer to write the demosaiced image (/4 resolution)
+   * @param width Original width of the bayered image
+   * @param height Original height of the bayered image
+   * @param filters Arrangement of the Bayer pattern
+   */
+  void reduce2x2_demosaic_rgb(
+      const float *bayered_image,
+      float *      pixels_red,
+      float *      pixels_green,
+      float *      pixels_blue,
+      size_t       width,
+      size_t       height,
+      unsigned int filters)
+  {
+    int color_offsets[4];   // R GG B
+
+    switch (filters)
     {
-      for (size_t col = 0; col < width; col++)
+      case 0x16161616:
+        // ┌─┬─┐
+        // │B│G│
+        // ├─┼─┤
+        // │G│R│
+        // └─┴─┘
+        color_offsets[0] = width + 1;   // R
+        color_offsets[1] = 1;           // G
+        color_offsets[2] = width;       // G
+        color_offsets[3] = 0;           // B
+        break;
+      case 0x61616161:
+        // ┌─┬─┐
+        // │G│R│
+        // ├─┼─┤
+        // │B│G│
+        // └─┴─┘
+        color_offsets[0] = 1;           // R
+        color_offsets[1] = 0;           // G
+        color_offsets[2] = width + 1;   // G
+        color_offsets[3] = width;       // B
+        break;
+      case 0x49494949:   // GBRG
+        // ┌─┬─┐
+        // │G│B│
+        // ├─┼─┤
+        // │R│G│
+        // └─┴─┘
+        color_offsets[0] = width;       // R
+        color_offsets[1] = 0;           // G
+        color_offsets[2] = width + 1;   // G
+        color_offsets[3] = 1;           // B
+        break;
+      case 0x94949494:   // RGGB
+        // ┌─┬─┐
+        // │R│G│
+        // ├─┼─┤
+        // │G│B│
+        // └─┴─┘
+        color_offsets[0] = 0;           // R
+        color_offsets[1] = 1;           // G
+        color_offsets[2] = width;       // G
+        color_offsets[3] = width + 1;   // B
+        break;
+      default:
+        return;
+    }
+
+    const size_t scanline_image = width / 2;
+
+    for (size_t y = 0; y < height / 2; y++)
+    {
+      for (size_t x = 0; x < width / 2; x++)
       {
-        debayered_image[3 * (row * width + col) + 0] = debayered_r_temp[row * width + col];
-        debayered_image[3 * (row * width + col) + 1] = debayered_g_temp[row * width + col];
-        debayered_image[3 * (row * width + col) + 2] = debayered_b_temp[row * width + col];
+        const size_t offset_bayer = 2 * y * width + 2 * x;
+
+        pixels_red[y * scanline_image + x] = bayered_image[offset_bayer + color_offsets[0]];
+        pixels_green[y * scanline_image + x]
+            = 0.5 * (bayered_image[offset_bayer + color_offsets[1]] + bayered_image[offset_bayer + color_offsets[2]]);
+        pixels_blue[y * scanline_image + x] = bayered_image[offset_bayer + color_offsets[3]];
+      }
+    }
+  }
+
+  /**
+   * @brief Reduce 2x2 algorithm for demosaicing
+   *
+   * As the name suggests, this demosaicing technique deacreases the image
+   * resolution by a factor of 4. You must provide then debayered_image
+   * buffer with size 3*(width/2*height/2).
+   *
+   * @param bayered_image The bayered image
+   * @param debayered_image A buffer to output the debayered image (/4)
+   * @param width Original width of the bayered image
+   * @param height Original height of the bayered image
+   * @param filters Arrangement of the Bayer pattern
+   */
+  void reduce2x2_demosaic(
+      const float *bayered_image,
+      float *      debayered_image,
+      size_t       width,
+      size_t       height,
+      unsigned int filters)
+  {
+    demosaic_rgb_to_img(bayered_image, debayered_image, width, height, filters, reduce2x2_demosaic_rgb);
+  }
+
+
+  ////////////////////////////////////////////////////////////////////////////
+
+  /**
+   * @brief Barycentric 2x2 algorithm for demosaicing
+   *
+   * As the name suggests, this demosaicing technique deacreases the image
+   * resolution by a factor of 4. You must provide then pixels_red,
+   * pixels_green and pixels_blue buffer with size (width/2*height/2).
+   *
+   * @param bayered_image The bayered image
+   * @param pixels_red A buffer to write the demosaiced image (/4 resolution)
+   * @param pixels_green A buffer to write the demosaiced image (/4 resolution)
+   * @param pixels_blue A buffer to write the demosaiced image (/4 resolution)
+   * @param width Original width of the bayered image
+   * @param height Original height of the bayered image
+   * @param filters Arrangement of the Bayer pattern
+   */
+  void barycentric2x2_demosaic_rgb(
+      const float *bayered_image,
+      float *      pixels_red,
+      float *      pixels_green,
+      float *      pixels_blue,
+      size_t       width,
+      size_t       height,
+      unsigned int filters)
+  {
+    // 4 corners coordinates
+    int red_offsets[4];
+    int blue_offsets[4];
+
+    // 4 corners weights
+    float red_weights[4];
+    float blue_weights[4];
+
+    int green_offsets[2];
+
+    const float normalization_f = 2.f * std::sqrt(2.f) + std::sqrt(10.f);
+
+    switch (filters)
+    {
+      case 0x16161616:
+        // ┌─┬─┐
+        // │B│G│
+        // ├─┼─┤
+        // │G│R│
+        // └─┴─┘
+        red_offsets[0] = -width - 1;
+        red_offsets[1] = -width + 1;
+        red_offsets[2] = width + 1;
+        red_offsets[3] = width - 1;
+
+        green_offsets[0] = 1;
+        green_offsets[1] = width;
+
+        blue_offsets[0] = 0;
+        blue_offsets[1] = 2;
+        blue_offsets[2] = 2 * width + 2;
+        blue_offsets[3] = 2 * width;
+
+        red_weights[0] = (3.f * std::sqrt(2.f) / 2.f) / normalization_f;
+        red_weights[1] = (std::sqrt(10.f) / 2.f) / normalization_f;
+        red_weights[2] = (std::sqrt(10.f) / 2.f) / normalization_f;
+        red_weights[3] = (std::sqrt(2.f) / 2.f) / normalization_f;
+
+        blue_weights[0] = (std::sqrt(2.f) / 2.f) / normalization_f;
+        blue_weights[1] = (std::sqrt(10.f) / 2.f) / normalization_f;
+        blue_weights[2] = (3.f * std::sqrt(2.f) / 2.f) / normalization_f;
+        blue_weights[3] = (std::sqrt(10.f) / 2.f) / normalization_f;
+
+        break;
+      case 0x61616161:
+        // ┌─┬─┐
+        // │G│R│
+        // ├─┼─┤
+        // │B│G│
+        // └─┴─┘
+        red_offsets[0] = -1;
+        red_offsets[1] = 1;
+        red_offsets[2] = 2 * width + 1;
+        red_offsets[3] = 2 * width - 1;
+
+        green_offsets[0] = 0;           // G
+        green_offsets[1] = width + 1;   // G
+
+        blue_offsets[0] = -width;
+        blue_offsets[1] = -width + 2;
+        blue_offsets[2] = width + 2;
+        blue_offsets[3] = width;
+
+        red_weights[0] = (std::sqrt(10.f) / 2.f) / normalization_f;
+        red_weights[1] = (std::sqrt(2.f) / 2.f) / normalization_f;
+        red_weights[2] = (std::sqrt(10.f) / 2.f) / normalization_f;
+        red_weights[3] = (3.f * std::sqrt(2.f) / 2.f) / normalization_f;
+
+        blue_weights[0] = (std::sqrt(10.f) / 2.f) / normalization_f;
+        blue_weights[1] = (3.f * std::sqrt(2.f) / 2.f) / normalization_f;
+        blue_weights[2] = (std::sqrt(10.f) / 2.f) / normalization_f;
+        blue_weights[3] = (std::sqrt(2.f) / 2.f) / normalization_f;
+        break;
+      case 0x49494949:   // GBRG
+        // ┌─┬─┐
+        // │G│B│
+        // ├─┼─┤
+        // │R│G│
+        // └─┴─┘
+        red_offsets[0] = -width;
+        red_offsets[1] = -width + 2;
+        red_offsets[2] = width + 2;
+        red_offsets[3] = width;
+
+        green_offsets[0] = 0;           // G
+        green_offsets[1] = width + 1;   // G
+
+        blue_offsets[0] = -1;
+        blue_offsets[1] = 1;
+        blue_offsets[2] = 2 * width + 1;
+        blue_offsets[3] = 2 * width - 1;
+
+        red_weights[0] = (std::sqrt(10.f) / 2.f) / normalization_f;
+        red_weights[1] = (3.f * std::sqrt(2.f) / 2.f) / normalization_f;
+        red_weights[2] = (std::sqrt(10.f) / 2.f) / normalization_f;
+        red_weights[3] = (std::sqrt(2.f) / 2.f) / normalization_f;
+
+        blue_weights[0] = (std::sqrt(10.f) / 2.f) / normalization_f;
+        blue_weights[1] = (std::sqrt(2.f) / 2.f) / normalization_f;
+        blue_weights[2] = (std::sqrt(10.f) / 2.f) / normalization_f;
+        blue_weights[3] = (3.f * std::sqrt(2.f) / 2.f) / normalization_f;
+        break;
+      case 0x94949494:   // RGGB
+        // ┌─┬─┐
+        // │R│G│
+        // ├─┼─┤
+        // │G│B│
+        // └─┴─┘
+        red_offsets[0] = 0;
+        red_offsets[1] = 2;
+        red_offsets[2] = 2 * width + 2;
+        red_offsets[3] = 2 * width;
+
+        green_offsets[0] = 1;       // G
+        green_offsets[1] = width;   // G
+
+        blue_offsets[0] = -width - 1;
+        blue_offsets[1] = -width + 1;
+        blue_offsets[2] = width + 1;
+        blue_offsets[3] = width - 1;
+
+        red_weights[0] = (std::sqrt(2.f) / 2.f) / normalization_f;
+        red_weights[1] = (std::sqrt(10.f) / 2.f) / normalization_f;
+        red_weights[2] = (3.f * std::sqrt(2.f) / 2.f) / normalization_f;
+        red_weights[3] = (std::sqrt(10.f) / 2.f) / normalization_f;
+
+        blue_weights[0] = (3.f * std::sqrt(2.f) / 2.f) / normalization_f;
+        blue_weights[1] = (std::sqrt(10.f) / 2.f) / normalization_f;
+        blue_weights[2] = (std::sqrt(10.f) / 2.f) / normalization_f;
+        blue_weights[3] = (std::sqrt(2.f) / 2.f) / normalization_f;
+
+        break;
+      default:
+        return;
+    }
+
+    const size_t scanline_image = width / 2;
+
+    memset(pixels_red, 0, width / 2 * height / 2 * sizeof(float));
+    memset(pixels_green, 0, width / 2 * height / 2 * sizeof(float));
+    memset(pixels_blue, 0, width / 2 * height / 2 * sizeof(float));
+
+    for (size_t y = 1; y < height / 2 - 1; y++)
+    {
+      for (size_t x = 1; x < width / 2 - 1; x++)
+      {
+        const size_t offset_bayer = 2 * y * width + 2 * x;
+
+        for (int i = 0; i < 4; i++)
+        {
+          pixels_red[y * scanline_image + x] += red_weights[i] * bayered_image[offset_bayer + red_offsets[i]];
+          pixels_blue[y * scanline_image + x] += blue_weights[i] * bayered_image[offset_bayer + blue_offsets[i]];
+        }
+
+        pixels_green[y * scanline_image + x]
+            = 0.5 * (bayered_image[offset_bayer + green_offsets[0]] + bayered_image[offset_bayer + green_offsets[1]]);
       }
     }
 
-    delete[] debayered_r_temp;
-    delete[] debayered_g_temp;
-    delete[] debayered_b_temp;
+    // Borders
+    int color_offsets[4];   // R GG B
+
+    switch (filters)
+    {
+      case 0x16161616:
+        // ┌─┬─┐
+        // │B│G│
+        // ├─┼─┤
+        // │G│R│
+        // └─┴─┘
+        color_offsets[0] = width + 1;   // R
+        color_offsets[1] = 1;           // G
+        color_offsets[2] = width;       // G
+        color_offsets[3] = 0;           // B
+        break;
+      case 0x61616161:
+        // ┌─┬─┐
+        // │G│R│
+        // ├─┼─┤
+        // │B│G│
+        // └─┴─┘
+        color_offsets[0] = 1;           // R
+        color_offsets[1] = 0;           // G
+        color_offsets[2] = width + 1;   // G
+        color_offsets[3] = width;       // B
+        break;
+      case 0x49494949:   // GBRG
+        // ┌─┬─┐
+        // │G│B│
+        // ├─┼─┤
+        // │R│G│
+        // └─┴─┘
+        color_offsets[0] = width;       // R
+        color_offsets[1] = 0;           // G
+        color_offsets[2] = width + 1;   // G
+        color_offsets[3] = 1;           // B
+        break;
+      case 0x94949494:   // RGGB
+        // ┌─┬─┐
+        // │R│G│
+        // ├─┼─┤
+        // │G│B│
+        // └─┴─┘
+        color_offsets[0] = 0;           // R
+        color_offsets[1] = 1;           // G
+        color_offsets[2] = width;       // G
+        color_offsets[3] = width + 1;   // B
+        break;
+      default:
+        return;
+    }
+
+
+    for (size_t y = 0; y < height / 2; y++)
+    {
+      size_t x            = 0;
+      size_t offset_bayer = 2 * y * width + 2 * x;
+
+      pixels_red[y * scanline_image + x] = bayered_image[offset_bayer + color_offsets[0]];
+      pixels_green[y * scanline_image + x]
+          = 0.5 * (bayered_image[offset_bayer + color_offsets[1]] + bayered_image[offset_bayer + color_offsets[2]]);
+      pixels_blue[y * scanline_image + x] = bayered_image[offset_bayer + color_offsets[3]];
+
+      x            = width / 2;
+      offset_bayer = 2 * y * width + 2 * x;
+
+      pixels_red[y * scanline_image + x] = bayered_image[offset_bayer + color_offsets[0]];
+      pixels_green[y * scanline_image + x]
+          = 0.5 * (bayered_image[offset_bayer + color_offsets[1]] + bayered_image[offset_bayer + color_offsets[2]]);
+      pixels_blue[y * scanline_image + x] = bayered_image[offset_bayer + color_offsets[3]];
+    }
+
+    for (size_t x = 1; x < width / 2 - 1; x++)
+    {
+      size_t y            = 0;
+      size_t offset_bayer = 2 * y * width + 2 * x;
+
+      pixels_red[y * scanline_image + x] = bayered_image[offset_bayer + color_offsets[0]];
+      pixels_green[y * scanline_image + x]
+          = 0.5 * (bayered_image[offset_bayer + color_offsets[1]] + bayered_image[offset_bayer + color_offsets[2]]);
+      pixels_blue[y * scanline_image + x] = bayered_image[offset_bayer + color_offsets[3]];
+
+      y            = height / 2 - 1;
+      offset_bayer = 2 * y * width + 2 * x;
+
+      pixels_red[y * scanline_image + x] = bayered_image[offset_bayer + color_offsets[0]];
+      pixels_green[y * scanline_image + x]
+          = 0.5 * (bayered_image[offset_bayer + color_offsets[1]] + bayered_image[offset_bayer + color_offsets[2]]);
+      pixels_blue[y * scanline_image + x] = bayered_image[offset_bayer + color_offsets[3]];
+    }
   }
 
+  /**
+   * @brief Barycentric 2x2 algorithm for demosaicing
+   *
+   * As the name suggests, this demosaicing technique deacreases the image
+   * resolution by a factor of 4. You must provide then debayered_image
+   * buffer with size 3*(width/2*height/2).
+   *
+   * @param bayered_image The bayered image
+   * @param debayered_image A buffer to output the debayered image (/4)
+   * @param width Original width of the bayered image
+   * @param height Original height of the bayered image
+   * @param filters Arrangement of the Bayer pattern
+   */
+  void barycentric2x2_demosaic(
+      const float *bayered_image,
+      float *      debayered_image,
+      size_t       width,
+      size_t       height,
+      unsigned int filters)
+  {
+    demosaic_rgb_to_img(bayered_image, debayered_image, width, height, filters, barycentric2x2_demosaic_rgb);
+  }
+
+  ////////////////////////////////////////////////////////////////////////////
 
   void amaze_demosaic_rgb(
       const float *      bayered_image,
@@ -492,7 +926,7 @@ static __inline float xdivf(float d, int n)
 #      define STVF(x, y)  _mm_store_ps(&x, y)
 #      define STVFU(x, y) _mm_storeu_ps(&x, y)
 #    else   // there is a bug in gcc 4.7.x when using openmp and aligned memory and -O3, also need to map the
-            // aligned functions to unaligned functions for WIN32 builds
+// aligned functions to unaligned functions for WIN32 builds
 #      define LVF(x)      _mm_loadu_ps(&x)
 #      define LVFU(x)     _mm_loadu_ps(&x)
 #      define STVF(x, y)  _mm_storeu_ps(&x, y)
@@ -3050,132 +3484,185 @@ inline void vng4interpolate_row_redblue(
 }
 
 
-extern "C" void
-vng4_demosaic_rgb(const float *rawData, float *red, float *green, float *blue, size_t w, size_t h, unsigned int filters)
+extern "C"
 {
-  memset(red, 0, w * h * sizeof(float));
-  memset(green, 0, w * h * sizeof(float));
-  memset(blue, 0, w * h * sizeof(float));
-  // // Test for RGB cfa
-  // for (int i = 0; i < 2; i++) {
-  //     for (int j = 0; j < 2; j++) {
-  //         if (FC(i, j) == 3) {
-  //             // avoid crash
-  //             std::cout << "vng4_demosaic supports only RGB Colour filter arrays. Falling back to igv_interpolate" << std::endl;
-  //             // igv_interpolate(W, H);
-  //             return;
-  //         }
-  //     }
-  // }
+  void vng4_demosaic_rgb(
+      const float *rawData,
+      float *      red,
+      float *      green,
+      float *      blue,
+      size_t       w,
+      size_t       h,
+      unsigned int filters)
+  {
+    memset(red, 0, w * h * sizeof(float));
+    memset(green, 0, w * h * sizeof(float));
+    memset(blue, 0, w * h * sizeof(float));
+    // // Test for RGB cfa
+    // for (int i = 0; i < 2; i++) {
+    //     for (int j = 0; j < 2; j++) {
+    //         if (FC(i, j) == 3) {
+    //             // avoid crash
+    //             std::cout << "vng4_demosaic supports only RGB Colour filter arrays. Falling back to igv_interpolate" << std::endl;
+    //             // igv_interpolate(W, H);
+    //             return;
+    //         }
+    //     }
+    // }
 
-  const signed short int *cp,
-      terms[] = {-2, -2, +0, -1, 0, 0x01, -2, -2, +0, +0, 1, 0x01, -2, -1, -1, +0, 0, 0x01, -2, -1, +0, -1, 0, 0x02,
-                 -2, -1, +0, +0, 0, 0x03, -2, -1, +0, +1, 1, 0x01, -2, +0, +0, -1, 0, 0x06, -2, +0, +0, +0, 1, 0x02,
-                 -2, +0, +0, +1, 0, 0x03, -2, +1, -1, +0, 0, 0x04, -2, +1, +0, -1, 1, 0x04, -2, +1, +0, +0, 0, 0x06,
-                 -2, +1, +0, +1, 0, 0x02, -2, +2, +0, +0, 1, 0x04, -2, +2, +0, +1, 0, 0x04, -1, -2, -1, +0, 0, 0x80,
-                 -1, -2, +0, -1, 0, 0x01, -1, -2, +1, -1, 0, 0x01, -1, -2, +1, +0, 1, 0x01, -1, -1, -1, +1, 0, 0x88,
-                 -1, -1, +1, -2, 0, 0x40, -1, -1, +1, -1, 0, 0x22, -1, -1, +1, +0, 0, 0x33, -1, -1, +1, +1, 1, 0x11,
-                 -1, +0, -1, +2, 0, 0x08, -1, +0, +0, -1, 0, 0x44, -1, +0, +0, +1, 0, 0x11, -1, +0, +1, -2, 1, 0x40,
-                 -1, +0, +1, -1, 0, 0x66, -1, +0, +1, +0, 1, 0x22, -1, +0, +1, +1, 0, 0x33, -1, +0, +1, +2, 1, 0x10,
-                 -1, +1, +1, -1, 1, 0x44, -1, +1, +1, +0, 0, 0x66, -1, +1, +1, +1, 0, 0x22, -1, +1, +1, +2, 0, 0x10,
-                 -1, +2, +0, +1, 0, 0x04, -1, +2, +1, +0, 1, 0x04, -1, +2, +1, +1, 0, 0x04, +0, -2, +0, +0, 1, 0x80,
-                 +0, -1, +0, +1, 1, 0x88, +0, -1, +1, -2, 0, 0x40, +0, -1, +1, +0, 0, 0x11, +0, -1, +2, -2, 0, 0x40,
-                 +0, -1, +2, -1, 0, 0x20, +0, -1, +2, +0, 0, 0x30, +0, -1, +2, +1, 1, 0x10, +0, +0, +0, +2, 1, 0x08,
-                 +0, +0, +2, -2, 1, 0x40, +0, +0, +2, -1, 0, 0x60, +0, +0, +2, +0, 1, 0x20, +0, +0, +2, +1, 0, 0x30,
-                 +0, +0, +2, +2, 1, 0x10, +0, +1, +1, +0, 0, 0x44, +0, +1, +1, +2, 0, 0x10, +0, +1, +2, -1, 1, 0x40,
-                 +0, +1, +2, +0, 0, 0x60, +0, +1, +2, +1, 0, 0x20, +0, +1, +2, +2, 0, 0x10, +1, -2, +1, +0, 0, 0x80,
-                 +1, -1, +1, +1, 0, 0x88, +1, +0, +1, +2, 0, 0x08, +1, +0, +2, -1, 0, 0x40, +1, +0, +2, +1, 0, 0x10},
-      chood[] = {-1, -1, -1, 0, -1, +1, 0, +1, +1, +1, +1, 0, +1, -1, 0, -1};
+    const signed short int *cp,
+        terms[] = {-2, -2, +0, -1, 0, 0x01, -2, -2, +0, +0, 1, 0x01, -2, -1, -1, +0, 0, 0x01, -2, -1, +0, -1, 0, 0x02,
+                   -2, -1, +0, +0, 0, 0x03, -2, -1, +0, +1, 1, 0x01, -2, +0, +0, -1, 0, 0x06, -2, +0, +0, +0, 1, 0x02,
+                   -2, +0, +0, +1, 0, 0x03, -2, +1, -1, +0, 0, 0x04, -2, +1, +0, -1, 1, 0x04, -2, +1, +0, +0, 0, 0x06,
+                   -2, +1, +0, +1, 0, 0x02, -2, +2, +0, +0, 1, 0x04, -2, +2, +0, +1, 0, 0x04, -1, -2, -1, +0, 0, 0x80,
+                   -1, -2, +0, -1, 0, 0x01, -1, -2, +1, -1, 0, 0x01, -1, -2, +1, +0, 1, 0x01, -1, -1, -1, +1, 0, 0x88,
+                   -1, -1, +1, -2, 0, 0x40, -1, -1, +1, -1, 0, 0x22, -1, -1, +1, +0, 0, 0x33, -1, -1, +1, +1, 1, 0x11,
+                   -1, +0, -1, +2, 0, 0x08, -1, +0, +0, -1, 0, 0x44, -1, +0, +0, +1, 0, 0x11, -1, +0, +1, -2, 1, 0x40,
+                   -1, +0, +1, -1, 0, 0x66, -1, +0, +1, +0, 1, 0x22, -1, +0, +1, +1, 0, 0x33, -1, +0, +1, +2, 1, 0x10,
+                   -1, +1, +1, -1, 1, 0x44, -1, +1, +1, +0, 0, 0x66, -1, +1, +1, +1, 0, 0x22, -1, +1, +1, +2, 0, 0x10,
+                   -1, +2, +0, +1, 0, 0x04, -1, +2, +1, +0, 1, 0x04, -1, +2, +1, +1, 0, 0x04, +0, -2, +0, +0, 1, 0x80,
+                   +0, -1, +0, +1, 1, 0x88, +0, -1, +1, -2, 0, 0x40, +0, -1, +1, +0, 0, 0x11, +0, -1, +2, -2, 0, 0x40,
+                   +0, -1, +2, -1, 0, 0x20, +0, -1, +2, +0, 0, 0x30, +0, -1, +2, +1, 1, 0x10, +0, +0, +0, +2, 1, 0x08,
+                   +0, +0, +2, -2, 1, 0x40, +0, +0, +2, -1, 0, 0x60, +0, +0, +2, +0, 1, 0x20, +0, +0, +2, +1, 0, 0x30,
+                   +0, +0, +2, +2, 1, 0x10, +0, +1, +1, +0, 0, 0x44, +0, +1, +1, +2, 0, 0x10, +0, +1, +2, -1, 1, 0x40,
+                   +0, +1, +2, +0, 0, 0x60, +0, +1, +2, +1, 0, 0x20, +0, +1, +2, +2, 0, 0x10, +1, -2, +1, +0, 0, 0x80,
+                   +1, -1, +1, +1, 0, 0x88, +1, +0, +1, +2, 0, 0x08, +1, +0, +2, -1, 0, 0x40, +1, +0, +2, +1, 0, 0x10},
+        chood[] = {-1, -1, -1, 0, -1, +1, 0, +1, +1, +1, +1, 0, +1, -1, 0, -1};
 
-  // double progress = 0.0;
-  // const bool plistenerActive = plistener;
+    // double progress = 0.0;
+    // const bool plistenerActive = plistener;
 
-  // if (plistenerActive) {
-  //     plistener->setProgressStr (Glib::ustring::compose(M("TP_RAW_DMETHOD_PROGRESSBAR"), M("TP_RAW_VNG4")));
-  //     plistener->setProgress (progress);
-  // }
+    // if (plistenerActive) {
+    //     plistener->setProgressStr (Glib::ustring::compose(M("TP_RAW_DMETHOD_PROGRESSBAR"), M("TP_RAW_VNG4")));
+    //     plistener->setProgress (progress);
+    // }
 
-  unsigned prefilters = filters;
+    unsigned prefilters = filters;
 
-  // separate out G1 and G2 in RGGB Bayer patterns
-  // Thanks Darktable ;-)
-  if ((filters & 3) == 1)
-    prefilters = filters | 0x03030303u;
-  else
-    prefilters = filters | 0x0c0c0c0cu;
+    // separate out G1 and G2 in RGGB Bayer patterns
+    // Thanks Darktable ;-)
+    if ((filters & 3) == 1)
+      prefilters = filters | 0x03030303u;
+    else
+      prefilters = filters | 0x0c0c0c0cu;
 
-  const int              width = w, height = h;
-  constexpr unsigned int colors = 4;
+    const int              width = w, height = h;
+    constexpr unsigned int colors = 4;
 
-  float(*image)[4] = (float(*)[4])calloc(static_cast<size_t>(height) * width, sizeof *image);
+    float(*image)[4] = (float(*)[4])calloc(static_cast<size_t>(height) * width, sizeof *image);
 
-  int   lcode[16][16][32];
-  float mul[16][16][8];
-  float csum[16][16][3];
+    int   lcode[16][16][32];
+    float mul[16][16][8];
+    float csum[16][16][3];
 
-  // first linear interpolation
-  for (int row = 0; row < 16; row++)
-    for (int col = 0; col < 16; col++)
-    {
-      int * ip       = lcode[row][col];
-      int   mulcount = 0;
-      float sum[4]   = {};
+    // first linear interpolation
+    for (int row = 0; row < 16; row++)
+      for (int col = 0; col < 16; col++)
+      {
+        int * ip       = lcode[row][col];
+        int   mulcount = 0;
+        float sum[4]   = {};
 
-      for (int y = -1; y <= 1; y++)
-        for (int x = -1; x <= 1; x++)
-        {
-          int shift = (y == 0) + (x == 0);
-
-          if (shift == 2)
+        for (int y = -1; y <= 1; y++)
+          for (int x = -1; x <= 1; x++)
           {
-            continue;
+            int shift = (y == 0) + (x == 0);
+
+            if (shift == 2)
+            {
+              continue;
+            }
+
+            int color = FC(row + y, col + x, prefilters);
+            *ip++     = (width * y + x) * 4 + color;
+
+            mul[row][col][mulcount] = (1 << shift);
+            *ip++                   = color;
+            sum[color] += (1 << shift);
+            mulcount++;
           }
 
-          int color = FC(row + y, col + x, prefilters);
-          *ip++     = (width * y + x) * 4 + color;
+        int colcount = 0;
 
-          mul[row][col][mulcount] = (1 << shift);
-          *ip++                   = color;
-          sum[color] += (1 << shift);
-          mulcount++;
-        }
-
-      int colcount = 0;
-
-      for (unsigned int c = 0; c < colors; c++)
-        if (c != FC(row, col, prefilters))
-        {
-          *ip++                    = c;
-          csum[row][col][colcount] = 1.f / sum[c];
-          colcount++;
-        }
-    }
+        for (unsigned int c = 0; c < colors; c++)
+          if (c != FC(row, col, prefilters))
+          {
+            *ip++                    = c;
+            csum[row][col][colcount] = 1.f / sum[c];
+            colcount++;
+          }
+      }
 
 #ifdef _OPENMP
-    #pragma omp parallel
+      #pragma omp parallel
 #endif
-  {
-    int firstRow = -1;
-    int lastRow  = -1;
-#ifdef _OPENMP
-    // note, static scheduling is important in this implementation
-    #pragma omp for schedule(static)
-#endif
-
-    for (int ii = 0; ii < height; ii++)
     {
-      if (firstRow == -1)
+      int firstRow = -1;
+      int lastRow  = -1;
+#ifdef _OPENMP
+      // note, static scheduling is important in this implementation
+      #pragma omp for schedule(static)
+#endif
+
+      for (int ii = 0; ii < height; ii++)
       {
-        firstRow = ii;
+        if (firstRow == -1)
+        {
+          firstRow = ii;
+        }
+        lastRow = ii;
+        for (int jj = 0; jj < width; jj++)
+        {
+          image[ii * width + jj][FC(ii, jj, prefilters)] = rawData[ii * width + jj];
+        }
+        if (ii - 1 > firstRow)
+        {
+          int row = ii - 1;
+          for (int col = 1; col < width - 1; col++)
+          {
+            float *pix    = image[row * width + col];
+            int *  ip     = lcode[row & 15][col & 15];
+            float  sum[4] = {};
+
+            for (int i = 0; i < 8; i++, ip += 2)
+            {
+              sum[ip[1]] += pix[ip[0]] * mul[row & 15][col & 15][i];
+            }
+
+            for (unsigned int i = 0; i < colors - 1; i++, ip++)
+            {
+              pix[ip[0]] = sum[ip[0]] * csum[row & 15][col & 15][i];
+            }
+          }
+        }
       }
-      lastRow = ii;
-      for (int jj = 0; jj < width; jj++)
+
+      // now all rows are processed except the first and last row of each chunk
+      // let's process them now but skip row 0 and row H - 1
+      if (firstRow > 0 && firstRow < height - 1)
       {
-        image[ii * width + jj][FC(ii, jj, prefilters)] = rawData[ii * width + jj];
+        const int row = firstRow;
+        for (int col = 1; col < width - 1; col++)
+        {
+          float *pix    = image[row * width + col];
+          int *  ip     = lcode[row & 15][col & 15];
+          float  sum[4] = {};
+
+          for (int i = 0; i < 8; i++, ip += 2)
+          {
+            sum[ip[1]] += pix[ip[0]] * mul[row & 15][col & 15][i];
+          }
+
+          for (unsigned int i = 0; i < colors - 1; i++, ip++)
+          {
+            pix[ip[0]] = sum[ip[0]] * csum[row & 15][col & 15][i];
+          }
+        }
       }
-      if (ii - 1 > firstRow)
+
+      if (lastRow > 0 && lastRow < height - 1)
       {
-        int row = ii - 1;
+        const int row = lastRow;
         for (int col = 1; col < width - 1; col++)
         {
           float *pix    = image[row * width + col];
@@ -3195,325 +3682,256 @@ vng4_demosaic_rgb(const float *rawData, float *red, float *green, float *blue, s
       }
     }
 
-    // now all rows are processed except the first and last row of each chunk
-    // let's process them now but skip row 0 and row H - 1
-    if (firstRow > 0 && firstRow < height - 1)
-    {
-      const int row = firstRow;
-      for (int col = 1; col < width - 1; col++)
+    constexpr int prow = 7, pcol = 1;
+    int32_t *     code[8][2];
+    int32_t *     ip = (int32_t *)calloc((prow + 1) * (pcol + 1), 1280);
+
+    for (int row = 0; row <= prow; row++) /* Precalculate for VNG */
+      for (int col = 0; col <= pcol; col++)
       {
-        float *pix    = image[row * width + col];
-        int *  ip     = lcode[row & 15][col & 15];
-        float  sum[4] = {};
-
-        for (int i = 0; i < 8; i++, ip += 2)
+        code[row][col] = ip;
+        cp             = terms;
+        for (int t = 0; t < 64; t++)
         {
-          sum[ip[1]] += pix[ip[0]] * mul[row & 15][col & 15][i];
-        }
+          int          y1     = *cp++;
+          int          x1     = *cp++;
+          int          y2     = *cp++;
+          int          x2     = *cp++;
+          int          weight = *cp++;
+          int          grads  = *cp++;
+          unsigned int color  = FC(row + y1, col + x1, prefilters);
 
-        for (unsigned int i = 0; i < colors - 1; i++, ip++)
-        {
-          pix[ip[0]] = sum[ip[0]] * csum[row & 15][col & 15][i];
-        }
-      }
-    }
+          if (FC(row + y2, col + x2, prefilters) != color)
+          {
+            continue;
+          }
 
-    if (lastRow > 0 && lastRow < height - 1)
-    {
-      const int row = lastRow;
-      for (int col = 1; col < width - 1; col++)
-      {
-        float *pix    = image[row * width + col];
-        int *  ip     = lcode[row & 15][col & 15];
-        float  sum[4] = {};
+          int diag = (FC(row, col + 1, prefilters) == color && FC(row + 1, col, prefilters) == color) ? 2 : 1;
 
-        for (int i = 0; i < 8; i++, ip += 2)
-        {
-          sum[ip[1]] += pix[ip[0]] * mul[row & 15][col & 15][i];
-        }
+          if (abs(y1 - y2) == diag && abs(x1 - x2) == diag)
+          {
+            continue;
+          }
 
-        for (unsigned int i = 0; i < colors - 1; i++, ip++)
-        {
-          pix[ip[0]] = sum[ip[0]] * csum[row & 15][col & 15][i];
-        }
-      }
-    }
-  }
-
-  constexpr int prow = 7, pcol = 1;
-  int32_t *     code[8][2];
-  int32_t *     ip = (int32_t *)calloc((prow + 1) * (pcol + 1), 1280);
-
-  for (int row = 0; row <= prow; row++) /* Precalculate for VNG */
-    for (int col = 0; col <= pcol; col++)
-    {
-      code[row][col] = ip;
-      cp             = terms;
-      for (int t = 0; t < 64; t++)
-      {
-        int          y1     = *cp++;
-        int          x1     = *cp++;
-        int          y2     = *cp++;
-        int          x2     = *cp++;
-        int          weight = *cp++;
-        int          grads  = *cp++;
-        unsigned int color  = FC(row + y1, col + x1, prefilters);
-
-        if (FC(row + y2, col + x2, prefilters) != color)
-        {
-          continue;
-        }
-
-        int diag = (FC(row, col + 1, prefilters) == color && FC(row + 1, col, prefilters) == color) ? 2 : 1;
-
-        if (abs(y1 - y2) == diag && abs(x1 - x2) == diag)
-        {
-          continue;
-        }
-
-        *ip++ = (y1 * width + x1) * 4 + color;
-        *ip++ = (y2 * width + x2) * 4 + color;
+          *ip++ = (y1 * width + x1) * 4 + color;
+          *ip++ = (y2 * width + x2) * 4 + color;
 #ifdef __SSE2__
-        // at least on machines with SSE2 feature this cast is save
-        *reinterpret_cast<float *>(ip++) = 1 << weight;
+          // at least on machines with SSE2 feature this cast is save
+          *reinterpret_cast<float *>(ip++) = 1 << weight;
 #else
-        *ip++ = 1 << weight;
+          *ip++ = 1 << weight;
 #endif
+          for (int g = 0; g < 8; g++)
+            if (grads & (1 << g))
+            {
+              *ip++ = g;
+            }
+
+          *ip++ = -1;
+        }
+
+        *ip++ = INT_MAX;
+
+        cp = chood;
         for (int g = 0; g < 8; g++)
-          if (grads & (1 << g))
+        {
+          int y              = *cp++;
+          int x              = *cp++;
+          *ip++              = (y * width + x) * 4;
+          unsigned int color = FC(row, col, prefilters);
+
+          if (FC(row + y, col + x, prefilters) != color && FC(row + y * 2, col + x * 2, prefilters) == color)
           {
-            *ip++ = g;
+            *ip++ = (y * width + x) * 8 + color;
           }
-
-        *ip++ = -1;
-      }
-
-      *ip++ = INT_MAX;
-
-      cp = chood;
-      for (int g = 0; g < 8; g++)
-      {
-        int y              = *cp++;
-        int x              = *cp++;
-        *ip++              = (y * width + x) * 4;
-        unsigned int color = FC(row, col, prefilters);
-
-        if (FC(row + y, col + x, prefilters) != color && FC(row + y * 2, col + x * 2, prefilters) == color)
-        {
-          *ip++ = (y * width + x) * 8 + color;
-        }
-        else
-        {
-          *ip++ = 0;
+          else
+          {
+            *ip++ = 0;
+          }
         }
       }
-    }
 
-    // if(plistenerActive) {
-    //     progress = 0.2;
-    //     plistener->setProgress (progress);
-    // }
+      // if(plistenerActive) {
+      //     progress = 0.2;
+      //     plistener->setProgress (progress);
+      // }
 
 #ifdef _OPENMP
-    #pragma omp parallel
+      #pragma omp parallel
 #endif
-  {
-    // constexpr int progressStep = 64;
-    // const double progressInc = (1.0 - progress) / ((height - 2) / progressStep);
-    int firstRow = -1;
-    int lastRow  = -1;
+    {
+      // constexpr int progressStep = 64;
+      // const double progressInc = (1.0 - progress) / ((height - 2) / progressStep);
+      int firstRow = -1;
+      int lastRow  = -1;
 #ifdef _OPENMP
-    // note, static scheduling is important in this implementation
-    #pragma omp for schedule(static)
+      // note, static scheduling is important in this implementation
+      #pragma omp for schedule(static)
 #endif
 
-    for (int row = 2; row < height - 2; row++)
-    { /* Do VNG interpolation */
-      if (firstRow == -1)
-      {
-        firstRow = row;
-      }
-      lastRow = row;
-      for (int col = 2; col < width - 2; col++)
-      {
-        float *  pix     = image[row * width + col];
-        int      color   = FC(row, col, prefilters);
-        int32_t *ip      = code[row & prow][col & pcol];
-        float    gval[8] = {};
+      for (int row = 2; row < height - 2; row++)
+      { /* Do VNG interpolation */
+        if (firstRow == -1)
+        {
+          firstRow = row;
+        }
+        lastRow = row;
+        for (int col = 2; col < width - 2; col++)
+        {
+          float *  pix     = image[row * width + col];
+          int      color   = FC(row, col, prefilters);
+          int32_t *ip      = code[row & prow][col & pcol];
+          float    gval[8] = {};
 
-        while (ip[0] != INT_MAX)
-        { /* Calculate gradients */
+          while (ip[0] != INT_MAX)
+          { /* Calculate gradients */
 #ifdef __SSE2__
-          // at least on machines with SSE2 feature this cast is save and saves a lot of int => float conversions
-          const float diff = std::fabs(pix[ip[0]] - pix[ip[1]]) * reinterpret_cast<float *>(ip)[2];
+            // at least on machines with SSE2 feature this cast is save and saves a lot of int => float conversions
+            const float diff = std::fabs(pix[ip[0]] - pix[ip[1]]) * reinterpret_cast<float *>(ip)[2];
 #else
-          const float diff = std::fabs(pix[ip[0]] - pix[ip[1]]) * ip[2];
+            const float diff = std::fabs(pix[ip[0]] - pix[ip[1]]) * ip[2];
 #endif
-          gval[ip[3]] += diff;
-          ip += 5;
-          if (UNLIKELY(ip[-1] != -1))
+            gval[ip[3]] += diff;
+            ip += 5;
+            if (UNLIKELY(ip[-1] != -1))
+            {
+              gval[ip[-1]] += diff;
+              ip++;
+            }
+          }
+          ip++;
+
+          float gMin = gval[0];
+          float gMax = gval[0];
+
+          for (int g = 1; g < 8; g++)
           {
-            gval[ip[-1]] += diff;
-            ip++;
+            gMin = std::min(gMin, gval[g]);
+            gMax = std::max(gMax, gval[g]);
           }
-        }
-        ip++;
 
-        float gMin = gval[0];
-        float gMax = gval[0];
+          const float thold = 1.5 * gMin + 0.5f * (gMax + gMin);
 
-        for (int g = 1; g < 8; g++)
-        {
-          gMin = std::min(gMin, gval[g]);
-          gMax = std::max(gMax, gval[g]);
-        }
+          float       sum0     = 0.f;
+          float       sum1     = 0.f;
+          const float greenval = pix[color];
+          int         num      = 0;
 
-        const float thold = 1.5 * gMin + 0.5f * (gMax + gMin);
-
-        float       sum0     = 0.f;
-        float       sum1     = 0.f;
-        const float greenval = pix[color];
-        int         num      = 0;
-
-        if (color & 1)
-        {
-          color ^= 2;
-          for (int g = 0; g < 8; g++, ip += 2)
-          { /* Average the neighbors */
-            if (gval[g] <= thold)
-            {
-              if (ip[1])
+          if (color & 1)
+          {
+            color ^= 2;
+            for (int g = 0; g < 8; g++, ip += 2)
+            { /* Average the neighbors */
+              if (gval[g] <= thold)
               {
-                sum0 += greenval + pix[ip[1]];
-              }
+                if (ip[1])
+                {
+                  sum0 += greenval + pix[ip[1]];
+                }
 
-              sum1 += pix[ip[0] + color];
-              num++;
+                sum1 += pix[ip[0] + color];
+                num++;
+              }
+            }
+            sum0 *= 0.5f;
+          }
+          else
+          {
+            for (int g = 0; g < 8; g++, ip += 2)
+            { /* Average the neighbors */
+              if (gval[g] <= thold)
+              {
+                if (ip[1])
+                {
+                  sum0 += greenval + pix[ip[1]];
+                }
+
+                sum1 += pix[ip[0] + 1] + pix[ip[0] + 3];
+                num++;
+              }
             }
           }
-          sum0 *= 0.5f;
+          //sum1 = 0;
+          //  std::cout << sum1 << " " << sum0 << " " << greenval << std::endl;
+          green[row * w + col] = std::max(0.f, greenval + (sum1 - sum0) / (2 * num));
         }
-        else
+        if (row - 1 > firstRow)
         {
-          for (int g = 0; g < 8; g++, ip += 2)
-          { /* Average the neighbors */
-            if (gval[g] <= thold)
-            {
-              if (ip[1])
-              {
-                sum0 += greenval + pix[ip[1]];
-              }
-
-              sum1 += pix[ip[0] + 1] + pix[ip[0] + 3];
-              num++;
-            }
-          }
+          vng4interpolate_row_redblue(
+              rawData,
+              &red[(row - 1) * width],
+              &blue[(row - 1) * width],
+              &green[(row - 2) * width],
+              &green[(row - 1) * width],
+              &green[row * width],
+              row - 1,
+              w,
+              filters);
         }
-        //sum1 = 0;
-        //  std::cout << sum1 << " " << sum0 << " " << greenval << std::endl;
-        green[row * w + col] = std::max(0.f, greenval + (sum1 - sum0) / (2 * num));
+
+        //             if(plistenerActive) {
+        //                 if((row % progressStep) == 0)
+        // #ifdef _OPENMP
+        //                     #pragma omp critical (updateprogress)
+        // #endif
+        //                 {
+        //                     progress += progressInc;
+        //                     plistener->setProgress (progress);
+        //                 }
+        //             }
       }
-      if (row - 1 > firstRow)
+
+      if (firstRow > 2 && firstRow < height - 3)
       {
         vng4interpolate_row_redblue(
             rawData,
-            &red[(row - 1) * width],
-            &blue[(row - 1) * width],
-            &green[(row - 2) * width],
-            &green[(row - 1) * width],
-            &green[row * width],
-            row - 1,
+            &red[firstRow * width],
+            &blue[firstRow * width],
+            &green[(firstRow - 1) * width],
+            &green[firstRow * width],
+            &green[(firstRow + 1) * width],
+            firstRow,
             w,
             filters);
       }
 
-      //             if(plistenerActive) {
-      //                 if((row % progressStep) == 0)
-      // #ifdef _OPENMP
-      //                     #pragma omp critical (updateprogress)
-      // #endif
-      //                 {
-      //                     progress += progressInc;
-      //                     plistener->setProgress (progress);
-      //                 }
-      //             }
-    }
-
-    if (firstRow > 2 && firstRow < height - 3)
-    {
-      vng4interpolate_row_redblue(
-          rawData,
-          &red[firstRow * width],
-          &blue[firstRow * width],
-          &green[(firstRow - 1) * width],
-          &green[firstRow * width],
-          &green[(firstRow + 1) * width],
-          firstRow,
-          w,
-          filters);
-    }
-
-    if (lastRow > 2 && lastRow < height - 3)
-    {
-      vng4interpolate_row_redblue(
-          rawData,
-          &red[lastRow * width],
-          &blue[lastRow * width],
-          &green[(lastRow - 1) * width],
-          &green[lastRow * width],
-          &green[(lastRow + 1) * width],
-          lastRow,
-          w,
-          filters);
-    }
+      if (lastRow > 2 && lastRow < height - 3)
+      {
+        vng4interpolate_row_redblue(
+            rawData,
+            &red[lastRow * width],
+            &blue[lastRow * width],
+            &green[(lastRow - 1) * width],
+            &green[lastRow * width],
+            &green[(lastRow + 1) * width],
+            lastRow,
+            w,
+            filters);
+      }
 #ifdef _OPENMP
-    #pragma omp single
+      #pragma omp single
 #endif
-    {
-      // let the first thread, which is out of work, do the border interpolation
-      border_interpolate(w, h, 3, rawData, red, green, blue, filters);
+      {
+        // let the first thread, which is out of work, do the border interpolation
+        border_interpolate(w, h, 3, rawData, red, green, blue, filters);
+      }
     }
+
+    free(code[0][0]);
+    free(image);
+
+    // if(plistenerActive) {
+    //     plistener->setProgress (1.0);
+    // }
   }
 
-  free(code[0][0]);
-  free(image);
-
-  // if(plistenerActive) {
-  //     plistener->setProgress (1.0);
-  // }
-}
-
-
-/*==================================================================================
- * end of raw therapee code
- *==================================================================================*/
-
-extern "C" void
-vgn4_demosaic(const float *rawData, float *debayered_image, size_t width, size_t height, unsigned int filters)
-{
-  float *debayered_r_temp = new float[width * height];
-  float *debayered_g_temp = new float[width * height];
-  float *debayered_b_temp = new float[width * height];
-
-  vng4_demosaic_rgb(rawData, debayered_r_temp, debayered_g_temp, debayered_b_temp, width, height, filters);
-
-  for (size_t row = 0; row < height; row++)
+  void
+  vgn4_demosaic(const float *bayered_image, float *debayered_image, size_t width, size_t height, unsigned int filters)
   {
-    for (size_t col = 0; col < width; col++)
-    {
-      debayered_image[3 * (row * width + col) + 0] = debayered_r_temp[row * width + col];
-      debayered_image[3 * (row * width + col) + 1] = debayered_g_temp[row * width + col];
-      debayered_image[3 * (row * width + col) + 2] = debayered_b_temp[row * width + col];
-    }
+    demosaic_rgb_to_img(bayered_image, debayered_image, width, height, filters, vng4_demosaic_rgb);
   }
-
-  delete[] debayered_r_temp;
-  delete[] debayered_g_temp;
-  delete[] debayered_b_temp;
 }
 
-
-// Rawtherapee code
 constexpr int MAXVAL = 0xffff;
 
 // template<typename T>
@@ -3557,769 +3975,751 @@ unsigned fc(const unsigned int cfa[2][2], int r, int c)
 
 #define TS 144
 
-extern "C" void
-ahd_demosaic_rgb(const float *rawData, float *red, float *green, float *blue, size_t w, size_t h, unsigned int filters)
+extern "C"
 {
-  const unsigned int cfa[2][2] = {{FC(0, 0, filters), FC(0, 1, filters)}, {FC(1, 0, filters), FC(1, 1, filters)}};
-  constexpr int      dirs[4]   = {-1, 1, -TS, TS};
-  float              xyz_cam[3][3];
-  float *            cbrt = new float[65536];
+  void ahd_demosaic_rgb(
+      const float *rawData,
+      float *      red,
+      float *      green,
+      float *      blue,
+      size_t       w,
+      size_t       h,
+      unsigned int filters)
+  {
+    const unsigned int cfa[2][2] = {{FC(0, 0, filters), FC(0, 1, filters)}, {FC(1, 0, filters), FC(1, 1, filters)}};
+    constexpr int      dirs[4]   = {-1, 1, -TS, TS};
+    float              xyz_cam[3][3];
+    float *            cbrt = new float[65536];
 
-  int width = w, height = h;
+    int width = w, height = h;
 
-  // clang-format off
+    // clang-format off
   constexpr float xyz_rgb[3][3] = {        /* XYZ from RGB */
     { 0.412453f, 0.357580f, 0.180423f },
     { 0.212671f, 0.715160f, 0.072169f },
     { 0.019334f, 0.119193f, 0.950227f }
   };
-  // clang-format on
+    // clang-format on
 
-  constexpr float d65_white[3] = {0.950456f, 1.f, 1.088754f};
+    constexpr float d65_white[3] = {0.950456f, 1.f, 1.088754f};
 
-  double progress = 0.0;
+    double progress = 0.0;
 
-  // if (plistener) {
-  //     plistener->setProgressStr (Glib::ustring::compose(M("TP_RAW_DMETHOD_PROGRESSBAR"), M("TP_RAW_AHD")));
-  //     plistener->setProgress (progress);
-  // }
+    // if (plistener) {
+    //     plistener->setProgressStr (Glib::ustring::compose(M("TP_RAW_DMETHOD_PROGRESSBAR"), M("TP_RAW_AHD")));
+    //     plistener->setProgress (progress);
+    // }
 
-  for (int i = 0; i < 65536; i++)
-  {
-    const double r = i / 65535.0;
-    cbrt[i]        = r > 0.008856 ? std::cbrt(r) : 7.787 * r + 16 / 116.0;
-  }
-
-  for (int i = 0; i < 3; i++)
-  {
-    for (unsigned int j = 0; j < 3; j++)
+    for (int i = 0; i < 65536; i++)
     {
-      xyz_cam[i][j] = 0;
-      for (int k = 0; k < 3; k++)
+      const double r = i / 65535.0;
+      cbrt[i]        = r > 0.008856 ? std::cbrt(r) : 7.787 * r + 16 / 116.0;
+    }
+
+    for (int i = 0; i < 3; i++)
+    {
+      for (unsigned int j = 0; j < 3; j++)
       {
-        // TODO
-        xyz_cam[i][j] += xyz_rgb[i][k] /* * static_cast<float>(imatrices.rgb_cam[k][j])*/ / d65_white[i];
+        xyz_cam[i][j] = 0;
+        for (int k = 0; k < 3; k++)
+        {
+          // TODO
+          xyz_cam[i][j] += xyz_rgb[i][k] /* * static_cast<float>(imatrices.rgb_cam[k][j])*/ / d65_white[i];
+        }
       }
     }
-  }
-  border_interpolate(w, h, 5, rawData, red, green, blue, filters);
+    border_interpolate(w, h, 5, rawData, red, green, blue, filters);
 
 
 #ifdef _OPENMP
 #pragma omp parallel
 #endif
-  {
-    int    progresscounter = 0;
-    float *buffer          = new float[13 * TS * TS]; /* 1053 kB per core */
-    auto   rgb             = (float(*)[TS][TS][3])buffer;
-    auto   lab             = (float(*)[TS][TS][3])(buffer + 6 * TS * TS);
-    auto   homo            = (uint16_t(*)[TS][TS])(buffer + 12 * TS * TS);
+    {
+      int    progresscounter = 0;
+      float *buffer          = new float[13 * TS * TS]; /* 1053 kB per core */
+      auto   rgb             = (float(*)[TS][TS][3])buffer;
+      auto   lab             = (float(*)[TS][TS][3])(buffer + 6 * TS * TS);
+      auto   homo            = (uint16_t(*)[TS][TS])(buffer + 12 * TS * TS);
 
 #ifdef _OPENMP
-    #pragma omp for collapse(2) schedule(dynamic) nowait
+      #pragma omp for collapse(2) schedule(dynamic) nowait
 #endif
-    for (int top = 2; top < height - 5; top += TS - 6)
-    {
-      for (int left = 2; left < width - 5; left += TS - 6)
+      for (int top = 2; top < height - 5; top += TS - 6)
       {
-        //  Interpolate green horizontally and vertically:
-        for (int row = top; row < top + TS && row < height - 2; row++)
+        for (int left = 2; left < width - 5; left += TS - 6)
         {
-          for (int col = left + (fc(cfa, row, left) & 1); col < std::min(left + TS, width - 2); col += 2)
+          //  Interpolate green horizontally and vertically:
+          for (int row = top; row < top + TS && row < height - 2; row++)
           {
-            auto  pix  = &rawData[row * width + col];
-            float val0 = 0.25f * ((pix[-1] + pix[0] + pix[1]) * 2 - pix[-2] - pix[2]);
-
-            rgb[0][row - top][col - left][1] = median(val0, pix[-1], pix[1]);
-
-            float val1 = 0.25f * ((pix[-width] + pix[0] + pix[width]) * 2 - pix[-2 * width] - pix[2 * width]);
-
-            rgb[1][row - top][col - left][1] = median(val1, pix[-width], pix[width]);
-          }
-        }
-
-        //  Interpolate red and blue, and convert to CIELab:
-        for (int d = 0; d < 2; d++)
-          for (int row = top + 1; row < top + TS - 1 && row < height - 3; row++)
-          {
-            int cng = fc(cfa, row + 1, fc(cfa, row + 1, 0) & 1);
-            for (int col = left + 1; col < std::min(left + TS - 1, width - 3); col++)
+            for (int col = left + (fc(cfa, row, left) & 1); col < std::min(left + TS, width - 2); col += 2)
             {
-              auto pix = &rawData[row * width + col];
-              auto rix = &rgb[d][row - top][col - left];
-              auto lix = lab[d][row - top][col - left];
-              if (fc(cfa, row, col) == 1)
+              auto  pix  = &rawData[row * width + col];
+              float val0 = 0.25f * ((pix[-1] + pix[0] + pix[1]) * 2 - pix[-2] - pix[2]);
+
+              rgb[0][row - top][col - left][1] = median(val0, pix[-1], pix[1]);
+
+              float val1 = 0.25f * ((pix[-width] + pix[0] + pix[width]) * 2 - pix[-2 * width] - pix[2 * width]);
+
+              rgb[1][row - top][col - left][1] = median(val1, pix[-width], pix[width]);
+            }
+          }
+
+          //  Interpolate red and blue, and convert to CIELab:
+          for (int d = 0; d < 2; d++)
+            for (int row = top + 1; row < top + TS - 1 && row < height - 3; row++)
+            {
+              int cng = fc(cfa, row + 1, fc(cfa, row + 1, 0) & 1);
+              for (int col = left + 1; col < std::min(left + TS - 1, width - 3); col++)
               {
-                rix[0][2 - cng] = CLIP(pix[0] + (0.5f * (pix[-1] + pix[1] - rix[-1][1] - rix[1][1])));
-                rix[0][cng]     = CLIP(pix[0] + (0.5f * (pix[-width] + pix[width] - rix[-TS][1] - rix[TS][1])));
-                rix[0][1]       = pix[0];
+                auto pix = &rawData[row * width + col];
+                auto rix = &rgb[d][row - top][col - left];
+                auto lix = lab[d][row - top][col - left];
+                if (fc(cfa, row, col) == 1)
+                {
+                  rix[0][2 - cng] = CLIP(pix[0] + (0.5f * (pix[-1] + pix[1] - rix[-1][1] - rix[1][1])));
+                  rix[0][cng]     = CLIP(pix[0] + (0.5f * (pix[-width] + pix[width] - rix[-TS][1] - rix[TS][1])));
+                  rix[0][1]       = pix[0];
+                }
+                else
+                {
+                  rix[0][cng] = CLIP(
+                      rix[0][1]
+                      + (0.25f
+                         * (pix[-width - 1] + pix[-width + 1] + pix[+width - 1] + pix[+width + 1] - rix[-TS - 1][1]
+                            - rix[-TS + 1][1] - rix[+TS - 1][1] - rix[+TS + 1][1])));
+                  rix[0][2 - cng] = pix[0];
+                }
+                float xyz[3] = {};
+
+                for (unsigned int c = 0; c < 3; ++c)
+                {
+                  xyz[0] += xyz_cam[0][c] * rix[0][c];
+                  xyz[1] += xyz_cam[1][c] * rix[0][c];
+                  xyz[2] += xyz_cam[2][c] * rix[0][c];
+                }
+                // Check...
+                for (unsigned int c = 0; c < 3; ++c)
+                {
+                  xyz[c] = cbrt[std::max(0, std::min(int(65535.f * xyz[c]), 65535))];
+                }
+
+                lix[0] = 116.f * xyz[1] - 16.f;
+                lix[1] = 500.f * (xyz[0] - xyz[1]);
+                lix[2] = 200.f * (xyz[1] - xyz[2]);
+              }
+            }
+
+          //  Build homogeneity maps from the CIELab images:
+
+          for (int row = top + 2; row < top + TS - 2 && row < height - 4; row++)
+          {
+            int   tr = row - top;
+            float ldiff[2][4], abdiff[2][4];
+
+            for (int col = left + 2, tc = 2; col < left + TS - 2 && col < width - 4; col++, tc++)
+            {
+              for (int d = 0; d < 2; d++)
+              {
+                auto lix = &lab[d][tr][tc];
+
+                for (int i = 0; i < 4; i++)
+                {
+                  ldiff[d][i]  = std::fabs(lix[0][0] - lix[dirs[i]][0]);
+                  abdiff[d][i] = SQR(lix[0][1] - lix[dirs[i]][1]) + SQR(lix[0][2] - lix[dirs[i]][2]);
+                }
+              }
+
+              float leps  = std::min(std::max(ldiff[0][0], ldiff[0][1]), std::max(ldiff[1][2], ldiff[1][3]));
+              float abeps = std::min(std::max(abdiff[0][0], abdiff[0][1]), std::max(abdiff[1][2], abdiff[1][3]));
+
+              for (int d = 0; d < 2; d++)
+              {
+                homo[d][tr][tc] = 0;
+                for (int i = 0; i < 4; i++)
+                {
+                  homo[d][tr][tc] += (ldiff[d][i] <= leps) * (abdiff[d][i] <= abeps);
+                }
+              }
+            }
+          }
+
+          //  Combine the most homogeneous pixels for the final result:
+          for (int row = top + 3; row < top + TS - 3 && row < height - 5; row++)
+          {
+            int tr = row - top;
+
+            for (int col = left + 3, tc = 3; col < std::min(left + TS - 3, width - 5); col++, tc++)
+            {
+              uint16_t hm0 = 0, hm1 = 0;
+              for (int i = tr - 1; i <= tr + 1; i++)
+                for (int j = tc - 1; j <= tc + 1; j++)
+                {
+                  hm0 += homo[0][i][j];
+                  hm1 += homo[1][i][j];
+                }
+
+              if (hm0 != hm1)
+              {
+                int dir                  = hm1 > hm0;
+                red[row * width + col]   = rgb[dir][tr][tc][0];
+                green[row * width + col] = rgb[dir][tr][tc][1];
+                blue[row * width + col]  = rgb[dir][tr][tc][2];
               }
               else
               {
-                rix[0][cng] = CLIP(
-                    rix[0][1]
-                    + (0.25f
-                       * (pix[-width - 1] + pix[-width + 1] + pix[+width - 1] + pix[+width + 1] - rix[-TS - 1][1]
-                          - rix[-TS + 1][1] - rix[+TS - 1][1] - rix[+TS + 1][1])));
-                rix[0][2 - cng] = pix[0];
-              }
-              float xyz[3] = {};
-
-              for (unsigned int c = 0; c < 3; ++c)
-              {
-                xyz[0] += xyz_cam[0][c] * rix[0][c];
-                xyz[1] += xyz_cam[1][c] * rix[0][c];
-                xyz[2] += xyz_cam[2][c] * rix[0][c];
-              }
-              // Check...
-              for (unsigned int c = 0; c < 3; ++c)
-              {
-                xyz[c] = cbrt[std::max(0, std::min(int(65535.f * xyz[c]), 65535))];
-              }
-
-              lix[0] = 116.f * xyz[1] - 16.f;
-              lix[1] = 500.f * (xyz[0] - xyz[1]);
-              lix[2] = 200.f * (xyz[1] - xyz[2]);
-            }
-          }
-
-        //  Build homogeneity maps from the CIELab images:
-
-        for (int row = top + 2; row < top + TS - 2 && row < height - 4; row++)
-        {
-          int   tr = row - top;
-          float ldiff[2][4], abdiff[2][4];
-
-          for (int col = left + 2, tc = 2; col < left + TS - 2 && col < width - 4; col++, tc++)
-          {
-            for (int d = 0; d < 2; d++)
-            {
-              auto lix = &lab[d][tr][tc];
-
-              for (int i = 0; i < 4; i++)
-              {
-                ldiff[d][i]  = std::fabs(lix[0][0] - lix[dirs[i]][0]);
-                abdiff[d][i] = SQR(lix[0][1] - lix[dirs[i]][1]) + SQR(lix[0][2] - lix[dirs[i]][2]);
-              }
-            }
-
-            float leps  = std::min(std::max(ldiff[0][0], ldiff[0][1]), std::max(ldiff[1][2], ldiff[1][3]));
-            float abeps = std::min(std::max(abdiff[0][0], abdiff[0][1]), std::max(abdiff[1][2], abdiff[1][3]));
-
-            for (int d = 0; d < 2; d++)
-            {
-              homo[d][tr][tc] = 0;
-              for (int i = 0; i < 4; i++)
-              {
-                homo[d][tr][tc] += (ldiff[d][i] <= leps) * (abdiff[d][i] <= abeps);
+                red[row * width + col]   = 0.5f * (rgb[0][tr][tc][0] + rgb[1][tr][tc][0]);
+                green[row * width + col] = 0.5f * (rgb[0][tr][tc][1] + rgb[1][tr][tc][1]);
+                blue[row * width + col]  = 0.5f * (rgb[0][tr][tc][2] + rgb[1][tr][tc][2]);
               }
             }
           }
+
+          //             if(plistener) {
+          //                 progresscounter++;
+
+          //                 if(progresscounter % 32 == 0) {
+          // #ifdef _OPENMP
+          //                     #pragma omp critical (ahdprogress)
+          // #endif
+          //                     {
+          //                         progress += 32.0 * SQR(TS - 6) / (height * width);
+          //                         progress = std::min(progress, 1.0);
+          //                         plistener->setProgress(progress);
+          //                     }
+          //                 }
+          //             }
         }
-
-        //  Combine the most homogeneous pixels for the final result:
-        for (int row = top + 3; row < top + TS - 3 && row < height - 5; row++)
-        {
-          int tr = row - top;
-
-          for (int col = left + 3, tc = 3; col < std::min(left + TS - 3, width - 5); col++, tc++)
-          {
-            uint16_t hm0 = 0, hm1 = 0;
-            for (int i = tr - 1; i <= tr + 1; i++)
-              for (int j = tc - 1; j <= tc + 1; j++)
-              {
-                hm0 += homo[0][i][j];
-                hm1 += homo[1][i][j];
-              }
-
-            if (hm0 != hm1)
-            {
-              int dir                  = hm1 > hm0;
-              red[row * width + col]   = rgb[dir][tr][tc][0];
-              green[row * width + col] = rgb[dir][tr][tc][1];
-              blue[row * width + col]  = rgb[dir][tr][tc][2];
-            }
-            else
-            {
-              red[row * width + col]   = 0.5f * (rgb[0][tr][tc][0] + rgb[1][tr][tc][0]);
-              green[row * width + col] = 0.5f * (rgb[0][tr][tc][1] + rgb[1][tr][tc][1]);
-              blue[row * width + col]  = 0.5f * (rgb[0][tr][tc][2] + rgb[1][tr][tc][2]);
-            }
-          }
-        }
-
-        //             if(plistener) {
-        //                 progresscounter++;
-
-        //                 if(progresscounter % 32 == 0) {
-        // #ifdef _OPENMP
-        //                     #pragma omp critical (ahdprogress)
-        // #endif
-        //                     {
-        //                         progress += 32.0 * SQR(TS - 6) / (height * width);
-        //                         progress = std::min(progress, 1.0);
-        //                         plistener->setProgress(progress);
-        //                     }
-        //                 }
-        //             }
       }
+      delete[] buffer;
     }
-    delete[] buffer;
+    // if(plistener) {
+    //     plistener->setProgress (1.0);
+    // }
   }
-  // if(plistener) {
-  //     plistener->setProgress (1.0);
-  // }
-}
 
-
-extern "C" void
-ahd_demosaic(const float *rawData, float *debayered_image, size_t width, size_t height, unsigned int filters)
-{
-  float *debayered_r_temp = new float[width * height];
-  float *debayered_g_temp = new float[width * height];
-  float *debayered_b_temp = new float[width * height];
-
-  ahd_demosaic_rgb(rawData, debayered_r_temp, debayered_g_temp, debayered_b_temp, width, height, filters);
-
-  for (size_t row = 0; row < height; row++)
+  void
+  ahd_demosaic(const float *bayered_image, float *debayered_image, size_t width, size_t height, unsigned int filters)
   {
-    for (size_t col = 0; col < width; col++)
-    {
-      debayered_image[3 * (row * width + col) + 0] = debayered_r_temp[row * width + col];
-      debayered_image[3 * (row * width + col) + 1] = debayered_g_temp[row * width + col];
-      debayered_image[3 * (row * width + col) + 2] = debayered_b_temp[row * width + col];
-    }
+    demosaic_rgb_to_img(bayered_image, debayered_image, width, height, filters, ahd_demosaic_rgb);
   }
 
-  delete[] debayered_r_temp;
-  delete[] debayered_g_temp;
-  delete[] debayered_b_temp;
-}
 
 
+  /**
+   * RATIO CORRECTED DEMOSAICING
+   * Luis Sanz Rodriguez (luis.sanz.rodriguez(at)gmail(dot)com)
+   *
+   * Release 2.3 @ 171125
+   *
+   * Original code from https://github.com/LuisSR/RCD-Demosaicing
+   * Licensed under the GNU GPL version 3
+   */
+  // Tiled version by Ingo Weyrich (heckflosse67@gmx.de)
+  void rcd_demosaic_rgb(
+      const float *rawData,
+      float *      red,
+      float *      green,
+      float *      blue,
+      size_t       w,
+      size_t       h,
+      unsigned int filters)
+  {
+    const int width  = w;
+    const int height = h;
+    // Test for RGB cfa
+    // for (int i = 0; i < 2; i++) {
+    //     for (int j = 0; j < 2; j++) {
+    //         if (FC(i, j) == 3) {
+    //             // avoid crash
+    //             std::cout << "rcd_demosaic supports only RGB Colour filter arrays. Falling back to igv_interpolate" << std::endl;
+    //             igv_interpolate(W, H);
+    //             return;
+    //         }
+    //     }
+    // }
 
-/**
- * RATIO CORRECTED DEMOSAICING
- * Luis Sanz Rodriguez (luis.sanz.rodriguez(at)gmail(dot)com)
- *
- * Release 2.3 @ 171125
- *
- * Original code from https://github.com/LuisSR/RCD-Demosaicing
- * Licensed under the GNU GPL version 3
- */
-// Tiled version by Ingo Weyrich (heckflosse67@gmx.de)
-extern "C" void
-rcd_demosaic_rgb(const float *rawData, float *red, float *green, float *blue, size_t w, size_t h, unsigned int filters)
-{
-  const int width  = w;
-  const int height = h;
-  // Test for RGB cfa
-  // for (int i = 0; i < 2; i++) {
-  //     for (int j = 0; j < 2; j++) {
-  //         if (FC(i, j) == 3) {
-  //             // avoid crash
-  //             std::cout << "rcd_demosaic supports only RGB Colour filter arrays. Falling back to igv_interpolate" << std::endl;
-  //             igv_interpolate(W, H);
-  //             return;
-  //         }
-  //     }
-  // }
+    // std::unique_ptr<StopWatch> stop;
 
-  // std::unique_ptr<StopWatch> stop;
+    // if (measure) {
+    //     std::cout << "Demosaicing " << W << "x" << H << " image using rcd with " << chunkSize << " tiles per thread" << std::endl;
+    //     stop.reset(new StopWatch("rcd demosaic"));
+    // }
 
-  // if (measure) {
-  //     std::cout << "Demosaicing " << W << "x" << H << " image using rcd with " << chunkSize << " tiles per thread" << std::endl;
-  //     stop.reset(new StopWatch("rcd demosaic"));
-  // }
+    // double progress = 0.0;
 
-  // double progress = 0.0;
+    // if (plistener) {
+    //     plistener->setProgressStr(Glib::ustring::compose(M("TP_RAW_DMETHOD_PROGRESSBAR"), M("TP_RAW_RCD")));
+    //     plistener->setProgress(progress);
+    // }
 
-  // if (plistener) {
-  //     plistener->setProgressStr(Glib::ustring::compose(M("TP_RAW_DMETHOD_PROGRESSBAR"), M("TP_RAW_RCD")));
-  //     plistener->setProgress(progress);
-  // }
-
-  const unsigned int cfarray[2][2] = {{FC(0, 0, filters), FC(0, 1, filters)}, {FC(1, 0, filters), FC(1, 1, filters)}};
-  constexpr int      rcdBorder     = 9;
-  constexpr int      tileSize      = 214;
-  constexpr int      tileSizeN     = tileSize - 2 * rcdBorder;
-  const int          numTh         = height / (tileSizeN) + ((height % (tileSizeN)) ? 1 : 0);
-  const int          numTw         = width / (tileSizeN) + ((width % (tileSizeN)) ? 1 : 0);
-  constexpr int      w1 = tileSize, w2 = 2 * tileSize, w3 = 3 * tileSize, w4 = 4 * tileSize;
-  //Tolerance to avoid dividing by zero
-  constexpr float eps   = 1e-5f;
-  constexpr float epssq = 1e-10f;
+    const unsigned int cfarray[2][2] = {{FC(0, 0, filters), FC(0, 1, filters)}, {FC(1, 0, filters), FC(1, 1, filters)}};
+    constexpr int      rcdBorder     = 9;
+    constexpr int      tileSize      = 214;
+    constexpr int      tileSizeN     = tileSize - 2 * rcdBorder;
+    const int          numTh         = height / (tileSizeN) + ((height % (tileSizeN)) ? 1 : 0);
+    const int          numTw         = width / (tileSizeN) + ((width % (tileSizeN)) ? 1 : 0);
+    constexpr int      w1 = tileSize, w2 = 2 * tileSize, w3 = 3 * tileSize, w4 = 4 * tileSize;
+    //Tolerance to avoid dividing by zero
+    constexpr float eps   = 1e-5f;
+    constexpr float epssq = 1e-10f;
 
 #ifdef _OPENMP
 #pragma omp parallel
 #endif
-  {
-    int    progresscounter           = 0;
-    float *cfa                       = (float *)calloc(tileSize * tileSize, sizeof *cfa);
-    float(*rgb)[tileSize * tileSize] = (float(*)[tileSize * tileSize]) malloc(3 * sizeof *rgb);
-    float *VH_Dir                    = (float *)calloc(tileSize * tileSize, sizeof *VH_Dir);
-    float *PQ_Dir                    = (float *)calloc(tileSize * tileSize, sizeof *PQ_Dir);
-    float *lpf                       = PQ_Dir;   // reuse buffer, they don't overlap in usage
+    {
+      int    progresscounter           = 0;
+      float *cfa                       = (float *)calloc(tileSize * tileSize, sizeof *cfa);
+      float(*rgb)[tileSize * tileSize] = (float(*)[tileSize * tileSize]) malloc(3 * sizeof *rgb);
+      float *VH_Dir                    = (float *)calloc(tileSize * tileSize, sizeof *VH_Dir);
+      float *PQ_Dir                    = (float *)calloc(tileSize * tileSize, sizeof *PQ_Dir);
+      float *lpf                       = PQ_Dir;   // reuse buffer, they don't overlap in usage
 
 #ifdef _OPENMP
-    #pragma omp for schedule(dynamic, 32) collapse(2) nowait
+      #pragma omp for schedule(dynamic, 32) collapse(2) nowait
 #endif
-    for (int tr = 0; tr < numTh; ++tr)
-    {
-      for (int tc = 0; tc < numTw; ++tc)
+      for (int tr = 0; tr < numTh; ++tr)
       {
-        const int rowStart = tr * tileSizeN;
-        const int rowEnd   = std::min(rowStart + tileSize, height);
-        if (rowStart + rcdBorder == rowEnd - rcdBorder)
+        for (int tc = 0; tc < numTw; ++tc)
         {
-          continue;
-        }
-        const int colStart = tc * tileSizeN;
-        const int colEnd   = std::min(colStart + tileSize, width);
-        if (colStart + rcdBorder == colEnd - rcdBorder)
-        {
-          continue;
-        }
-
-        const int tileRows = std::min(rowEnd - rowStart, tileSize);
-        const int tilecols = std::min(colEnd - colStart, tileSize);
-
-        for (int row = rowStart; row < rowEnd; row++)
-        {
-          int indx = (row - rowStart) * tileSize;
-          int c0   = fc(cfarray, row, colStart);
-          int c1   = fc(cfarray, row, colStart + 1);
-          int col  = colStart;
-
-          for (; col < colEnd - 1; col += 2, indx += 2)
+          const int rowStart = tr * tileSizeN;
+          const int rowEnd   = std::min(rowStart + tileSize, height);
+          if (rowStart + rcdBorder == rowEnd - rcdBorder)
           {
-            cfa[indx] = rgb[c0][indx] = LIM(rawData[row * width + col] / 65535.f, 0.f, 1.f);
-            cfa[indx + 1] = rgb[c1][indx + 1] = LIM(rawData[row * width + col + 1] / 65535.f, 0.f, 1.0f);
+            continue;
           }
-          if (col < colEnd)
+          const int colStart = tc * tileSizeN;
+          const int colEnd   = std::min(colStart + tileSize, width);
+          if (colStart + rcdBorder == colEnd - rcdBorder)
           {
-            cfa[indx] = rgb[c0][indx] = LIM(rawData[row * width + col], 0.f, 1.f);
+            continue;
           }
-        }
 
-        /**
-         * STEP 1: Find cardinal and diagonal interpolation directions
-         */
+          const int tileRows = std::min(rowEnd - rowStart, tileSize);
+          const int tilecols = std::min(colEnd - colStart, tileSize);
 
-        for (int row = 4; row < tileRows - 4; row++)
-        {
-          for (int col = 4, indx = row * tileSize + col; col < tilecols - 4; col++, indx++)
+          for (int row = rowStart; row < rowEnd; row++)
           {
-            const float cfai = cfa[indx];
-            //Calculate h/v local discrimination
-            float V_Stat = std::max(
-                epssq,
-                -18.f * cfai
-                        * (cfa[indx - w1] + cfa[indx + w1] + 2.f * (cfa[indx - w2] + cfa[indx + w2]) - cfa[indx - w3]
-                           - cfa[indx + w3])
-                    - 2.f * cfai * (cfa[indx - w4] + cfa[indx + w4] - 19.f * cfai)
-                    - cfa[indx - w1]
-                          * (70.f * cfa[indx + w1] + 12.f * cfa[indx - w2] - 24.f * cfa[indx + w2]
-                             + 38.f * cfa[indx - w3] - 16.f * cfa[indx + w3] - 12.f * cfa[indx - w4]
-                             + 6.f * cfa[indx + w4] - 46.f * cfa[indx - w1])
-                    + cfa[indx + w1]
-                          * (24.f * cfa[indx - w2] - 12.f * cfa[indx + w2] + 16.f * cfa[indx - w3]
-                             - 38.f * cfa[indx + w3] - 6.f * cfa[indx - w4] + 12.f * cfa[indx + w4]
-                             + 46.f * cfa[indx + w1])
-                    + cfa[indx - w2]
-                          * (14.f * cfa[indx + w2] - 12.f * cfa[indx + w3] - 2.f * cfa[indx - w4] + 2.f * cfa[indx + w4]
-                             + 11.f * cfa[indx - w2])
-                    + cfa[indx + w2]
-                          * (-12.f * cfa[indx - w3] + 2.f * (cfa[indx - w4] - cfa[indx + w4]) + 11.f * cfa[indx + w2])
-                    + cfa[indx - w3] * (2.f * cfa[indx + w3] - 6.f * cfa[indx - w4] + 10.f * cfa[indx - w3])
-                    + cfa[indx + w3] * (-6.f * cfa[indx + w4] + 10.f * cfa[indx + w3]) + cfa[indx - w4] * cfa[indx - w4]
-                    + cfa[indx + w4] * cfa[indx + w4]);
-            float H_Stat = std::max(
-                epssq,
-                -18.f * cfai
-                        * (cfa[indx - 1] + cfa[indx + 1] + 2.f * (cfa[indx - 2] + cfa[indx + 2]) - cfa[indx - 3]
-                           - cfa[indx + 3])
-                    - 2.f * cfai * (cfa[indx - 4] + cfa[indx + 4] - 19.f * cfai)
-                    - cfa[indx - 1]
-                          * (70.f * cfa[indx + 1] + 12.f * cfa[indx - 2] - 24.f * cfa[indx + 2] + 38.f * cfa[indx - 3]
-                             - 16.f * cfa[indx + 3] - 12.f * cfa[indx - 4] + 6.f * cfa[indx + 4] - 46.f * cfa[indx - 1])
-                    + cfa[indx + 1]
-                          * (24.f * cfa[indx - 2] - 12.f * cfa[indx + 2] + 16.f * cfa[indx - 3] - 38.f * cfa[indx + 3]
-                             - 6.f * cfa[indx - 4] + 12.f * cfa[indx + 4] + 46.f * cfa[indx + 1])
-                    + cfa[indx - 2]
-                          * (14.f * cfa[indx + 2] - 12.f * cfa[indx + 3] - 2.f * cfa[indx - 4] + 2.f * cfa[indx + 4]
-                             + 11.f * cfa[indx - 2])
-                    + cfa[indx + 2]
-                          * (-12.f * cfa[indx - 3] + 2.f * (cfa[indx - 4] - cfa[indx + 4]) + 11.f * cfa[indx + 2])
-                    + cfa[indx - 3] * (2.f * cfa[indx + 3] - 6.f * cfa[indx - 4] + 10.f * cfa[indx - 3])
-                    + cfa[indx + 3] * (-6.f * cfa[indx + 4] + 10.f * cfa[indx + 3]) + cfa[indx - 4] * cfa[indx - 4]
-                    + cfa[indx + 4] * cfa[indx + 4]);
+            int indx = (row - rowStart) * tileSize;
+            int c0   = fc(cfarray, row, colStart);
+            int c1   = fc(cfarray, row, colStart + 1);
+            int col  = colStart;
 
-            VH_Dir[indx] = V_Stat / (V_Stat + H_Stat);
-          }
-        }
-
-        /**
-         * STEP 2: Calculate the low pass filter
-         */
-        // Step 2.1: Low pass filter incorporating green, red and blue local samples from the raw data
-
-        for (int row = 2; row < tileRows - 2; row++)
-        {
-          for (int col = 2 + (fc(cfarray, row, 0) & 1), indx = row * tileSize + col; col < tilecols - 2;
-               col += 2, indx += 2)
-          {
-            lpf[indx >> 1]
-                = 0.25f * cfa[indx] + 0.125f * (cfa[indx - w1] + cfa[indx + w1] + cfa[indx - 1] + cfa[indx + 1])
-                  + 0.0625f * (cfa[indx - w1 - 1] + cfa[indx - w1 + 1] + cfa[indx + w1 - 1] + cfa[indx + w1 + 1]);
-          }
-        }
-
-        /**
-         * STEP 3: Populate the green channel
-         */
-        // Step 3.1: Populate the green channel at blue and red CFA positions
-        for (int row = 4; row < tileRows - 4; row++)
-        {
-          int col  = 4 + (fc(cfarray, row, 0) & 1);
-          int indx = row * tileSize + col;
-#ifdef __SSE2__
-          const vfloat zd5v  = F2V(0.5f);
-          const vfloat zd25v = F2V(0.25f);
-          const vfloat epsv  = F2V(eps);
-          for (; col < tilecols - 7; col += 8, indx += 8)
-          {
-            // Cardinal gradients
-            const vfloat cfai = LC2VFU(cfa[indx]);
-            const vfloat N_Grad
-                = epsv + (vabsf(LC2VFU(cfa[indx - w1]) - LC2VFU(cfa[indx + w1])) + vabsf(cfai - LC2VFU(cfa[indx - w2])))
-                  + (vabsf(LC2VFU(cfa[indx - w1]) - LC2VFU(cfa[indx - w3]))
-                     + vabsf(LC2VFU(cfa[indx - w2]) - LC2VFU(cfa[indx - w4])));
-            const vfloat S_Grad
-                = epsv + (vabsf(LC2VFU(cfa[indx - w1]) - LC2VFU(cfa[indx + w1])) + vabsf(cfai - LC2VFU(cfa[indx + w2])))
-                  + (vabsf(LC2VFU(cfa[indx + w1]) - LC2VFU(cfa[indx + w3]))
-                     + vabsf(LC2VFU(cfa[indx + w2]) - LC2VFU(cfa[indx + w4])));
-            const vfloat W_Grad
-                = epsv + (vabsf(LC2VFU(cfa[indx - 1]) - LC2VFU(cfa[indx + 1])) + vabsf(cfai - LC2VFU(cfa[indx - 2])))
-                  + (vabsf(LC2VFU(cfa[indx - 1]) - LC2VFU(cfa[indx - 3]))
-                     + vabsf(LC2VFU(cfa[indx - 2]) - LC2VFU(cfa[indx - 4])));
-            const vfloat E_Grad
-                = epsv + (vabsf(LC2VFU(cfa[indx - 1]) - LC2VFU(cfa[indx + 1])) + vabsf(cfai - LC2VFU(cfa[indx + 2])))
-                  + (vabsf(LC2VFU(cfa[indx + 1]) - LC2VFU(cfa[indx + 3]))
-                     + vabsf(LC2VFU(cfa[indx + 2]) - LC2VFU(cfa[indx + 4])));
-
-            // Cardinal pixel estimations
-            const vfloat lpfi  = LVFU(lpf[indx >> 1]);
-            const vfloat N_Est = LC2VFU(cfa[indx - w1])
-                                 + (LC2VFU(cfa[indx - w1]) * (lpfi - LVFU(lpf[(indx - w2) >> 1]))
-                                    / (epsv + lpfi + LVFU(lpf[(indx - w2) >> 1])));
-            const vfloat S_Est = LC2VFU(cfa[indx + w1])
-                                 + (LC2VFU(cfa[indx + w1]) * (lpfi - LVFU(lpf[(indx + w2) >> 1]))
-                                    / (epsv + lpfi + LVFU(lpf[(indx + w2) >> 1])));
-            const vfloat W_Est = LC2VFU(cfa[indx - 1])
-                                 + (LC2VFU(cfa[indx - 1]) * (lpfi - LVFU(lpf[(indx - 2) >> 1]))
-                                    / (epsv + lpfi + LVFU(lpf[(indx - 2) >> 1])));
-            const vfloat E_Est = LC2VFU(cfa[indx + 1])
-                                 + (LC2VFU(cfa[indx + 1]) * (lpfi - LVFU(lpf[(indx + 2) >> 1]))
-                                    / (epsv + lpfi + LVFU(lpf[(indx + 2) >> 1])));
-
-            // Vertical and horizontal estimations
-            const vfloat V_Est = (S_Grad * N_Est + N_Grad * S_Est) / (N_Grad + S_Grad);
-            const vfloat H_Est = (W_Grad * E_Est + E_Grad * W_Est) / (E_Grad + W_Grad);
-
-            // G@B and G@R interpolation
-            // Refined vertical and horizontal local discrimination
-            const vfloat VH_Central_Value       = LC2VFU(VH_Dir[indx]);
-            const vfloat VH_Neighbourhood_Value = zd25v
-                                                  * ((LC2VFU(VH_Dir[indx - w1 - 1]) + LC2VFU(VH_Dir[indx - w1 + 1]))
-                                                     + (LC2VFU(VH_Dir[indx + w1 - 1]) + LC2VFU(VH_Dir[indx + w1 + 1])));
-
-#  if defined(__clang__)
-            const vfloat VH_Disc = vself(
-                vmaskf_lt(vabsf(zd5v - VH_Central_Value), vabsf(zd5v - VH_Neighbourhood_Value)),
-                VH_Neighbourhood_Value,
-                VH_Central_Value);
-#  else
-            const vfloat VH_Disc = vabsf(zd5v - VH_Central_Value) < vabsf(zd5v - VH_Neighbourhood_Value)
-                                       ? VH_Neighbourhood_Value
-                                       : VH_Central_Value;
-#  endif
-            STC2VFU(rgb[1][indx], vintpf(VH_Disc, H_Est, V_Est));
-          }
-#endif
-          for (; col < tilecols - 4; col += 2, indx += 2)
-          {
-            // Cardinal gradients
-            const float cfai = cfa[indx];
-            const float N_Grad
-                = eps + (std::fabs(cfa[indx - w1] - cfa[indx + w1]) + std::fabs(cfai - cfa[indx - w2]))
-                  + (std::fabs(cfa[indx - w1] - cfa[indx - w3]) + std::fabs(cfa[indx - w2] - cfa[indx - w4]));
-            const float S_Grad
-                = eps + (std::fabs(cfa[indx - w1] - cfa[indx + w1]) + std::fabs(cfai - cfa[indx + w2]))
-                  + (std::fabs(cfa[indx + w1] - cfa[indx + w3]) + std::fabs(cfa[indx + w2] - cfa[indx + w4]));
-            const float W_Grad
-                = eps + (std::fabs(cfa[indx - 1] - cfa[indx + 1]) + std::fabs(cfai - cfa[indx - 2]))
-                  + (std::fabs(cfa[indx - 1] - cfa[indx - 3]) + std::fabs(cfa[indx - 2] - cfa[indx - 4]));
-            const float E_Grad
-                = eps + (std::fabs(cfa[indx - 1] - cfa[indx + 1]) + std::fabs(cfai - cfa[indx + 2]))
-                  + (std::fabs(cfa[indx + 1] - cfa[indx + 3]) + std::fabs(cfa[indx + 2] - cfa[indx + 4]));
-
-            // Cardinal pixel estimations
-            const float lpfi = lpf[indx >> 1];
-            const float N_Est
-                = cfa[indx - w1] * (1.f + (lpfi - lpf[(indx - w2) >> 1]) / (eps + lpfi + lpf[(indx - w2) >> 1]));
-            const float S_Est
-                = cfa[indx + w1] * (1.f + (lpfi - lpf[(indx + w2) >> 1]) / (eps + lpfi + lpf[(indx + w2) >> 1]));
-            const float W_Est
-                = cfa[indx - 1] * (1.f + (lpfi - lpf[(indx - 2) >> 1]) / (eps + lpfi + lpf[(indx - 2) >> 1]));
-            const float E_Est
-                = cfa[indx + 1] * (1.f + (lpfi - lpf[(indx + 2) >> 1]) / (eps + lpfi + lpf[(indx + 2) >> 1]));
-
-            // Vertical and horizontal estimations
-            const float V_Est = (S_Grad * N_Est + N_Grad * S_Est) / (N_Grad + S_Grad);
-            const float H_Est = (W_Grad * E_Est + E_Grad * W_Est) / (E_Grad + W_Grad);
-
-            // G@B and G@R interpolation
-            // Refined vertical and horizontal local discrimination
-            const float VH_Central_Value = VH_Dir[indx];
-            const float VH_Neighbourhood_Value
-                = 0.25f
-                  * ((VH_Dir[indx - w1 - 1] + VH_Dir[indx - w1 + 1]) + (VH_Dir[indx + w1 - 1] + VH_Dir[indx + w1 + 1]));
-
-            const float VH_Disc = std::fabs(0.5f - VH_Central_Value) < std::fabs(0.5f - VH_Neighbourhood_Value)
-                                      ? VH_Neighbourhood_Value
-                                      : VH_Central_Value;
-            rgb[1][indx] = VH_Disc * H_Est + (1.f - VH_Disc) * V_Est;
-          }
-        }
-
-        /**
-         * STEP 4: Populate the red and blue channels
-         */
-
-        // Step 4.1: Calculate P/Q diagonal local discrimination
-        for (int row = rcdBorder - 4; row < tileRows - rcdBorder + 4; row++)
-        {
-          for (int col = rcdBorder - 4 + (fc(cfarray, row, rcdBorder) & 1), indx = row * tileSize + col;
-               col < tilecols - rcdBorder + 4;
-               col += 2, indx += 2)
-          {
-            const float cfai = cfa[indx];
-
-            float P_Stat = std::max(
-                epssq,
-                -18.f * cfai
-                        * (cfa[indx - w1 - 1] + cfa[indx + w1 + 1] + 2.f * (cfa[indx - w2 - 2] + cfa[indx + w2 + 2])
-                           - cfa[indx - w3 - 3] - cfa[indx + w3 + 3])
-                    - 2.f * cfai * (cfa[indx - w4 - 4] + cfa[indx + w4 + 4] - 19.f * cfai)
-                    - cfa[indx - w1 - 1]
-                          * (70.f * cfa[indx + w1 + 1] - 12.f * cfa[indx - w2 - 2] + 24.f * cfa[indx + w2 + 2]
-                             - 38.f * cfa[indx - w3 - 3] + 16.f * cfa[indx + w3 + 3] + 12.f * cfa[indx - w4 - 4]
-                             - 6.f * cfa[indx + w4 + 4] + 46.f * cfa[indx - w1 - 1])
-                    + cfa[indx + w1 + 1]
-                          * (24.f * cfa[indx - w2 - 2] - 12.f * cfa[indx + w2 + 2] + 16.f * cfa[indx - w3 - 3]
-                             - 38.f * cfa[indx + w3 + 3] - 6.f * cfa[indx - w4 - 4] + 12.f * cfa[indx + w4 + 4]
-                             + 46.f * cfa[indx + w1 + 1])
-                    + cfa[indx - w2 - 2]
-                          * (14.f * cfa[indx + w2 + 2] - 12.f * cfa[indx + w3 + 3]
-                             - 2.f * (cfa[indx - w4 - 4] - cfa[indx + w4 + 4]) + 11.f * cfa[indx - w2 - 2])
-                    - cfa[indx + w2 + 2]
-                          * (12.f * cfa[indx - w3 - 3] + 2.f * (cfa[indx - w4 - 4] - cfa[indx + w4 + 4])
-                             + 11.f * cfa[indx + w2 + 2])
-                    + cfa[indx - w3 - 3]
-                          * (2.f * cfa[indx + w3 + 3] - 6.f * cfa[indx - w4 - 4] + 10.f * cfa[indx - w3 - 3])
-                    - cfa[indx + w3 + 3] * (6.f * cfa[indx + w4 + 4] + 10.f * cfa[indx + w3 + 3])
-                    + cfa[indx - w4 - 4] * cfa[indx - w4 - 4] + cfa[indx + w4 + 4] * cfa[indx + w4 + 4]);
-            float Q_Stat = std::max(
-                epssq,
-                -18.f * cfai
-                        * (cfa[indx + w1 - 1] + cfa[indx - w1 + 1] + 2.f * (cfa[indx + w2 - 2] + cfa[indx - w2 + 2])
-                           - cfa[indx + w3 - 3] - cfa[indx - w3 + 3])
-                    - 2.f * cfai * (cfa[indx + w4 - 4] + cfa[indx - w4 + 4] - 19.f * cfai)
-                    - cfa[indx + w1 - 1]
-                          * (70.f * cfa[indx - w1 + 1] - 12.f * cfa[indx + w2 - 2] + 24.f * cfa[indx - w2 + 2]
-                             - 38.f * cfa[indx + w3 - 3] + 16.f * cfa[indx - w3 + 3] + 12.f * cfa[indx + w4 - 4]
-                             - 6.f * cfa[indx - w4 + 4] + 46.f * cfa[indx + w1 - 1])
-                    + cfa[indx - w1 + 1]
-                          * (24.f * cfa[indx + w2 - 2] - 12.f * cfa[indx - w2 + 2] + 16.f * cfa[indx + w3 - 3]
-                             - 38.f * cfa[indx - w3 + 3] - 6.f * cfa[indx + w4 - 4] + 12.f * cfa[indx - w4 + 4]
-                             + 46.f * cfa[indx - w1 + 1])
-                    + cfa[indx + w2 - 2]
-                          * (14.f * cfa[indx - w2 + 2] - 12.f * cfa[indx - w3 + 3]
-                             - 2.f * (cfa[indx + w4 - 4] - cfa[indx - w4 + 4]) + 11.f * cfa[indx + w2 - 2])
-                    - cfa[indx - w2 + 2]
-                          * (12.f * cfa[indx + w3 - 3] + 2.f * (cfa[indx + w4 - 4] - cfa[indx - w4 + 4])
-                             + 11.f * cfa[indx - w2 + 2])
-                    + cfa[indx + w3 - 3]
-                          * (2.f * cfa[indx - w3 + 3] - 6.f * cfa[indx + w4 - 4] + 10.f * cfa[indx + w3 - 3])
-                    - cfa[indx - w3 + 3] * (6.f * cfa[indx - w4 + 4] + 10.f * cfa[indx - w3 + 3])
-                    + cfa[indx + w4 - 4] * cfa[indx + w4 - 4] + cfa[indx - w4 + 4] * cfa[indx - w4 + 4]);
-
-            PQ_Dir[indx] = P_Stat / (P_Stat + Q_Stat);
-          }
-        }
-
-        // Step 4.2: Populate the red and blue channels at blue and red CFA positions
-        for (int row = rcdBorder - 3; row < tileRows - rcdBorder + 3; row++)
-        {
-          for (int col  = rcdBorder - 3 + (fc(cfarray, row, rcdBorder - 1) & 1),
-                   indx = row * tileSize + col,
-                   c    = 2 - fc(cfarray, row, col);
-               col < tilecols - rcdBorder + 3;
-               col += 2, indx += 2)
-          {
-            // Refined P/Q diagonal local discrimination
-            float PQ_Central_Value = PQ_Dir[indx];
-            float PQ_Neighbourhood_Value
-                = 0.25f
-                  * (PQ_Dir[indx - w1 - 1] + PQ_Dir[indx - w1 + 1] + PQ_Dir[indx + w1 - 1] + PQ_Dir[indx + w1 + 1]);
-
-            float PQ_Disc = (std::fabs(0.5f - PQ_Central_Value) < std::fabs(0.5f - PQ_Neighbourhood_Value))
-                                ? PQ_Neighbourhood_Value
-                                : PQ_Central_Value;
-
-            // Diagonal gradients
-            float NW_Grad = eps + std::fabs(rgb[c][indx - w1 - 1] - rgb[c][indx + w1 + 1])
-                            + std::fabs(rgb[c][indx - w1 - 1] - rgb[c][indx - w3 - 3])
-                            + std::fabs(rgb[1][indx] - rgb[1][indx - w2 - 2]);
-            float NE_Grad = eps + std::fabs(rgb[c][indx - w1 + 1] - rgb[c][indx + w1 - 1])
-                            + std::fabs(rgb[c][indx - w1 + 1] - rgb[c][indx - w3 + 3])
-                            + std::fabs(rgb[1][indx] - rgb[1][indx - w2 + 2]);
-            float SW_Grad = eps + std::fabs(rgb[c][indx - w1 + 1] - rgb[c][indx + w1 - 1])
-                            + std::fabs(rgb[c][indx + w1 - 1] - rgb[c][indx + w3 - 3])
-                            + std::fabs(rgb[1][indx] - rgb[1][indx + w2 - 2]);
-            float SE_Grad = eps + std::fabs(rgb[c][indx - w1 - 1] - rgb[c][indx + w1 + 1])
-                            + std::fabs(rgb[c][indx + w1 + 1] - rgb[c][indx + w3 + 3])
-                            + std::fabs(rgb[1][indx] - rgb[1][indx + w2 + 2]);
-
-            // Diagonal colour differences
-            float NW_Est = rgb[c][indx - w1 - 1] - rgb[1][indx - w1 - 1];
-            float NE_Est = rgb[c][indx - w1 + 1] - rgb[1][indx - w1 + 1];
-            float SW_Est = rgb[c][indx + w1 - 1] - rgb[1][indx + w1 - 1];
-            float SE_Est = rgb[c][indx + w1 + 1] - rgb[1][indx + w1 + 1];
-
-            // P/Q estimations
-            float P_Est = (NW_Grad * SE_Est + SE_Grad * NW_Est) / (NW_Grad + SE_Grad);
-            float Q_Est = (NE_Grad * SW_Est + SW_Grad * NE_Est) / (NE_Grad + SW_Grad);
-
-            // R@B and B@R interpolation
-            rgb[c][indx] = rgb[1][indx] + (1.f - PQ_Disc) * P_Est + PQ_Disc * Q_Est;
-          }
-        }
-
-        // Step 4.3: Populate the red and blue channels at green CFA positions
-        for (int row = rcdBorder; row < tileRows - rcdBorder; row++)
-        {
-          for (int col = rcdBorder + (fc(cfarray, row, rcdBorder - 1) & 1), indx = row * tileSize + col;
-               col < tilecols - rcdBorder;
-               col += 2, indx += 2)
-          {
-            // Refined vertical and horizontal local discrimination
-            float VH_Central_Value = VH_Dir[indx];
-            float VH_Neighbourhood_Value
-                = 0.25f
-                  * ((VH_Dir[indx - w1 - 1] + VH_Dir[indx - w1 + 1]) + (VH_Dir[indx + w1 - 1] + VH_Dir[indx + w1 + 1]));
-
-            float VH_Disc = (std::fabs(0.5f - VH_Central_Value) < std::fabs(0.5f - VH_Neighbourhood_Value))
-                                ? VH_Neighbourhood_Value
-                                : VH_Central_Value;
-            float rgb1 = rgb[1][indx];
-            float N1   = eps + std::fabs(rgb1 - rgb[1][indx - w2]);
-            float S1   = eps + std::fabs(rgb1 - rgb[1][indx + w2]);
-            float W1   = eps + std::fabs(rgb1 - rgb[1][indx - 2]);
-            float E1   = eps + std::fabs(rgb1 - rgb[1][indx + 2]);
-
-            float rgb1mw1 = rgb[1][indx - w1];
-            float rgb1pw1 = rgb[1][indx + w1];
-            float rgb1m1  = rgb[1][indx - 1];
-            float rgb1p1  = rgb[1][indx + 1];
-            for (int c = 0; c <= 2; c += 2)
+            for (; col < colEnd - 1; col += 2, indx += 2)
             {
-              // Cardinal gradients
-              float SNabs  = std::fabs(rgb[c][indx - w1] - rgb[c][indx + w1]);
-              float EWabs  = std::fabs(rgb[c][indx - 1] - rgb[c][indx + 1]);
-              float N_Grad = N1 + SNabs + std::fabs(rgb[c][indx - w1] - rgb[c][indx - w3]);
-              float S_Grad = S1 + SNabs + std::fabs(rgb[c][indx + w1] - rgb[c][indx + w3]);
-              float W_Grad = W1 + EWabs + std::fabs(rgb[c][indx - 1] - rgb[c][indx - 3]);
-              float E_Grad = E1 + EWabs + std::fabs(rgb[c][indx + 1] - rgb[c][indx + 3]);
-
-              // Cardinal colour differences
-              float N_Est = rgb[c][indx - w1] - rgb1mw1;
-              float S_Est = rgb[c][indx + w1] - rgb1pw1;
-              float W_Est = rgb[c][indx - 1] - rgb1m1;
-              float E_Est = rgb[c][indx + 1] - rgb1p1;
-
-              // Vertical and horizontal estimations
-              float V_Est = (N_Grad * S_Est + S_Grad * N_Est) / (N_Grad + S_Grad);
-              float H_Est = (E_Grad * W_Est + W_Grad * E_Est) / (E_Grad + W_Grad);
-
-              // R@G and B@G interpolation
-              rgb[c][indx] = rgb1 + (1.f - VH_Disc) * V_Est + VH_Disc * H_Est;
+              cfa[indx] = rgb[c0][indx] = LIM(rawData[row * width + col] / 65535.f, 0.f, 1.f);
+              cfa[indx + 1] = rgb[c1][indx + 1] = LIM(rawData[row * width + col + 1] / 65535.f, 0.f, 1.0f);
+            }
+            if (col < colEnd)
+            {
+              cfa[indx] = rgb[c0][indx] = LIM(rawData[row * width + col], 0.f, 1.f);
             }
           }
-        }
 
-        for (int row = rowStart + rcdBorder; row < rowEnd - rcdBorder; ++row)
-        {
-          for (int col = colStart + rcdBorder; col < colEnd - rcdBorder; ++col)
+          /**
+           * STEP 1: Find cardinal and diagonal interpolation directions
+           */
+
+          for (int row = 4; row < tileRows - 4; row++)
           {
-            int idx                  = (row - rowStart) * tileSize + col - colStart;
-            red[row * width + col]   = std::max(0.f, rgb[0][idx] * 65535.f);
-            green[row * width + col] = std::max(0.f, rgb[1][idx] * 65535.f);
-            blue[row * width + col]  = std::max(0.f, rgb[2][idx] * 65535.f);
+            for (int col = 4, indx = row * tileSize + col; col < tilecols - 4; col++, indx++)
+            {
+              const float cfai = cfa[indx];
+              //Calculate h/v local discrimination
+              float V_Stat = std::max(
+                  epssq,
+                  -18.f * cfai
+                          * (cfa[indx - w1] + cfa[indx + w1] + 2.f * (cfa[indx - w2] + cfa[indx + w2]) - cfa[indx - w3]
+                             - cfa[indx + w3])
+                      - 2.f * cfai * (cfa[indx - w4] + cfa[indx + w4] - 19.f * cfai)
+                      - cfa[indx - w1]
+                            * (70.f * cfa[indx + w1] + 12.f * cfa[indx - w2] - 24.f * cfa[indx + w2]
+                               + 38.f * cfa[indx - w3] - 16.f * cfa[indx + w3] - 12.f * cfa[indx - w4]
+                               + 6.f * cfa[indx + w4] - 46.f * cfa[indx - w1])
+                      + cfa[indx + w1]
+                            * (24.f * cfa[indx - w2] - 12.f * cfa[indx + w2] + 16.f * cfa[indx - w3]
+                               - 38.f * cfa[indx + w3] - 6.f * cfa[indx - w4] + 12.f * cfa[indx + w4]
+                               + 46.f * cfa[indx + w1])
+                      + cfa[indx - w2]
+                            * (14.f * cfa[indx + w2] - 12.f * cfa[indx + w3] - 2.f * cfa[indx - w4]
+                               + 2.f * cfa[indx + w4] + 11.f * cfa[indx - w2])
+                      + cfa[indx + w2]
+                            * (-12.f * cfa[indx - w3] + 2.f * (cfa[indx - w4] - cfa[indx + w4]) + 11.f * cfa[indx + w2])
+                      + cfa[indx - w3] * (2.f * cfa[indx + w3] - 6.f * cfa[indx - w4] + 10.f * cfa[indx - w3])
+                      + cfa[indx + w3] * (-6.f * cfa[indx + w4] + 10.f * cfa[indx + w3])
+                      + cfa[indx - w4] * cfa[indx - w4] + cfa[indx + w4] * cfa[indx + w4]);
+              float H_Stat = std::max(
+                  epssq,
+                  -18.f * cfai
+                          * (cfa[indx - 1] + cfa[indx + 1] + 2.f * (cfa[indx - 2] + cfa[indx + 2]) - cfa[indx - 3]
+                             - cfa[indx + 3])
+                      - 2.f * cfai * (cfa[indx - 4] + cfa[indx + 4] - 19.f * cfai)
+                      - cfa[indx - 1]
+                            * (70.f * cfa[indx + 1] + 12.f * cfa[indx - 2] - 24.f * cfa[indx + 2] + 38.f * cfa[indx - 3]
+                               - 16.f * cfa[indx + 3] - 12.f * cfa[indx - 4] + 6.f * cfa[indx + 4]
+                               - 46.f * cfa[indx - 1])
+                      + cfa[indx + 1]
+                            * (24.f * cfa[indx - 2] - 12.f * cfa[indx + 2] + 16.f * cfa[indx - 3] - 38.f * cfa[indx + 3]
+                               - 6.f * cfa[indx - 4] + 12.f * cfa[indx + 4] + 46.f * cfa[indx + 1])
+                      + cfa[indx - 2]
+                            * (14.f * cfa[indx + 2] - 12.f * cfa[indx + 3] - 2.f * cfa[indx - 4] + 2.f * cfa[indx + 4]
+                               + 11.f * cfa[indx - 2])
+                      + cfa[indx + 2]
+                            * (-12.f * cfa[indx - 3] + 2.f * (cfa[indx - 4] - cfa[indx + 4]) + 11.f * cfa[indx + 2])
+                      + cfa[indx - 3] * (2.f * cfa[indx + 3] - 6.f * cfa[indx - 4] + 10.f * cfa[indx - 3])
+                      + cfa[indx + 3] * (-6.f * cfa[indx + 4] + 10.f * cfa[indx + 3]) + cfa[indx - 4] * cfa[indx - 4]
+                      + cfa[indx + 4] * cfa[indx + 4]);
+
+              VH_Dir[indx] = V_Stat / (V_Stat + H_Stat);
+            }
           }
+
+          /**
+           * STEP 2: Calculate the low pass filter
+           */
+          // Step 2.1: Low pass filter incorporating green, red and blue local samples from the raw data
+
+          for (int row = 2; row < tileRows - 2; row++)
+          {
+            for (int col = 2 + (fc(cfarray, row, 0) & 1), indx = row * tileSize + col; col < tilecols - 2;
+                 col += 2, indx += 2)
+            {
+              lpf[indx >> 1]
+                  = 0.25f * cfa[indx] + 0.125f * (cfa[indx - w1] + cfa[indx + w1] + cfa[indx - 1] + cfa[indx + 1])
+                    + 0.0625f * (cfa[indx - w1 - 1] + cfa[indx - w1 + 1] + cfa[indx + w1 - 1] + cfa[indx + w1 + 1]);
+            }
+          }
+
+          /**
+           * STEP 3: Populate the green channel
+           */
+          // Step 3.1: Populate the green channel at blue and red CFA positions
+          for (int row = 4; row < tileRows - 4; row++)
+          {
+            int col  = 4 + (fc(cfarray, row, 0) & 1);
+            int indx = row * tileSize + col;
+#ifdef __SSE2__
+            const vfloat zd5v  = F2V(0.5f);
+            const vfloat zd25v = F2V(0.25f);
+            const vfloat epsv  = F2V(eps);
+            for (; col < tilecols - 7; col += 8, indx += 8)
+            {
+              // Cardinal gradients
+              const vfloat cfai = LC2VFU(cfa[indx]);
+              const vfloat N_Grad
+                  = epsv
+                    + (vabsf(LC2VFU(cfa[indx - w1]) - LC2VFU(cfa[indx + w1])) + vabsf(cfai - LC2VFU(cfa[indx - w2])))
+                    + (vabsf(LC2VFU(cfa[indx - w1]) - LC2VFU(cfa[indx - w3]))
+                       + vabsf(LC2VFU(cfa[indx - w2]) - LC2VFU(cfa[indx - w4])));
+              const vfloat S_Grad
+                  = epsv
+                    + (vabsf(LC2VFU(cfa[indx - w1]) - LC2VFU(cfa[indx + w1])) + vabsf(cfai - LC2VFU(cfa[indx + w2])))
+                    + (vabsf(LC2VFU(cfa[indx + w1]) - LC2VFU(cfa[indx + w3]))
+                       + vabsf(LC2VFU(cfa[indx + w2]) - LC2VFU(cfa[indx + w4])));
+              const vfloat W_Grad
+                  = epsv + (vabsf(LC2VFU(cfa[indx - 1]) - LC2VFU(cfa[indx + 1])) + vabsf(cfai - LC2VFU(cfa[indx - 2])))
+                    + (vabsf(LC2VFU(cfa[indx - 1]) - LC2VFU(cfa[indx - 3]))
+                       + vabsf(LC2VFU(cfa[indx - 2]) - LC2VFU(cfa[indx - 4])));
+              const vfloat E_Grad
+                  = epsv + (vabsf(LC2VFU(cfa[indx - 1]) - LC2VFU(cfa[indx + 1])) + vabsf(cfai - LC2VFU(cfa[indx + 2])))
+                    + (vabsf(LC2VFU(cfa[indx + 1]) - LC2VFU(cfa[indx + 3]))
+                       + vabsf(LC2VFU(cfa[indx + 2]) - LC2VFU(cfa[indx + 4])));
+
+              // Cardinal pixel estimations
+              const vfloat lpfi  = LVFU(lpf[indx >> 1]);
+              const vfloat N_Est = LC2VFU(cfa[indx - w1])
+                                   + (LC2VFU(cfa[indx - w1]) * (lpfi - LVFU(lpf[(indx - w2) >> 1]))
+                                      / (epsv + lpfi + LVFU(lpf[(indx - w2) >> 1])));
+              const vfloat S_Est = LC2VFU(cfa[indx + w1])
+                                   + (LC2VFU(cfa[indx + w1]) * (lpfi - LVFU(lpf[(indx + w2) >> 1]))
+                                      / (epsv + lpfi + LVFU(lpf[(indx + w2) >> 1])));
+              const vfloat W_Est = LC2VFU(cfa[indx - 1])
+                                   + (LC2VFU(cfa[indx - 1]) * (lpfi - LVFU(lpf[(indx - 2) >> 1]))
+                                      / (epsv + lpfi + LVFU(lpf[(indx - 2) >> 1])));
+              const vfloat E_Est = LC2VFU(cfa[indx + 1])
+                                   + (LC2VFU(cfa[indx + 1]) * (lpfi - LVFU(lpf[(indx + 2) >> 1]))
+                                      / (epsv + lpfi + LVFU(lpf[(indx + 2) >> 1])));
+
+              // Vertical and horizontal estimations
+              const vfloat V_Est = (S_Grad * N_Est + N_Grad * S_Est) / (N_Grad + S_Grad);
+              const vfloat H_Est = (W_Grad * E_Est + E_Grad * W_Est) / (E_Grad + W_Grad);
+
+              // G@B and G@R interpolation
+              // Refined vertical and horizontal local discrimination
+              const vfloat VH_Central_Value = LC2VFU(VH_Dir[indx]);
+              const vfloat VH_Neighbourhood_Value
+                  = zd25v
+                    * ((LC2VFU(VH_Dir[indx - w1 - 1]) + LC2VFU(VH_Dir[indx - w1 + 1]))
+                       + (LC2VFU(VH_Dir[indx + w1 - 1]) + LC2VFU(VH_Dir[indx + w1 + 1])));
+
+#  if defined(__clang__)
+              const vfloat VH_Disc = vself(
+                  vmaskf_lt(vabsf(zd5v - VH_Central_Value), vabsf(zd5v - VH_Neighbourhood_Value)),
+                  VH_Neighbourhood_Value,
+                  VH_Central_Value);
+#  else
+              const vfloat VH_Disc = vabsf(zd5v - VH_Central_Value) < vabsf(zd5v - VH_Neighbourhood_Value)
+                                         ? VH_Neighbourhood_Value
+                                         : VH_Central_Value;
+#  endif
+              STC2VFU(rgb[1][indx], vintpf(VH_Disc, H_Est, V_Est));
+            }
+#endif
+            for (; col < tilecols - 4; col += 2, indx += 2)
+            {
+              // Cardinal gradients
+              const float cfai = cfa[indx];
+              const float N_Grad
+                  = eps + (std::fabs(cfa[indx - w1] - cfa[indx + w1]) + std::fabs(cfai - cfa[indx - w2]))
+                    + (std::fabs(cfa[indx - w1] - cfa[indx - w3]) + std::fabs(cfa[indx - w2] - cfa[indx - w4]));
+              const float S_Grad
+                  = eps + (std::fabs(cfa[indx - w1] - cfa[indx + w1]) + std::fabs(cfai - cfa[indx + w2]))
+                    + (std::fabs(cfa[indx + w1] - cfa[indx + w3]) + std::fabs(cfa[indx + w2] - cfa[indx + w4]));
+              const float W_Grad
+                  = eps + (std::fabs(cfa[indx - 1] - cfa[indx + 1]) + std::fabs(cfai - cfa[indx - 2]))
+                    + (std::fabs(cfa[indx - 1] - cfa[indx - 3]) + std::fabs(cfa[indx - 2] - cfa[indx - 4]));
+              const float E_Grad
+                  = eps + (std::fabs(cfa[indx - 1] - cfa[indx + 1]) + std::fabs(cfai - cfa[indx + 2]))
+                    + (std::fabs(cfa[indx + 1] - cfa[indx + 3]) + std::fabs(cfa[indx + 2] - cfa[indx + 4]));
+
+              // Cardinal pixel estimations
+              const float lpfi = lpf[indx >> 1];
+              const float N_Est
+                  = cfa[indx - w1] * (1.f + (lpfi - lpf[(indx - w2) >> 1]) / (eps + lpfi + lpf[(indx - w2) >> 1]));
+              const float S_Est
+                  = cfa[indx + w1] * (1.f + (lpfi - lpf[(indx + w2) >> 1]) / (eps + lpfi + lpf[(indx + w2) >> 1]));
+              const float W_Est
+                  = cfa[indx - 1] * (1.f + (lpfi - lpf[(indx - 2) >> 1]) / (eps + lpfi + lpf[(indx - 2) >> 1]));
+              const float E_Est
+                  = cfa[indx + 1] * (1.f + (lpfi - lpf[(indx + 2) >> 1]) / (eps + lpfi + lpf[(indx + 2) >> 1]));
+
+              // Vertical and horizontal estimations
+              const float V_Est = (S_Grad * N_Est + N_Grad * S_Est) / (N_Grad + S_Grad);
+              const float H_Est = (W_Grad * E_Est + E_Grad * W_Est) / (E_Grad + W_Grad);
+
+              // G@B and G@R interpolation
+              // Refined vertical and horizontal local discrimination
+              const float VH_Central_Value       = VH_Dir[indx];
+              const float VH_Neighbourhood_Value = 0.25f
+                                                   * ((VH_Dir[indx - w1 - 1] + VH_Dir[indx - w1 + 1])
+                                                      + (VH_Dir[indx + w1 - 1] + VH_Dir[indx + w1 + 1]));
+
+              const float VH_Disc = std::fabs(0.5f - VH_Central_Value) < std::fabs(0.5f - VH_Neighbourhood_Value)
+                                        ? VH_Neighbourhood_Value
+                                        : VH_Central_Value;
+              rgb[1][indx]        = VH_Disc * H_Est + (1.f - VH_Disc) * V_Est;
+            }
+          }
+
+          /**
+           * STEP 4: Populate the red and blue channels
+           */
+
+          // Step 4.1: Calculate P/Q diagonal local discrimination
+          for (int row = rcdBorder - 4; row < tileRows - rcdBorder + 4; row++)
+          {
+            for (int col = rcdBorder - 4 + (fc(cfarray, row, rcdBorder) & 1), indx = row * tileSize + col;
+                 col < tilecols - rcdBorder + 4;
+                 col += 2, indx += 2)
+            {
+              const float cfai = cfa[indx];
+
+              float P_Stat = std::max(
+                  epssq,
+                  -18.f * cfai
+                          * (cfa[indx - w1 - 1] + cfa[indx + w1 + 1] + 2.f * (cfa[indx - w2 - 2] + cfa[indx + w2 + 2])
+                             - cfa[indx - w3 - 3] - cfa[indx + w3 + 3])
+                      - 2.f * cfai * (cfa[indx - w4 - 4] + cfa[indx + w4 + 4] - 19.f * cfai)
+                      - cfa[indx - w1 - 1]
+                            * (70.f * cfa[indx + w1 + 1] - 12.f * cfa[indx - w2 - 2] + 24.f * cfa[indx + w2 + 2]
+                               - 38.f * cfa[indx - w3 - 3] + 16.f * cfa[indx + w3 + 3] + 12.f * cfa[indx - w4 - 4]
+                               - 6.f * cfa[indx + w4 + 4] + 46.f * cfa[indx - w1 - 1])
+                      + cfa[indx + w1 + 1]
+                            * (24.f * cfa[indx - w2 - 2] - 12.f * cfa[indx + w2 + 2] + 16.f * cfa[indx - w3 - 3]
+                               - 38.f * cfa[indx + w3 + 3] - 6.f * cfa[indx - w4 - 4] + 12.f * cfa[indx + w4 + 4]
+                               + 46.f * cfa[indx + w1 + 1])
+                      + cfa[indx - w2 - 2]
+                            * (14.f * cfa[indx + w2 + 2] - 12.f * cfa[indx + w3 + 3]
+                               - 2.f * (cfa[indx - w4 - 4] - cfa[indx + w4 + 4]) + 11.f * cfa[indx - w2 - 2])
+                      - cfa[indx + w2 + 2]
+                            * (12.f * cfa[indx - w3 - 3] + 2.f * (cfa[indx - w4 - 4] - cfa[indx + w4 + 4])
+                               + 11.f * cfa[indx + w2 + 2])
+                      + cfa[indx - w3 - 3]
+                            * (2.f * cfa[indx + w3 + 3] - 6.f * cfa[indx - w4 - 4] + 10.f * cfa[indx - w3 - 3])
+                      - cfa[indx + w3 + 3] * (6.f * cfa[indx + w4 + 4] + 10.f * cfa[indx + w3 + 3])
+                      + cfa[indx - w4 - 4] * cfa[indx - w4 - 4] + cfa[indx + w4 + 4] * cfa[indx + w4 + 4]);
+              float Q_Stat = std::max(
+                  epssq,
+                  -18.f * cfai
+                          * (cfa[indx + w1 - 1] + cfa[indx - w1 + 1] + 2.f * (cfa[indx + w2 - 2] + cfa[indx - w2 + 2])
+                             - cfa[indx + w3 - 3] - cfa[indx - w3 + 3])
+                      - 2.f * cfai * (cfa[indx + w4 - 4] + cfa[indx - w4 + 4] - 19.f * cfai)
+                      - cfa[indx + w1 - 1]
+                            * (70.f * cfa[indx - w1 + 1] - 12.f * cfa[indx + w2 - 2] + 24.f * cfa[indx - w2 + 2]
+                               - 38.f * cfa[indx + w3 - 3] + 16.f * cfa[indx - w3 + 3] + 12.f * cfa[indx + w4 - 4]
+                               - 6.f * cfa[indx - w4 + 4] + 46.f * cfa[indx + w1 - 1])
+                      + cfa[indx - w1 + 1]
+                            * (24.f * cfa[indx + w2 - 2] - 12.f * cfa[indx - w2 + 2] + 16.f * cfa[indx + w3 - 3]
+                               - 38.f * cfa[indx - w3 + 3] - 6.f * cfa[indx + w4 - 4] + 12.f * cfa[indx - w4 + 4]
+                               + 46.f * cfa[indx - w1 + 1])
+                      + cfa[indx + w2 - 2]
+                            * (14.f * cfa[indx - w2 + 2] - 12.f * cfa[indx - w3 + 3]
+                               - 2.f * (cfa[indx + w4 - 4] - cfa[indx - w4 + 4]) + 11.f * cfa[indx + w2 - 2])
+                      - cfa[indx - w2 + 2]
+                            * (12.f * cfa[indx + w3 - 3] + 2.f * (cfa[indx + w4 - 4] - cfa[indx - w4 + 4])
+                               + 11.f * cfa[indx - w2 + 2])
+                      + cfa[indx + w3 - 3]
+                            * (2.f * cfa[indx - w3 + 3] - 6.f * cfa[indx + w4 - 4] + 10.f * cfa[indx + w3 - 3])
+                      - cfa[indx - w3 + 3] * (6.f * cfa[indx - w4 + 4] + 10.f * cfa[indx - w3 + 3])
+                      + cfa[indx + w4 - 4] * cfa[indx + w4 - 4] + cfa[indx - w4 + 4] * cfa[indx - w4 + 4]);
+
+              PQ_Dir[indx] = P_Stat / (P_Stat + Q_Stat);
+            }
+          }
+
+          // Step 4.2: Populate the red and blue channels at blue and red CFA positions
+          for (int row = rcdBorder - 3; row < tileRows - rcdBorder + 3; row++)
+          {
+            for (int col  = rcdBorder - 3 + (fc(cfarray, row, rcdBorder - 1) & 1),
+                     indx = row * tileSize + col,
+                     c    = 2 - fc(cfarray, row, col);
+                 col < tilecols - rcdBorder + 3;
+                 col += 2, indx += 2)
+            {
+              // Refined P/Q diagonal local discrimination
+              float PQ_Central_Value = PQ_Dir[indx];
+              float PQ_Neighbourhood_Value
+                  = 0.25f
+                    * (PQ_Dir[indx - w1 - 1] + PQ_Dir[indx - w1 + 1] + PQ_Dir[indx + w1 - 1] + PQ_Dir[indx + w1 + 1]);
+
+              float PQ_Disc = (std::fabs(0.5f - PQ_Central_Value) < std::fabs(0.5f - PQ_Neighbourhood_Value))
+                                  ? PQ_Neighbourhood_Value
+                                  : PQ_Central_Value;
+
+              // Diagonal gradients
+              float NW_Grad = eps + std::fabs(rgb[c][indx - w1 - 1] - rgb[c][indx + w1 + 1])
+                              + std::fabs(rgb[c][indx - w1 - 1] - rgb[c][indx - w3 - 3])
+                              + std::fabs(rgb[1][indx] - rgb[1][indx - w2 - 2]);
+              float NE_Grad = eps + std::fabs(rgb[c][indx - w1 + 1] - rgb[c][indx + w1 - 1])
+                              + std::fabs(rgb[c][indx - w1 + 1] - rgb[c][indx - w3 + 3])
+                              + std::fabs(rgb[1][indx] - rgb[1][indx - w2 + 2]);
+              float SW_Grad = eps + std::fabs(rgb[c][indx - w1 + 1] - rgb[c][indx + w1 - 1])
+                              + std::fabs(rgb[c][indx + w1 - 1] - rgb[c][indx + w3 - 3])
+                              + std::fabs(rgb[1][indx] - rgb[1][indx + w2 - 2]);
+              float SE_Grad = eps + std::fabs(rgb[c][indx - w1 - 1] - rgb[c][indx + w1 + 1])
+                              + std::fabs(rgb[c][indx + w1 + 1] - rgb[c][indx + w3 + 3])
+                              + std::fabs(rgb[1][indx] - rgb[1][indx + w2 + 2]);
+
+              // Diagonal colour differences
+              float NW_Est = rgb[c][indx - w1 - 1] - rgb[1][indx - w1 - 1];
+              float NE_Est = rgb[c][indx - w1 + 1] - rgb[1][indx - w1 + 1];
+              float SW_Est = rgb[c][indx + w1 - 1] - rgb[1][indx + w1 - 1];
+              float SE_Est = rgb[c][indx + w1 + 1] - rgb[1][indx + w1 + 1];
+
+              // P/Q estimations
+              float P_Est = (NW_Grad * SE_Est + SE_Grad * NW_Est) / (NW_Grad + SE_Grad);
+              float Q_Est = (NE_Grad * SW_Est + SW_Grad * NE_Est) / (NE_Grad + SW_Grad);
+
+              // R@B and B@R interpolation
+              rgb[c][indx] = rgb[1][indx] + (1.f - PQ_Disc) * P_Est + PQ_Disc * Q_Est;
+            }
+          }
+
+          // Step 4.3: Populate the red and blue channels at green CFA positions
+          for (int row = rcdBorder; row < tileRows - rcdBorder; row++)
+          {
+            for (int col = rcdBorder + (fc(cfarray, row, rcdBorder - 1) & 1), indx = row * tileSize + col;
+                 col < tilecols - rcdBorder;
+                 col += 2, indx += 2)
+            {
+              // Refined vertical and horizontal local discrimination
+              float VH_Central_Value       = VH_Dir[indx];
+              float VH_Neighbourhood_Value = 0.25f
+                                             * ((VH_Dir[indx - w1 - 1] + VH_Dir[indx - w1 + 1])
+                                                + (VH_Dir[indx + w1 - 1] + VH_Dir[indx + w1 + 1]));
+
+              float VH_Disc = (std::fabs(0.5f - VH_Central_Value) < std::fabs(0.5f - VH_Neighbourhood_Value))
+                                  ? VH_Neighbourhood_Value
+                                  : VH_Central_Value;
+              float rgb1    = rgb[1][indx];
+              float N1      = eps + std::fabs(rgb1 - rgb[1][indx - w2]);
+              float S1      = eps + std::fabs(rgb1 - rgb[1][indx + w2]);
+              float W1      = eps + std::fabs(rgb1 - rgb[1][indx - 2]);
+              float E1      = eps + std::fabs(rgb1 - rgb[1][indx + 2]);
+
+              float rgb1mw1 = rgb[1][indx - w1];
+              float rgb1pw1 = rgb[1][indx + w1];
+              float rgb1m1  = rgb[1][indx - 1];
+              float rgb1p1  = rgb[1][indx + 1];
+              for (int c = 0; c <= 2; c += 2)
+              {
+                // Cardinal gradients
+                float SNabs  = std::fabs(rgb[c][indx - w1] - rgb[c][indx + w1]);
+                float EWabs  = std::fabs(rgb[c][indx - 1] - rgb[c][indx + 1]);
+                float N_Grad = N1 + SNabs + std::fabs(rgb[c][indx - w1] - rgb[c][indx - w3]);
+                float S_Grad = S1 + SNabs + std::fabs(rgb[c][indx + w1] - rgb[c][indx + w3]);
+                float W_Grad = W1 + EWabs + std::fabs(rgb[c][indx - 1] - rgb[c][indx - 3]);
+                float E_Grad = E1 + EWabs + std::fabs(rgb[c][indx + 1] - rgb[c][indx + 3]);
+
+                // Cardinal colour differences
+                float N_Est = rgb[c][indx - w1] - rgb1mw1;
+                float S_Est = rgb[c][indx + w1] - rgb1pw1;
+                float W_Est = rgb[c][indx - 1] - rgb1m1;
+                float E_Est = rgb[c][indx + 1] - rgb1p1;
+
+                // Vertical and horizontal estimations
+                float V_Est = (N_Grad * S_Est + S_Grad * N_Est) / (N_Grad + S_Grad);
+                float H_Est = (E_Grad * W_Est + W_Grad * E_Est) / (E_Grad + W_Grad);
+
+                // R@G and B@G interpolation
+                rgb[c][indx] = rgb1 + (1.f - VH_Disc) * V_Est + VH_Disc * H_Est;
+              }
+            }
+          }
+
+          for (int row = rowStart + rcdBorder; row < rowEnd - rcdBorder; ++row)
+          {
+            for (int col = colStart + rcdBorder; col < colEnd - rcdBorder; ++col)
+            {
+              int idx                  = (row - rowStart) * tileSize + col - colStart;
+              red[row * width + col]   = std::max(0.f, rgb[0][idx] * 65535.f);
+              green[row * width + col] = std::max(0.f, rgb[1][idx] * 65535.f);
+              blue[row * width + col]  = std::max(0.f, rgb[2][idx] * 65535.f);
+            }
+          }
+
+          //             if (plistener) {
+          //                 progresscounter++;
+          //                 if (progresscounter % 32 == 0) {
+          // #ifdef _OPENMP
+          //                     #pragma omp critical (rcdprogress)
+          // #endif
+          //                     {
+          //                         progress += (double)32 * ((tileSizeN) * (tileSizeN)) / (H * W);
+          //                         progress = progress > 1.0 ? 1.0 : progress;
+          //                         plistener->setProgress(progress);
+          //                     }
+          //                 }
+          //             }
         }
-
-        //             if (plistener) {
-        //                 progresscounter++;
-        //                 if (progresscounter % 32 == 0) {
-        // #ifdef _OPENMP
-        //                     #pragma omp critical (rcdprogress)
-        // #endif
-        //                     {
-        //                         progress += (double)32 * ((tileSizeN) * (tileSizeN)) / (H * W);
-        //                         progress = progress > 1.0 ? 1.0 : progress;
-        //                         plistener->setProgress(progress);
-        //                     }
-        //                 }
-        //             }
       }
+
+      free(cfa);
+      free(rgb);
+      free(VH_Dir);
+      free(PQ_Dir);
     }
 
-    free(cfa);
-    free(rgb);
-    free(VH_Dir);
-    free(PQ_Dir);
+    border_interpolate(width, height, rcdBorder, rawData, red, green, blue, filters);
+
+    // if (plistener) {
+    //     plistener->setProgress(1);
+    // }
   }
 
-  border_interpolate(width, height, rcdBorder, rawData, red, green, blue, filters);
 
-  // if (plistener) {
-  //     plistener->setProgress(1);
-  // }
-}
-
-
-extern "C" void
-rcd_demosaic(const float *rawData, float *debayered_image, size_t width, size_t height, unsigned int filters)
-{
-  float *debayered_r_temp = new float[width * height];
-  float *debayered_g_temp = new float[width * height];
-  float *debayered_b_temp = new float[width * height];
-
-  rcd_demosaic_rgb(rawData, debayered_r_temp, debayered_g_temp, debayered_b_temp, width, height, filters);
-
-  for (size_t row = 0; row < height; row++)
+  void
+  rcd_demosaic(const float *bayered_image, float *debayered_image, size_t width, size_t height, unsigned int filters)
   {
-    for (size_t col = 0; col < width; col++)
-    {
-      debayered_image[3 * (row * width + col) + 0] = debayered_r_temp[row * width + col];
-      debayered_image[3 * (row * width + col) + 1] = debayered_g_temp[row * width + col];
-      debayered_image[3 * (row * width + col) + 2] = debayered_b_temp[row * width + col];
-    }
+    demosaic_rgb_to_img(bayered_image, debayered_image, width, height, filters, rcd_demosaic_rgb);
   }
-
-  delete[] debayered_r_temp;
-  delete[] debayered_g_temp;
-  delete[] debayered_b_temp;
 }

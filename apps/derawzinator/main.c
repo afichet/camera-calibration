@@ -16,6 +16,8 @@ int main(int argc, char *argv[])
         "Demosaicing method is optional. It can be:\n"
         "  - NONE\n"
         "  - BASIC (bilinear)\n"
+        "  - REDUCE2X2\n"
+        "  - BARYCENTRIC2X2\n"
         "  - VNG4\n"
         "  - AHD\n"
         "  - RCD\n"
@@ -50,6 +52,14 @@ int main(int argc, char *argv[])
     else if (strcmp(demosaicing_method_arg, "BASIC") == 0)
     {
       method = BASIC;
+    }
+    else if (strcmp(demosaicing_method_arg, "REDUCE2X2") == 0)
+    {
+      method = REDUCE2X2;
+    }
+    else if (strcmp(demosaicing_method_arg, "BARYCENTRIC2X2") == 0)
+    {
+      method = BARYCENTRIC2X2;
     }
     else if (strcmp(demosaicing_method_arg, "VNG4") == 0)
     {
@@ -97,13 +107,29 @@ int main(int argc, char *argv[])
 
   if (ret == 0)
   {
-    image_r = (float *)calloc(width * height, sizeof(float));
-    image_g = (float *)calloc(width * height, sizeof(float));
-    image_b = (float *)calloc(width * height, sizeof(float));
+    size_t image_out_width  = 0;
+    size_t image_out_height = 0;
+
+    if (method != REDUCE2X2 && method != BARYCENTRIC2X2)
+    {
+      image_out_width  = width;
+      image_out_height = height;
+    }
+    else
+    {
+      image_out_width  = width / 2;
+      image_out_height = height / 2;
+    }
+
+    const size_t image_out_size = image_out_width * image_out_height;
+
+    image_r = (float *)calloc(image_out_size, sizeof(float));
+    image_g = (float *)calloc(image_out_size, sizeof(float));
+    image_b = (float *)calloc(image_out_size, sizeof(float));
 
     demosaic_rgb(bayered_pixels, image_r, image_g, image_b, width, height, filters, method);
 
-    ret = write_image_rgb(filename_out, image_r, image_g, image_b, width, height);
+    ret = write_image_rgb(filename_out, image_r, image_g, image_b, image_out_width, image_out_height);
 
     if (ret != 0)
     {
