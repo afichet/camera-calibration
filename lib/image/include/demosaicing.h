@@ -68,6 +68,21 @@ extern "C"
 
   // REDUCE2X2
 
+  /**
+   * @brief Reduce 2x2 algorithm for demosaicing
+   *
+   * As the name suggests, this demosaicing technique deacreases the image
+   * resolution by a factor of 4. You must provide then pixels_red,
+   * pixels_green and pixels_blue buffer with size (width/2*height/2).
+   *
+   * @param bayered_image The bayered image
+   * @param pixels_red A buffer to write the demosaiced image (/4 resolution)
+   * @param pixels_green A buffer to write the demosaiced image (/4 resolution)
+   * @param pixels_blue A buffer to write the demosaiced image (/4 resolution)
+   * @param width Original width of the bayered image
+   * @param height Original height of the bayered image
+   * @param filters Arrangement of the Bayer pattern
+   */
   void reduce2x2_demosaic_rgb(
       const float *bayered_image,
       float *      pixels_red,
@@ -77,6 +92,19 @@ extern "C"
       size_t       height,
       unsigned int filters);
 
+  /**
+   * @brief Reduce 2x2 algorithm for demosaicing
+   *
+   * As the name suggests, this demosaicing technique deacreases the image
+   * resolution by a factor of 4. You must provide then debayered_image
+   * buffer with size 3*(width/2*height/2).
+   *
+   * @param bayered_image The bayered image
+   * @param debayered_image A buffer to output the debayered image (/4)
+   * @param width Original width of the bayered image
+   * @param height Original height of the bayered image
+   * @param filters Arrangement of the Bayer pattern
+   */
   void reduce2x2_demosaic(
       const float *bayered_image,
       float *      debayered_image,
@@ -86,6 +114,21 @@ extern "C"
 
   // BARYCENTRIC2X2
 
+  /**
+   * @brief Barycentric 2x2 algorithm for demosaicing
+   *
+   * As the name suggests, this demosaicing technique deacreases the image
+   * resolution by a factor of 4. You must provide then pixels_red,
+   * pixels_green and pixels_blue buffer with size (width/2*height/2).
+   *
+   * @param bayered_image The bayered image
+   * @param pixels_red A buffer to write the demosaiced image (/4 resolution)
+   * @param pixels_green A buffer to write the demosaiced image (/4 resolution)
+   * @param pixels_blue A buffer to write the demosaiced image (/4 resolution)
+   * @param width Original width of the bayered image
+   * @param height Original height of the bayered image
+   * @param filters Arrangement of the Bayer pattern
+   */
   void barycentric2x2_demosaic_rgb(
       const float *bayered_image,
       float *      pixels_red,
@@ -95,6 +138,19 @@ extern "C"
       size_t       height,
       unsigned int filters);
 
+  /**
+   * @brief Barycentric 2x2 algorithm for demosaicing
+   *
+   * As the name suggests, this demosaicing technique deacreases the image
+   * resolution by a factor of 4. You must provide then debayered_image
+   * buffer with size 3*(width/2*height/2).
+   *
+   * @param bayered_image The bayered image
+   * @param debayered_image A buffer to output the debayered image (/4)
+   * @param width Original width of the bayered image
+   * @param height Original height of the bayered image
+   * @param filters Arrangement of the Bayer pattern
+   */
   void barycentric2x2_demosaic(
       const float *bayered_image,
       float *      debayered_image,
