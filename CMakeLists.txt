@@ -11,7 +11,7 @@ SET(ENABLE_SIMD_FLAGS "native" CACHE STRING "Set compiler SIMD flags")
 SET_PROPERTY(CACHE ENABLE_SIMD_FLAGS PROPERTY STRINGS none native SSE3 SSE4.2 AVX AVX2) 
 
 if(${ENABLE_SIMD_FLAGS} MATCHES "native")
-     add_definitions(-march=native -mfpmath=both)
+    add_definitions(-march=native) # -mfpmath=both)
     message(STATUS "Enabling native optimizations")
 elseif(${ENABLE_SIMD_FLAGS} MATCHES "AVX2")
     add_definitions(-mmmx -msse -msse2 -msse3 -mssse3 -msse4.1 -msse4.2 -mpopcnt -mavx -mfma -mavx2 -mfpmath=both)
