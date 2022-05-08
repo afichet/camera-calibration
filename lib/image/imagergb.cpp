@@ -35,9 +35,9 @@ extern "C"
             return -1;
         }
 
-        uint32 w, h;
-        uint16 bps, spp;
-        uint16 config;
+        uint32_t w, h;
+        uint16_t bps, spp;
+        uint16_t config;
 
         TIFFGetField(tif_in, TIFFTAG_IMAGEWIDTH, &w);
         TIFFGetField(tif_in, TIFFTAG_IMAGELENGTH, &h);
@@ -56,48 +56,48 @@ extern "C"
         float* framebuffer = (float*)calloc(3 * w * h, sizeof(float));
 
         if (spp == 1) {
-            for (uint32 y = 0; y < h; y++) {
+            for (uint32_t y = 0; y < h; y++) {
                 TIFFReadScanline(tif_in, buf_in, y, 0);
 
-                for (uint32 x = 0; x < w; x++) {
+                for (uint32_t x = 0; x < w; x++) {
                     for (int c = 0; c < 3; c++) {
                         switch (bps) {
                             case 8:
                                 // 8 bit per channel are assumed sRGB encoded.
                                 // We linearise to RGB
-                                framebuffer[3 * (y * w + x) + c] = from_sRGB(((uint8*)buf_in)[x] / 255.f);
+                                framebuffer[3 * (y * w + x) + c] = from_sRGB(((uint8_t*)buf_in)[x] / 255.f);
                                 break;
 
                             case 16:
-                                framebuffer[3 * (y * w + x) + c] = ((uint16*)buf_in)[x] / 65535.f;
+                                framebuffer[3 * (y * w + x) + c] = ((uint16_t*)buf_in)[x] / 65535.f;
                                 break;
 
                             case 32:
-                                framebuffer[3 * (y * w + x) + c] = ((uint32*)buf_in)[x] / 4294967295.f;
+                                framebuffer[3 * (y * w + x) + c] = ((uint32_t*)buf_in)[x] / 4294967295.f;
                                 break;
                         }
                     }
                 }
             }
         } else {
-            for (uint32 y = 0; y < h; y++) {
+            for (uint32_t y = 0; y < h; y++) {
                 TIFFReadScanline(tif_in, buf_in, y, 0);
 
-                for (uint32 x = 0; x < w; x++) {
+                for (uint32_t x = 0; x < w; x++) {
                     for (int c = 0; c < 3; c++) {
                         switch (bps) {
                             case 8:
                                 // 8 bit per channel are assumed sRGB encoded.
                                 // We linearise to RGB
-                                framebuffer[3 * (y * w + x) + c] = from_sRGB(((uint8*)buf_in)[spp * x + c] / 255.f);
+                                framebuffer[3 * (y * w + x) + c] = from_sRGB(((uint8_t*)buf_in)[spp * x + c] / 255.f);
                                 break;
 
                             case 16:
-                                framebuffer[3 * (y * w + x) + c] = ((uint16*)buf_in)[spp * x + c] / 65535.f;
+                                framebuffer[3 * (y * w + x) + c] = ((uint16_t*)buf_in)[spp * x + c] / 65535.f;
                                 break;
 
                             case 32:
-                                framebuffer[3 * (y * w + x) + c] = ((uint32*)buf_in)[spp * x + c] / 4294967295.f;
+                                framebuffer[3 * (y * w + x) + c] = ((uint32_t*)buf_in)[spp * x + c] / 4294967295.f;
                                 break;
                         }
                     }
@@ -131,9 +131,9 @@ extern "C"
             return -1;
         }
 
-        uint32 w, h;
-        uint16 bps, spp;
-        uint16 config;
+        uint32_t w, h;
+        uint16_t bps, spp;
+        uint16_t config;
 
         TIFFGetField(tif_in, TIFFTAG_IMAGEWIDTH, &w);
         TIFFGetField(tif_in, TIFFTAG_IMAGELENGTH, &h);
@@ -154,25 +154,25 @@ extern "C"
         float* framebuffer_b = new float[w * h];
 
         if (spp == 1) {
-            for (uint32 y = 0; y < h; y++) {
+            for (uint32_t y = 0; y < h; y++) {
                 TIFFReadScanline(tif_in, buf_in, y, 0);
 
-                for (uint32 x = 0; x < w; x++) {
+                for (uint32_t x = 0; x < w; x++) {
                     float v = 0;
                     switch (bps) {
                         case 8:
                             // 8 bit per channel are assumed sRGB encoded.
                             // We linearise to RGB
-                            v = from_sRGB(((uint8*)buf_in)[x] / 255.f);
+                            v = from_sRGB(((uint8_t*)buf_in)[x] / 255.f);
 
                             break;
 
                         case 16:
-                            v = ((uint16*)buf_in)[x] / 65535.f;
+                            v = ((uint16_t*)buf_in)[x] / 65535.f;
                             break;
 
                         case 32:
-                            v = ((uint32*)buf_in)[x] / 4294967295.f;
+                            v = ((uint32_t*)buf_in)[x] / 4294967295.f;
                             break;
                     }
 
@@ -182,29 +182,29 @@ extern "C"
                 }
             }
         } else {
-            for (uint32 y = 0; y < h; y++) {
+            for (uint32_t y = 0; y < h; y++) {
                 TIFFReadScanline(tif_in, buf_in, y, 0);
 
-                for (uint32 x = 0; x < w; x++) {
+                for (uint32_t x = 0; x < w; x++) {
                     switch (bps) {
                         case 8:
                             // 8 bit per channel are assumed sRGB encoded.
                             // We linearise to RGB
-                            framebuffer_r[y * w + x] = from_sRGB(((uint8*)buf_in)[spp * x + 0] / 255.f);
-                            framebuffer_g[y * w + x] = from_sRGB(((uint8*)buf_in)[spp * x + 1] / 255.f);
-                            framebuffer_b[y * w + x] = from_sRGB(((uint8*)buf_in)[spp * x + 2] / 255.f);
+                            framebuffer_r[y * w + x] = from_sRGB(((uint8_t*)buf_in)[spp * x + 0] / 255.f);
+                            framebuffer_g[y * w + x] = from_sRGB(((uint8_t*)buf_in)[spp * x + 1] / 255.f);
+                            framebuffer_b[y * w + x] = from_sRGB(((uint8_t*)buf_in)[spp * x + 2] / 255.f);
                             break;
 
                         case 16:
-                            framebuffer_r[y * w + x] = ((uint16*)buf_in)[spp * x + 0] / 65535.f;
-                            framebuffer_g[y * w + x] = ((uint16*)buf_in)[spp * x + 1] / 65535.f;
-                            framebuffer_b[y * w + x] = ((uint16*)buf_in)[spp * x + 2] / 65535.f;
+                            framebuffer_r[y * w + x] = ((uint16_t*)buf_in)[spp * x + 0] / 65535.f;
+                            framebuffer_g[y * w + x] = ((uint16_t*)buf_in)[spp * x + 1] / 65535.f;
+                            framebuffer_b[y * w + x] = ((uint16_t*)buf_in)[spp * x + 2] / 65535.f;
                             break;
 
                         case 32:
-                            framebuffer_r[y * w + x] = ((uint32*)buf_in)[spp * x + 0] / 4294967295.f;
-                            framebuffer_g[y * w + x] = ((uint32*)buf_in)[spp * x + 1] / 4294967295.f;
-                            framebuffer_b[y * w + x] = ((uint32*)buf_in)[spp * x + 2] / 4294967295.f;
+                            framebuffer_r[y * w + x] = ((uint32_t*)buf_in)[spp * x + 0] / 4294967295.f;
+                            framebuffer_g[y * w + x] = ((uint32_t*)buf_in)[spp * x + 1] / 4294967295.f;
+                            framebuffer_b[y * w + x] = ((uint32_t*)buf_in)[spp * x + 2] / 4294967295.f;
                             break;
                     }
                 }
@@ -224,7 +224,7 @@ extern "C"
     }
 
 
-    int write_tiff(const char* filename, const float* pixels, uint32 width, uint32 height, uint16 bps)
+    int write_tiff(const char* filename, const float* pixels, uint32_t width, uint32_t height, uint16_t bps)
     {
         // Open image out
         TIFF* tif_out = TIFFOpen(filename, "w");
@@ -243,21 +243,22 @@ extern "C"
 
         tdata_t buf_out = _TIFFmalloc(TIFFScanlineSize(tif_out));
 
-        for (uint32 y = 0; y < height; y++) {
-            for (uint32 x = 0; x < width; x++) {
+        for (uint32_t y = 0; y < height; y++) {
+            for (uint32_t x = 0; x < width; x++) {
                 for (int c = 0; c < 3; c++) {
                     switch (bps) {
                         case 8:
                             // 8 bit per channel are assumed sRGB encoded.
-                            ((uint8*)buf_out)[3 * x + c] = to_sRGB(pixels[3 * (y * width + x) + c]) * 255.f;
+                            ((uint8_t*)buf_out)[3 * x + c] = to_sRGB(pixels[3 * (y * width + x) + c]) * 255.f;
                             break;
 
                         case 16:
-                            ((uint16*)buf_out)[3 * x + c] = clamp(pixels[3 * (y * width + x) + c], 0.f, 1.f) * 65535.f;
+                            ((uint16_t*)buf_out)[3 * x + c]
+                              = clamp(pixels[3 * (y * width + x) + c], 0.f, 1.f) * 65535.f;
                             break;
 
                         case 32:
-                            ((uint32*)buf_out)[3 * x + c]
+                            ((uint32_t*)buf_out)[3 * x + c]
                               = clamp(pixels[3 * (y * width + x) + c], 0.f, 1.f) * 4294967295.f;
                             break;
                     }
@@ -278,9 +279,9 @@ extern "C"
       const float* pixels_red,
       const float* pixels_green,
       const float* pixels_blue,
-      uint32       width,
-      uint32       height,
-      uint16       bps)
+      uint32_t     width,
+      uint32_t     height,
+      uint16_t     bps)
     {
         // Open image out
         TIFF* tif_out = TIFFOpen(filename, "w");
@@ -299,26 +300,26 @@ extern "C"
 
         tdata_t buf_out = _TIFFmalloc(TIFFScanlineSize(tif_out));
 
-        for (uint32 y = 0; y < height; y++) {
-            for (uint32 x = 0; x < width; x++) {
+        for (uint32_t y = 0; y < height; y++) {
+            for (uint32_t x = 0; x < width; x++) {
                 switch (bps) {
                     case 8:
                         // 8 bit per channel are assumed sRGB encoded.
-                        ((uint8*)buf_out)[3 * x + 0] = to_sRGB(pixels_red[y * width + x]) * 255.f;
-                        ((uint8*)buf_out)[3 * x + 1] = to_sRGB(pixels_green[y * width + x]) * 255.f;
-                        ((uint8*)buf_out)[3 * x + 2] = to_sRGB(pixels_blue[y * width + x]) * 255.f;
+                        ((uint8_t*)buf_out)[3 * x + 0] = to_sRGB(pixels_red[y * width + x]) * 255.f;
+                        ((uint8_t*)buf_out)[3 * x + 1] = to_sRGB(pixels_green[y * width + x]) * 255.f;
+                        ((uint8_t*)buf_out)[3 * x + 2] = to_sRGB(pixels_blue[y * width + x]) * 255.f;
                         break;
 
                     case 16:
-                        ((uint16*)buf_out)[3 * x + 0] = clamp(pixels_red[y * width + x], 0.f, 1.f) * 65535.f;
-                        ((uint16*)buf_out)[3 * x + 1] = clamp(pixels_green[y * width + x], 0.f, 1.f) * 65535.f;
-                        ((uint16*)buf_out)[3 * x + 2] = clamp(pixels_blue[y * width + x], 0.f, 1.f) * 65535.f;
+                        ((uint16_t*)buf_out)[3 * x + 0] = clamp(pixels_red[y * width + x], 0.f, 1.f) * 65535.f;
+                        ((uint16_t*)buf_out)[3 * x + 1] = clamp(pixels_green[y * width + x], 0.f, 1.f) * 65535.f;
+                        ((uint16_t*)buf_out)[3 * x + 2] = clamp(pixels_blue[y * width + x], 0.f, 1.f) * 65535.f;
                         break;
 
                     case 32:
-                        ((uint32*)buf_out)[3 * x + 0] = clamp(pixels_red[y * width + x], 0.f, 1.f) * 4294967295.f;
-                        ((uint32*)buf_out)[3 * x + 1] = clamp(pixels_green[y * width + x], 0.f, 1.f) * 4294967295.f;
-                        ((uint32*)buf_out)[3 * x + 2] = clamp(pixels_blue[y * width + x], 0.f, 1.f) * 4294967295.f;
+                        ((uint32_t*)buf_out)[3 * x + 0] = clamp(pixels_red[y * width + x], 0.f, 1.f) * 4294967295.f;
+                        ((uint32_t*)buf_out)[3 * x + 1] = clamp(pixels_green[y * width + x], 0.f, 1.f) * 4294967295.f;
+                        ((uint32_t*)buf_out)[3 * x + 2] = clamp(pixels_blue[y * width + x], 0.f, 1.f) * 4294967295.f;
                         break;
                 }
             }

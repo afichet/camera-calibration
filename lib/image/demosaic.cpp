@@ -755,7 +755,6 @@ static inline unsigned int FC(const size_t row, const size_t col, const uint32_t
 static __inline float clampnan(const float x, const float m, const float M)
 {
     float r;
-#warning seems wrong...
 
     // clamp to [m, M] if x is infinite; return average of m and M if x is NaN; else just return x
 
@@ -1022,18 +1021,20 @@ static inline const _Tp ULIM(const _Tp a, const _Tp b, const _Tp c)
 }
 
 // Store a vector of 4 floats in a[0],a[2],a[4] and a[6]
-// #ifdef __SSE4_1__
-// // SSE4.1 => use _mm_blend_ps instead of _mm_set_epi32 and vself
-// #  define STC2VFU(a, v)                                                                                                \
-//     {                                                                                                                  \
-//       __m128 TST1V = _mm_loadu_ps(&a);                                                                                 \
-//       __m128 TST2V = _mm_unpacklo_ps(v, v);                                                                            \
-//       _mm_storeu_ps(&a, _mm_blend_ps(TST1V, TST2V, 5));                                                                \
-//       TST1V = _mm_loadu_ps((&a) + 4);                                                                                  \
-//       TST2V = _mm_unpackhi_ps(v, v);                                                                                   \
-//       _mm_storeu_ps((&a) + 4, _mm_blend_ps(TST1V, TST2V, 5));                                                          \
-//     }
-// #else
+/*
+#ifdef __SSE4_1__
+// SSE4.1 => use _mm_blend_ps instead of _mm_set_epi32 and vself
+#  define STC2VFU(a, v)                                                                                                \
+    {                                                                                                                  \
+      __m128 TST1V = _mm_loadu_ps(&a);                                                                                 \
+      __m128 TST2V = _mm_unpacklo_ps(v, v);                                                                            \
+      _mm_storeu_ps(&a, _mm_blend_ps(TST1V, TST2V, 5));                                                                \
+      TST1V = _mm_loadu_ps((&a) + 4);                                                                                  \
+      TST2V = _mm_unpackhi_ps(v, v);                                                                                   \
+      _mm_storeu_ps((&a) + 4, _mm_blend_ps(TST1V, TST2V, 5));                                                          \
+    }
+#else
+*/
 #define STC2VFU(a, v)                                                                                                  \
     {                                                                                                                  \
         __m128 TST1V = _mm_loadu_ps(&a);                                                                               \
@@ -3567,7 +3568,7 @@ extern "C"
 
         constexpr float d65_white[3] = {0.950456f, 1.f, 1.088754f};
 
-        double progress = 0.0;
+        // double progress = 0.0;
 
         // if (plistener) {
         //     plistener->setProgressStr (Glib::ustring::compose(M("TP_RAW_DMETHOD_PROGRESSBAR"), M("TP_RAW_AHD")));
@@ -3595,11 +3596,11 @@ extern "C"
 #pragma omp parallel
 #endif
         {
-            int    progresscounter = 0;
-            float* buffer          = new float[13 * TS * TS]; /* 1053 kB per core */
-            auto   rgb             = (float(*)[TS][TS][3])buffer;
-            auto   lab             = (float(*)[TS][TS][3])(buffer + 6 * TS * TS);
-            auto   homo            = (uint16_t(*)[TS][TS])(buffer + 12 * TS * TS);
+            // int    progresscounter = 0;
+            float* buffer = new float[13 * TS * TS]; /* 1053 kB per core */
+            auto   rgb    = (float(*)[TS][TS][3])buffer;
+            auto   lab    = (float(*)[TS][TS][3])(buffer + 6 * TS * TS);
+            auto   homo   = (uint16_t(*)[TS][TS])(buffer + 12 * TS * TS);
 
 #ifdef _OPENMP
             #pragma omp for collapse(2) schedule(dynamic) nowait
@@ -3803,7 +3804,7 @@ extern "C"
 #pragma omp parallel
 #endif
         {
-            int    progresscounter           = 0;
+            // int    progresscounter           = 0;
             float* cfa                       = (float*)calloc(tileSize * tileSize, sizeof *cfa);
             float(*rgb)[tileSize * tileSize] = (float(*)[tileSize * tileSize]) malloc(3 * sizeof *rgb);
             float* VH_Dir                    = (float*)calloc(tileSize * tileSize, sizeof *VH_Dir);

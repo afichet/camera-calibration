@@ -2,6 +2,7 @@
 #define IMAGERGB_H_
 
 #include <stddef.h>
+#include <stdint.h>
 
 #ifdef HAS_TIFF
 #    include <tiff.h>
@@ -57,7 +58,7 @@ extern "C"
      *
      * @returns 0 if sucessfull
      */
-    int write_tiff(const char* filename, const float* pixels, uint32 width, uint32 height, uint16 bps);
+    int write_tiff(const char* filename, const float* pixels, uint32_t width, uint32_t height, uint16_t bps);
 
     /**
      * Writes a TIFF image file. Pixels are expected to be within 0..1.
@@ -77,9 +78,9 @@ extern "C"
       const float* pixels_red,
       const float* pixels_green,
       const float* pixels_blue,
-      uint32       width,
-      uint32       height,
-      uint16       bps);
+      uint32_t     width,
+      uint32_t     height,
+      uint16_t     bps);
 #endif   // HAS_TIFF
 
     /**
