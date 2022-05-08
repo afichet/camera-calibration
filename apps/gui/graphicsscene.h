@@ -5,20 +5,20 @@
 
 class GraphicsScene: public QGraphicsScene
 {
-  Q_OBJECT
-public:
-  virtual ~GraphicsScene();
+    Q_OBJECT
+  public:
+    virtual ~GraphicsScene();
 
-  GraphicsScene(QObject *parent = 0);
+    GraphicsScene(QObject* parent = 0);
 
-  void dragEnterEvent(QGraphicsSceneDragDropEvent *event);
+    void dragEnterEvent(QGraphicsSceneDragDropEvent* event);
 
-  void dragMoveEvent(QGraphicsSceneDragDropEvent *event);
+    void dragMoveEvent(QGraphicsSceneDragDropEvent* event);
 
-  void dropEvent(QGraphicsSceneDragDropEvent *event);
+    void dropEvent(QGraphicsSceneDragDropEvent* event);
 
-signals:
-  void openFileOnDropEvent(QString);
+  signals:
+    void openFileOnDropEvent(QString);
 };
 
 #endif   // GRAPHICSSCENE_H
