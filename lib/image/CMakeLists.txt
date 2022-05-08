@@ -4,6 +4,7 @@ set(PUBLIC_HEADERS
     include/image.h
     include/imagergb.h
     include/imageraw.h
+    include/imagedng.h
     include/imageprocessing.h
     include/demosaic.h
     )
@@ -12,6 +13,7 @@ add_library(image STATIC
     image.cpp
     imagergb.cpp
     imageraw.cpp
+    imagedng.cpp
     imageprocessing.cpp
     demosaic.cpp
     )

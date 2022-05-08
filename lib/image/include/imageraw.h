@@ -2,6 +2,7 @@
 #define IMAGERAW_H_
 
 #include <stddef.h>
+#include <stdint.h>
 #include <demosaicing.h>
 
 #ifdef __cplusplus
@@ -21,8 +22,7 @@ extern "C"
     } RAWMetadata;
 
     int read_raw_metadata(const char* filename, RAWMetadata* metadata);
-    int
-    read_raw_file(const char* filename, float** bayered_pixels, size_t* width, size_t* height, unsigned int* filters);
+    int read_raw_file(const char* filename, float** bayered_pixels, size_t* width, size_t* height, uint32_t* filters);
     int read_dat(const char* filename, float** bayered_pixels, size_t* width, size_t* height, size_t bit_depth);
 
     int read_raw(const char* filename, float** pixels, size_t* width, size_t* height, RAWDemosaicMethod method);

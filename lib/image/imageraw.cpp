@@ -88,8 +88,7 @@ extern "C"
         return 0;
     }
 
-    int
-    read_raw_file(const char* filename, float** bayered_pixels, size_t* width, size_t* height, unsigned int* filters)
+    int read_raw_file(const char* filename, float** bayered_pixels, size_t* width, size_t* height, uint32_t* filters)
     {
         RAWMetadata metadata;
         metadata.bayerPattern   = NULL;

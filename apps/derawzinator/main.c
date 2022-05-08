@@ -1,6 +1,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
 
 #include <image.h>
 #include <demosaicing.h>
@@ -27,8 +28,8 @@ int main(int argc, char* argv[])
     const char* filename_in  = argv[1];
     const char* filename_out = argv[2];
 
-    unsigned int filters;
-    size_t       width, height;
+    uint32_t filters;
+    size_t   width, height;
 
     float* bayered_pixels = NULL;
     float* image_r        = NULL;

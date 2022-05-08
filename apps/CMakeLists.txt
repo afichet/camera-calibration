@@ -11,7 +11,7 @@ add_subdirectory(correct-patches)
 add_subdirectory(correct-image)
 
 add_subdirectory(advanced-fit)
-
+add_subdirectory(raw-to-dng)
 
 find_package(QT NAMES Qt6 Qt5 COMPONENTS Widgets QUIET)
 find_package(OpenCV COMPONENTS core imgproc QUIET)

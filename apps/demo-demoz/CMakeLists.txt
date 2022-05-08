@@ -8,7 +8,7 @@ cmake_minimum_required(VERSION 3.5)
 
 add_executable(demo-demoz main.cpp)
 
-target_link_libraries(demo-demoz PUBLIC colors image)
+target_link_libraries(demo-demoz PRIVATE colors image)
 
 find_package(OpenMP)
 
