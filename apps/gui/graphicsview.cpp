@@ -224,7 +224,7 @@ void GraphicsView::mousePressEvent(QMouseEvent* event)
 
         _model->setOutlinePosition(_selectedIdx, selection);
     } else if (
-      (event->button() == Qt::MidButton)
+      (event->button() == Qt::MiddleButton)
       || (event->button() == Qt::LeftButton && QGuiApplication::keyboardModifiers() == Qt::ControlModifier)) {
         QGraphicsView::mousePressEvent(event);
         setCursor(Qt::ClosedHandCursor);
@@ -241,7 +241,7 @@ void GraphicsView::mouseMoveEvent(QMouseEvent* event)
     if (_inSelection) {
         _model->setOutlinePosition(_selectedIdx, mapToScene(event->pos()));
     } else if (
-      ((event->buttons() & Qt::MidButton) != 0U)
+      ((event->buttons() & Qt::MiddleButton) != 0U)
       || (((event->buttons() & Qt::LeftButton) != 0U) && QGuiApplication::keyboardModifiers() == Qt::ControlModifier)) {
         QScrollBar*         hBar  = horizontalScrollBar();
         QScrollBar*         vBar  = verticalScrollBar();
