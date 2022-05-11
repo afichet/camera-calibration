@@ -43,6 +43,8 @@ find_package(OpenMP)
 find_package(OpenCV REQUIRED core imgproc)
 #set(TS_FILES macbeth-detect_fr_FR.ts)
 
+qt_add_resources(resource_RCC resource.qrc theme/theme.qrc)
+
 set(SOURCES
     main.cpp
     mainwindow.cpp
@@ -53,8 +55,7 @@ set(SOURCES
     graphicsview.cpp
     graphicsview.h
     graphicsscene.cpp
-    graphicsscene.h
-    theme/theme.qrc
+    graphicsscene.h    
 
     fittingdialog.cpp
     fittingdialog.h
@@ -75,7 +76,7 @@ set(SOURCES
     radiometry.h
 
     resource.rc
-    resource.qrc
+    ${resource_RCC}
     #${TS_FILES}
     )
 
