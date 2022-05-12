@@ -37,11 +37,13 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 #find_package(QT NAMES Qt6 Qt5 COMPONENTS Widgets LinguistTools REQUIRED)
 #find_package(Qt${QT_VERSION_MAJOR} COMPONENTS Widgets LinguistTools REQUIRED)
 
-find_package(QT NAMES Qt6 Qt5 COMPONENTS Widgets Concurrent REQUIRED)
+find_package(QT NAMES Qt6 COMPONENTS Widgets Concurrent REQUIRED)
 find_package(Qt${QT_VERSION_MAJOR} COMPONENTS Widgets Concurrent REQUIRED)
 find_package(OpenMP)
 find_package(OpenCV REQUIRED core imgproc)
 #set(TS_FILES macbeth-detect_fr_FR.ts)
+
+qt_add_resources(resource_RCC resource.qrc theme/theme.qrc)
 
 set(SOURCES
     main.cpp
@@ -53,8 +55,7 @@ set(SOURCES
     graphicsview.cpp
     graphicsview.h
     graphicsscene.cpp
-    graphicsscene.h
-    theme/theme.qrc
+    graphicsscene.h    
 
     fittingdialog.cpp
     fittingdialog.h
@@ -75,7 +76,7 @@ set(SOURCES
     radiometry.h
 
     resource.rc
-    resource.qrc
+    ${resource_RCC}
     #${TS_FILES}
     )
 
@@ -84,6 +85,8 @@ if (WIN32)
     add_definitions(-DWIN32NOCONSOLE)
 elseif (CMAKE_HOST_APPLE)
     add_executable(Colourotron MACOSX_BUNDLE ${SOURCES})
+    set_target_properties(Colourotron PROPERTIES MACOSX_BUNDLE ON )
+
 else()
     add_executable(Colourotron ${SOURCES})
 endif()
@@ -106,7 +109,7 @@ target_link_libraries(Colourotron PRIVATE Qt${QT_VERSION_MAJOR}::Widgets Qt${QT_
 
 # From ManaoExplorer
 if (APPLE)
-    set(CMAKE_OSX_DEPLOYMENT_TARGET 10.9)
+    set(CMAKE_OSX_DEPLOYMENT_TARGET 10.15)
     #qt5_add_resources(RESOURCE_FILES resource.qrc)
     # use, i.e. don't skip the full RPATH for the build tree
     set(CMAKE_SKIP_BUILD_RPATH  FALSE)

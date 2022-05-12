@@ -1,5 +1,7 @@
 find_package(TIFF)
 
+set(CXX_STANDARD 11)
+
 set(PUBLIC_HEADERS
     include/image.h
     include/imagergb.h

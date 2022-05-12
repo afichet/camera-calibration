@@ -1,9 +1,17 @@
 <RCC>
     <qresource prefix="/">
+        <file>icons/folder.svg</file>
+        <file>icons/grid.svg</file>
+        <file>icons/x.svg</file>
+        <file>icons/save.svg</file>
+        <file>icons/zoom-in.svg</file>
+        <file>icons/zoom-out.svg</file>
         <file>icons/spectral_viewer.png</file>
         <file>icons/spectral_viewer.ico</file>
+        <file>icons/Colourotron.ico</file>
+        <file>icons/Colourotron.png</file>
+
         <file>icons/file.svg</file>
-        <file>icons/folder.svg</file>
         <file>icons/activity.svg</file>
         <file>icons/airplay.svg</file>
         <file>icons/alert-circle.svg</file>
@@ -123,7 +131,6 @@
         <file>icons/git-merge.svg</file>
         <file>icons/git-pull-request.svg</file>
         <file>icons/globe.svg</file>
-        <file>icons/grid.svg</file>
         <file>icons/hard-drive.svg</file>
         <file>icons/hash.svg</file>
         <file>icons/headphones.svg</file>
@@ -204,7 +211,6 @@
         <file>icons/rotate-ccw.svg</file>
         <file>icons/rotate-cw.svg</file>
         <file>icons/rss.svg</file>
-        <file>icons/save.svg</file>
         <file>icons/scissors.svg</file>
         <file>icons/search.svg</file>
         <file>icons/send.svg</file>
@@ -276,16 +282,11 @@
         <file>icons/wifi.svg</file>
         <file>icons/wifi-off.svg</file>
         <file>icons/wind.svg</file>
-        <file>icons/x.svg</file>
         <file>icons/x-circle.svg</file>
         <file>icons/x-octagon.svg</file>
         <file>icons/x-square.svg</file>
         <file>icons/youtube.svg</file>
         <file>icons/zap.svg</file>
-        <file>icons/zap-off.svg</file>
-        <file>icons/zoom-in.svg</file>
-        <file>icons/zoom-out.svg</file>
-        <file>icons/Colourotron.ico</file>
-        <file>icons/Colourotron.png</file>
+        <file>icons/zap-off.svg</file> 
     </qresource>
 </RCC>
